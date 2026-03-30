@@ -122,3 +122,35 @@ class TopicGapScoreResponse(BaseModel):
 class AdaptiveQuizRequest(BaseModel):
     note_id: int
     count: int = 5
+
+
+# ── Chat ──────────────────────────────────────────────────────────────────────
+
+class ChatSendRequest(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+    note_id: Optional[int] = None
+    question_id: Optional[int] = None
+
+
+class ChatSendResponse(BaseModel):
+    session_id: str
+    response: str
+    role: str = "assistant"
+
+
+class ChatMessageResponse(BaseModel):
+    id: int
+    role: str
+    content: str
+    session_id: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChatSessionPreview(BaseModel):
+    session_id: str
+    preview: str      # first message content, truncated
+    started_at: datetime
+    message_count: int

@@ -84,4 +84,17 @@ export const api = {
    * @returns {Promise<Array>}
    */
   generateAdaptiveQuiz: (data) => req('POST', '/quiz/generate-adaptive', data),
+
+  // ── Chat ────────────────────────────────────────────────────────────────────
+  /**
+   * @param {{ message: string, session_id?: string, note_id?: number, question_id?: number }} data
+   * @returns {Promise<{ session_id: string, response: string, role: string }>}
+   */
+  chatSend: (data) => req('POST', '/chat/send', data),
+
+  /**
+   * @param {string} sessionId
+   * @returns {Promise<Array<{ id, role, content, session_id, created_at }>>}
+   */
+  chatHistory: (sessionId) => req('GET', `/chat/history/${sessionId}`),
 }

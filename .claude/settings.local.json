@@ -8,7 +8,8 @@
       "Bash(npm install:*)",
       "Bash(npx vite:*)",
       "Bash(npm run:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(node -e \"require\\(''./node_modules/react-markdown/package.json''\\); console.log\\(''ok'', require\\(''./node_modules/react-markdown/package.json''\\).version\\)\")"
     ]
   }
 }

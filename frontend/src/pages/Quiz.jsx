@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -40,6 +41,7 @@ function optionStyle(key, selectedAnswer, result) {
 const PHASES = { CONFIGURE: 'configure', GENERATING: 'generating', ACTIVE: 'active', SUMMARY: 'summary' }
 
 export default function Quiz() {
+  const navigate = useNavigate()
   const [phase, setPhase] = useState(PHASES.CONFIGURE)
   const [notes, setNotes] = useState([])
   const [mode, setMode] = useState('standard') // 'standard' | 'adaptive'
@@ -289,6 +291,22 @@ export default function Quiz() {
             </div>
             {currentResult.explanation && (
               <p className="text-xs text-slate-400 leading-relaxed">{currentResult.explanation}</p>
+            )}
+            {!currentResult.is_correct && (
+              <button
+                className="mt-3 flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                onClick={() =>
+                  navigate(
+                    `/chat?question_id=${question.id}&q=${encodeURIComponent(question.content)}`
+                  )
+                }
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M8 2a5.5 5.5 0 100 11A5.5 5.5 0 008 2z" />
+                  <path d="M8 5v3l1.8 1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Ask Tutor About This
+              </button>
             )}
           </div>
         )}

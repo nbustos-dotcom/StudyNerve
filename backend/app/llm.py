@@ -190,3 +190,36 @@ async def evaluate_answer(
         "Evaluate whether the student's answer is correct."
     )
     return await generate_json(prompt, ANSWER_EVALUATION_SYSTEM)
+
+
+async def generate_chat(messages: list[dict], system: str) -> Optional[str]:
+    """
+    POST to Ollama /api/chat with conversation history.
+    Does NOT use JSON mode — returns the assistant's plain text reply.
+
+    `messages` is a list of {"role": "user"|"assistant", "content": "..."} dicts
+    in chronological order. The system prompt is prepended automatically.
+    """
+    client = get_client()
+    payload = {
+        "model": settings.OLLAMA_MODEL,
+        "messages": [{"role": "system", "content": system}] + messages,
+        "stream": False,
+        "options": {
+            "temperature": 0.7,
+            "num_predict": 1024,
+        },
+    }
+    try:
+        response = await client.post("/api/chat", json=payload)
+        response.raise_for_status()
+        return response.json()["message"]["content"]
+    except httpx.ConnectError:
+        logger.error("Ollama unreachable at %s", settings.OLLAMA_BASE_URL)
+        return None
+    except httpx.HTTPStatusError as exc:
+        logger.error("Ollama HTTP error: %s", exc)
+        return None
+    except (KeyError, ValueError) as exc:
+        logger.error("Chat response parse error: %s", exc)
+        return None

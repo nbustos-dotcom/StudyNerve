@@ -6,7 +6,9 @@
       "Bash(uvicorn --version)",
       "Bash(python -m pip install -r requirements.txt)",
       "Bash(npm install:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(npm run:*)",
+      "Bash(grep:*)"
     ]
   }
 }

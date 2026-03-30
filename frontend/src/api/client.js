@@ -73,4 +73,15 @@ export const api = {
    * @returns {Promise<Array<{ topic_id, topic_name, total_attempts, correct_attempts, accuracy }>>}
    */
   getTopicStats: () => req('GET', '/quiz/stats/topics'),
+
+  /**
+   * @returns {Promise<Array<{ topic_id, topic_name, note_id, total_attempts, accuracy, recency_weight, frequency_factor, gap_score }>>}
+   */
+  getGaps: () => req('GET', '/quiz/gaps'),
+
+  /**
+   * @param {{ note_id: number, count: number }} data
+   * @returns {Promise<Array>}
+   */
+  generateAdaptiveQuiz: (data) => req('POST', '/quiz/generate-adaptive', data),
 }

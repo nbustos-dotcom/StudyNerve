@@ -42,6 +42,7 @@ const PHASES = { CONFIGURE: 'configure', GENERATING: 'generating', ACTIVE: 'acti
 export default function Quiz() {
   const [phase, setPhase] = useState(PHASES.CONFIGURE)
   const [notes, setNotes] = useState([])
+  const [mode, setMode] = useState('standard') // 'standard' | 'adaptive'
   const [config, setConfig] = useState({
     note_id: '',
     num_questions: 5,
@@ -83,14 +84,15 @@ export default function Quiz() {
     setPhase(PHASES.GENERATING)
 
     try {
-      const [qs, session] = await Promise.all([
-        api.generateQuiz({
-          note_id: Number(config.note_id),
-          num_questions: config.num_questions,
-          question_types: config.question_types,
-        }),
-        api.startSession(),
-      ])
+      const quizPromise = mode === 'adaptive'
+        ? api.generateAdaptiveQuiz({ note_id: Number(config.note_id), count: config.num_questions })
+        : api.generateQuiz({
+            note_id: Number(config.note_id),
+            num_questions: config.num_questions,
+            question_types: config.question_types,
+          })
+
+      const [qs, session] = await Promise.all([quizPromise, api.startSession()])
 
       if (!qs || qs.length === 0) throw new Error('No questions were generated')
 
@@ -170,6 +172,8 @@ export default function Quiz() {
       toggleType={toggleType}
       onGenerate={handleGenerate}
       error={generateError}
+      mode={mode}
+      setMode={setMode}
     />
   }
 
@@ -348,8 +352,8 @@ export default function Quiz() {
 
 // ── Configure view ────────────────────────────────────────────────────────────
 
-function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error }) {
-  const canGenerate = config.note_id && config.question_types.length > 0
+function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error, mode, setMode }) {
+  const canGenerate = config.note_id && (mode === 'adaptive' || config.question_types.length > 0)
 
   return (
     <div className="p-8 max-w-xl mx-auto">
@@ -357,6 +361,37 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
         <h1 className="text-xl font-semibold text-slate-100">Quiz</h1>
         <p className="text-sm text-slate-500 mt-1">Generate questions from your notes with AI</p>
       </div>
+
+      {/* Mode toggle */}
+      <div className="card p-1.5 flex gap-1 mb-4">
+        {[
+          { id: 'standard', label: 'Standard Quiz' },
+          { id: 'adaptive', label: 'Adaptive Quiz' },
+        ].map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => setMode(id)}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === id
+                ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
+                : 'text-slate-500 hover:text-slate-300 border border-transparent'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'adaptive' && (
+        <div className="flex items-start gap-2 mb-4 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+          <svg className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 3a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 018 4zm0 8a1 1 0 110-2 1 1 0 010 2z" />
+          </svg>
+          <p className="text-xs text-amber-400/80">
+            Focuses on your weakest topics based on past performance. Falls back to standard if no attempt history exists.
+          </p>
+        </div>
+      )}
 
       <div className="card p-6 space-y-6">
         <div>
@@ -395,30 +430,32 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
           </div>
         </div>
 
-        <div>
-          <label className="label">Question types</label>
-          <div className="flex gap-2">
-            {[
-              { id: 'mcq', label: 'Multiple choice' },
-              { id: 'short_answer', label: 'Short answer' },
-            ].map(({ id, label }) => {
-              const active = config.question_types.includes(id)
-              return (
-                <button
-                  key={id}
-                  onClick={() => toggleType(id)}
-                  className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${
-                    active
-                      ? 'bg-indigo-500/15 border-indigo-500/50 text-indigo-300'
-                      : 'border-[#1e1e2e] text-slate-400 hover:border-slate-500 hover:text-slate-200'
-                  }`}
-                >
-                  {label}
-                </button>
-              )
-            })}
+        {mode === 'standard' && (
+          <div>
+            <label className="label">Question types</label>
+            <div className="flex gap-2">
+              {[
+                { id: 'mcq', label: 'Multiple choice' },
+                { id: 'short_answer', label: 'Short answer' },
+              ].map(({ id, label }) => {
+                const active = config.question_types.includes(id)
+                return (
+                  <button
+                    key={id}
+                    onClick={() => toggleType(id)}
+                    className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${
+                      active
+                        ? 'bg-indigo-500/15 border-indigo-500/50 text-indigo-300'
+                        : 'border-[#1e1e2e] text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {error && (
           <div className="text-sm text-red-400 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
@@ -427,7 +464,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
         )}
 
         <button className="btn-primary w-full py-2.5" disabled={!canGenerate} onClick={onGenerate}>
-          Generate Quiz
+          {mode === 'adaptive' ? 'Generate Adaptive Quiz' : 'Generate Quiz'}
         </button>
       </div>
     </div>

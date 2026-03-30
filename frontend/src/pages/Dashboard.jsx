@@ -31,14 +31,36 @@ function AccuracyRing({ value }) {
   )
 }
 
+function WeakAreaCard({ topic }) {
+  const pct = Math.round(topic.accuracy * 100)
+  const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
+  const textColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
+  return (
+    <div className="card p-4">
+      <div className="flex justify-between items-start mb-2">
+        <p className="text-sm text-slate-200 font-medium truncate max-w-[70%]">{topic.topic_name}</p>
+        <span className={`text-sm font-semibold tabular-nums ${textColor}`}>{pct}%</span>
+      </div>
+      <div className="h-1.5 bg-[#1e1e2e] rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs text-slate-600 mt-2">{topic.total_attempts} attempt{topic.total_attempts !== 1 ? 's' : ''}</p>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState(null)
+  const [gaps, setGaps] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    api.getOverviewStats()
-      .then(setStats)
+    Promise.all([
+      api.getOverviewStats(),
+      api.getGaps().catch(() => []),
+    ])
+      .then(([s, g]) => { setStats(s); setGaps(g) })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
@@ -69,6 +91,27 @@ export default function Dashboard() {
             <StatCard label="Questions" value={stats.total_questions} sub="generated" />
             <StatCard label="Attempts" value={stats.total_attempts} sub="answered" />
             <AccuracyRing value={stats.overall_accuracy} />
+          </div>
+
+          {/* Weak Areas */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-medium text-slate-300">Weak Areas</h2>
+              {gaps && gaps.length > 0 && (
+                <span className="text-xs text-slate-600">ranked by gap score</span>
+              )}
+            </div>
+            {!gaps || gaps.length === 0 ? (
+              <div className="card p-6 text-center text-slate-500 text-sm">
+                Take some quizzes to see your weak areas.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {gaps.slice(0, 5).map((g) => (
+                  <WeakAreaCard key={g.topic_id} topic={g} />
+                ))}
+              </div>
+            )}
           </div>
 
           {stats.topic_accuracies.length > 0 && (

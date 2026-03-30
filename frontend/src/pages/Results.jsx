@@ -30,14 +30,18 @@ function AccuracyBar({ value }) {
 
 export default function Results() {
   const [topics, setTopics] = useState([])
+  const [gaps, setGaps] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [sortBy, setSortBy] = useState('accuracy') // 'accuracy' | 'attempts' | 'name'
   const [sortDir, setSortDir] = useState('desc')
 
   useEffect(() => {
-    api.getTopicStats()
-      .then(setTopics)
+    Promise.all([
+      api.getTopicStats(),
+      api.getGaps().catch(() => []),
+    ])
+      .then(([t, g]) => { setTopics(t); setGaps(g) })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
@@ -72,7 +76,7 @@ export default function Results() {
     <div className="p-8 max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Results</h1>
-        <p className="text-sm text-slate-500 mt-1">Per-topic accuracy from all your quiz attempts</p>
+        <p className="text-sm text-slate-500 mt-1">Per-topic accuracy and weak areas from your quiz attempts</p>
       </div>
 
       {loading && (
@@ -90,6 +94,32 @@ export default function Results() {
       {!loading && !error && topics.length === 0 && (
         <div className="text-center py-20 text-slate-500 text-sm">
           No attempts yet. Complete a quiz to see your results here.
+        </div>
+      )}
+
+      {/* Weak Areas */}
+      {gaps.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-sm font-medium text-slate-300 mb-3">Weak Areas</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {gaps.slice(0, 5).map((g) => {
+              const pct = Math.round(g.accuracy * 100)
+              const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
+              const textColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
+              return (
+                <div key={g.topic_id} className="card p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <p className="text-sm text-slate-200 font-medium truncate max-w-[70%]">{g.topic_name}</p>
+                    <span className={`text-sm font-semibold tabular-nums ${textColor}`}>{pct}%</span>
+                  </div>
+                  <div className="h-1.5 bg-[#1e1e2e] rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="text-xs text-slate-600 mt-2">{g.total_attempts} attempt{g.total_attempts !== 1 ? 's' : ''}</p>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

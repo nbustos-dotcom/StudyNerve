@@ -104,3 +104,21 @@ class OverviewStats(BaseModel):
     total_attempts: int
     overall_accuracy: float
     topic_accuracies: list[TopicAccuracy]
+
+
+# ── Gap detection ─────────────────────────────────────────────────────────────
+
+class TopicGapScoreResponse(BaseModel):
+    topic_id: int
+    topic_name: str
+    note_id: int
+    total_attempts: int
+    accuracy: float
+    recency_weight: float
+    frequency_factor: float
+    gap_score: float
+
+
+class AdaptiveQuizRequest(BaseModel):
+    note_id: int
+    count: int = 5

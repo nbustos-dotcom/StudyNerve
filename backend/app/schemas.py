@@ -1,0 +1,106 @@
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
+
+
+# ── Notes ────────────────────────────────────────────────────────────────────
+
+class NoteCreate(BaseModel):
+    title: str
+    content: str
+    subject: Optional[str] = None
+
+
+class NoteResponse(BaseModel):
+    id: int
+    title: str
+    content: str
+    subject: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Topics ───────────────────────────────────────────────────────────────────
+
+class TopicResponse(BaseModel):
+    id: int
+    name: str
+    subject: Optional[str]
+    note_id: int
+    parent_topic_id: Optional[int]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Questions ────────────────────────────────────────────────────────────────
+
+class QuizGenerateRequest(BaseModel):
+    note_id: int
+    num_questions: int = 5
+    difficulty: Optional[int] = None  # 1-5; None means mixed
+    question_types: list[str] = ["mcq", "short_answer"]
+
+
+class QuestionResponse(BaseModel):
+    id: int
+    topic_id: int
+    note_id: int
+    type: str
+    content: str
+    options: Optional[str]  # JSON string
+    correct_answer: str
+    explanation: Optional[str]
+    difficulty: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Attempts ─────────────────────────────────────────────────────────────────
+
+class AnswerSubmit(BaseModel):
+    question_id: int
+    user_answer: str
+    time_taken_seconds: Optional[int] = None
+
+
+class AnswerResult(BaseModel):
+    is_correct: bool
+    correct_answer: str
+    explanation: Optional[str]
+    attempt_id: int
+
+
+# ── Sessions ─────────────────────────────────────────────────────────────────
+
+class SessionResponse(BaseModel):
+    id: int
+    started_at: datetime
+    ended_at: Optional[datetime]
+    total_questions: int
+    correct_answers: int
+    topics_json: Optional[str]
+
+    model_config = {"from_attributes": True}
+
+
+# ── Stats ────────────────────────────────────────────────────────────────────
+
+class TopicAccuracy(BaseModel):
+    topic_id: int
+    topic_name: str
+    total_attempts: int
+    correct_attempts: int
+    accuracy: float  # 0.0 – 1.0
+
+
+class OverviewStats(BaseModel):
+    total_notes: int
+    total_questions: int
+    total_attempts: int
+    overall_accuracy: float
+    topic_accuracies: list[TopicAccuracy]

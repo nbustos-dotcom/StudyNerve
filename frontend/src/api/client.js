@@ -108,4 +108,31 @@ export const api = {
    * @param {string} sessionId
    */
   endChatSession: (sessionId) => req('POST', `/chat/sessions/${sessionId}/end`),
+
+  // ── Canvas ──────────────────────────────────────────────────────────────────
+  /** @returns {Promise<{ connected: boolean, courses_visible?: number, reason?: string }>} */
+  canvasStatus: () => req('GET', '/canvas/status'),
+
+  /** @returns {Promise<Array<{ id, name, code }>>} */
+  canvasCourses: () => req('GET', '/canvas/courses'),
+
+  /** @param {number} courseId */
+  canvasAssignments: (courseId) => req('GET', `/canvas/courses/${courseId}/assignments`),
+
+  /** @param {number} days */
+  canvasUpcoming: (days = 14) => req('GET', `/canvas/upcoming?days=${days}`),
+
+  /**
+   * Import one assignment as a note.
+   * @param {number} assignmentId
+   * @param {number} courseId
+   */
+  canvasImport: (assignmentId, courseId) =>
+    req('POST', `/canvas/import/${assignmentId}?course_id=${courseId}`),
+
+  /** Bulk sync all courses */
+  canvasSync: () => req('POST', '/canvas/sync'),
+
+  /** @param {{ canvas_url: string, canvas_token: string }} data */
+  canvasSaveSettings: (data) => req('POST', '/canvas/settings', data),
 }

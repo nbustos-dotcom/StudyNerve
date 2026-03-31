@@ -1,8 +1,16 @@
 import os
 from pathlib import Path
 
-_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+from dotenv import load_dotenv
+
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+_DATA_DIR = _BACKEND_DIR / "data"
+_ENV_FILE = _BACKEND_DIR / ".env"
 _DEFAULT_DB_URL = "sqlite+aiosqlite:///" + str(_DATA_DIR / "ai_teacher.db")
+
+# Load .env from the backend directory (Canvas token lives here).
+# override=False so explicit env vars (e.g. in prod) still win.
+load_dotenv(_ENV_FILE, override=False)
 
 
 class Settings:
@@ -10,6 +18,8 @@ class Settings:
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
     MAX_LLM_RETRIES: int = int(os.getenv("MAX_LLM_RETRIES", "3"))
+    CANVAS_API_URL: str = os.getenv("CANVAS_API_URL", "https://mtu.instructure.com/api/v1")
+    CANVAS_API_TOKEN: str = os.getenv("CANVAS_API_TOKEN", "")
 
 
 settings = Settings()

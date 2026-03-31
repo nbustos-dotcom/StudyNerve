@@ -6,6 +6,7 @@ const NAV = [
   { to: '/quiz',       label: 'Quiz'                },
   { to: '/chat',       label: 'Tutor'               },
   { to: '/results',    label: 'Results'             },
+  { to: '/canvas',     label: 'Canvas'              },
 ]
 
 const navbarStyle = {

@@ -2,6 +2,122 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 
+// ── Due-date helpers (shared with Canvas page) ────────────────────────────────
+
+function dueUrgency(iso) {
+  if (!iso) return 'none'
+  const diff = new Date(iso).getTime() - Date.now()
+  if (diff < 0) return 'past'
+  const days = diff / 86400000
+  if (days < 2) return 'critical'
+  if (days < 7) return 'warning'
+  return 'normal'
+}
+
+function formatDueShort(iso) {
+  if (!iso) return null
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+const DUE_COLORS = {
+  critical: 'text-red-400',
+  warning:  'text-amber-400',
+  past:     'text-slate-600',
+  normal:   'text-slate-400',
+  none:     'text-slate-500',
+}
+
+// ── Upcoming Deadlines widget ─────────────────────────────────────────────────
+
+function UpcomingDeadlines() {
+  const [items, setItems] = useState(null)    // null = loading, [] = empty / not connected
+  const [connected, setConnected] = useState(null)
+
+  useEffect(() => {
+    api.canvasStatus()
+      .then((s) => {
+        setConnected(s.connected)
+        if (s.connected) {
+          return api.canvasUpcoming(14).then(setItems)
+        } else {
+          setItems([])
+        }
+      })
+      .catch(() => { setConnected(false); setItems([]) })
+  }, [])
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-medium text-slate-300">Upcoming Deadlines</h2>
+        {connected && items?.length > 0 && (
+          <Link to="/canvas" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">
+            View Canvas →
+          </Link>
+        )}
+      </div>
+
+      {items === null && (
+        <div className="card p-4 flex items-center gap-2 text-slate-500 text-sm">
+          <svg className="animate-spin w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+          Loading deadlines…
+        </div>
+      )}
+
+      {items !== null && !connected && (
+        <div className="card p-5 flex items-center justify-between">
+          <p className="text-sm text-slate-500">Connect Canvas to see your upcoming deadlines.</p>
+          <Link to="/canvas" className="btn-secondary text-xs ml-4 flex-shrink-0">
+            Connect Canvas
+          </Link>
+        </div>
+      )}
+
+      {items !== null && connected && items.length === 0 && (
+        <div className="card p-5 text-center text-sm text-slate-500">
+          Nothing due in the next 14 days.
+        </div>
+      )}
+
+      {items !== null && connected && items.length > 0 && (
+        <div className="card divide-y divide-white/[0.04]">
+          {items.slice(0, 5).map((a) => {
+            const urgency = dueUrgency(a.due_at)
+            return (
+              <div key={`${a.id}-${a.course_id}`} className="flex items-center gap-3 px-4 py-3">
+                <div
+                  className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${
+                    urgency === 'critical' ? 'bg-red-400' : urgency === 'warning' ? 'bg-amber-400' : 'bg-slate-600'
+                  }`}
+                  style={{
+                    boxShadow:
+                      urgency === 'critical' ? '0 0 6px rgba(248,113,113,0.6)'
+                      : urgency === 'warning' ? '0 0 5px rgba(251,191,36,0.5)'
+                      : 'none',
+                  }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-200 truncate">{a.name}</p>
+                  {a.course_name && (
+                    <p className="text-[11px] text-slate-600 truncate mt-0.5">{a.course_name}</p>
+                  )}
+                </div>
+                <span className={`text-xs flex-shrink-0 tabular-nums ${DUE_COLORS[urgency]}`}>
+                  {formatDueShort(a.due_at)}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function StatCard({ label, value, sub, accent }) {
   return (
     <div className="card p-6">
@@ -113,6 +229,9 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          {/* Upcoming Deadlines — Canvas integration */}
+          <UpcomingDeadlines />
 
           {stats.topic_accuracies.length > 0 && (
             <div className="card p-6">

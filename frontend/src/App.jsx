@@ -5,7 +5,6 @@ import Dashboard from './pages/Dashboard'
 import Notes from './pages/Notes'
 import Quiz from './pages/Quiz'
 import Results from './pages/Results'
-
 export default function App() {
   return (
     <Routes>

@@ -154,3 +154,44 @@ class ChatSessionPreview(BaseModel):
     preview: str      # first message content, truncated
     started_at: datetime
     message_count: int
+
+
+# ── Learning profile ──────────────────────────────────────────────────────────
+
+class LearningStyleResponse(BaseModel):
+    style: str          # "visual" | "step-by-step" | "example-led" | "conceptual"
+    pace: str           # "fast" | "moderate" | "thorough"
+    detail_level: str   # "concise" | "balanced" | "detailed"
+    confidence_note: str
+    data_points: int
+
+
+# ── Teach Back ────────────────────────────────────────────────────────────────
+
+class TeachBackRequest(BaseModel):
+    topic_id: Optional[int] = None
+    topic_name: Optional[str] = None
+    note_id: Optional[int] = None
+
+
+class TeachBackPromptResponse(BaseModel):
+    topic_name: str
+    question_id: int
+    prompt: str
+
+
+class EvaluateTeachingRequest(BaseModel):
+    topic_name: str
+    student_explanation: str
+    note_id: Optional[int] = None
+    question_id: Optional[int] = None
+
+
+class TeachingEvaluationResponse(BaseModel):
+    score: int
+    covered: list[str]
+    missed: list[str]
+    incorrect: list[str]
+    feedback: str
+    attempt_id: int
+    is_correct: bool  # score >= 7

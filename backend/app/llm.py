@@ -69,6 +69,23 @@ Return ONLY valid JSON in this exact structure:
 Be lenient with wording — mark correct if the student demonstrates understanding of the concept,
 even if not word-for-word. For MCQ, only mark correct if the letter or text matches exactly."""
 
+TEACH_BACK_EVALUATION_SYSTEM = """You are an expert educator evaluating a student's understanding of a topic through their own explanation.
+Return ONLY valid JSON in this exact structure:
+{
+  "score": 7,
+  "covered": ["key concept they explained correctly", "another concept they got right"],
+  "missed": ["important concept they didn't mention", "another gap in their explanation"],
+  "incorrect": ["specific thing they stated incorrectly or that was misleading"],
+  "feedback": "Direct, specific written feedback. What they understood well. What needs work. One concrete suggestion."
+}
+Scoring: 1-3 = major gaps in understanding, 4-6 = partial grasp with notable gaps, 7-8 = solid understanding, 9-10 = excellent mastery.
+Rules:
+- Be specific in every list — name actual concepts, not vague descriptions like "some details were missing"
+- The incorrect list is ONLY for genuinely wrong or misleading statements, not omissions (those go in missed)
+- If the explanation is too short or vague to evaluate meaningfully, give score ≤ 3 and explain in feedback
+- covered and missed lists together should account for the main concepts of the topic
+- feedback should be 2-4 sentences maximum: direct, not soft"""
+
 
 # ── Core generation function ──────────────────────────────────────────────────
 
@@ -176,6 +193,24 @@ async def generate_questions(
         f"Generate exactly {count} questions about this topic. {type_instruction}"
     )
     return await generate_json(prompt, QUESTION_GENERATION_SYSTEM)
+
+
+async def evaluate_teaching(
+    topic_name: str,
+    student_explanation: str,
+    note_content: Optional[str] = None,
+) -> Optional[dict]:
+    context = ""
+    if note_content:
+        truncated = note_content[:2000]
+        context = f"\n\nReference material for this topic:\n{truncated}"
+
+    prompt = (
+        f"Topic: {topic_name}{context}\n\n"
+        f"Student's explanation:\n{student_explanation}\n\n"
+        "Evaluate this explanation against the topic and reference material."
+    )
+    return await generate_json(prompt, TEACH_BACK_EVALUATION_SYSTEM)
 
 
 async def evaluate_answer(

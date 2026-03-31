@@ -15,6 +15,7 @@ from app.schemas import (
     ChatSessionPreview,
 )
 from app.services.gap_detector import calculate_gap_scores
+from app.services.learning_style import LearningProfile, detect_learning_style
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -91,10 +92,12 @@ async def _build_system_prompt(
     note_id: int | None,
     question_id: int | None,
     style_hint: str,
+    learning_profile: LearningProfile,
 ) -> str:
     """
     Compose the Master Teacher system prompt, injecting:
-      - the student's detected communication style
+      - the student's detected communication style (from message heuristics)
+      - the student's inferred learning profile (from quiz + chat behaviour)
       - the student's top-5 weak topics (from gap scores)
       - the note's content when note_id is supplied
       - the question + correct answer when question_id is supplied
@@ -137,8 +140,44 @@ async def _build_system_prompt(
         "",
     ]
 
-    # ── Detected style ────────────────────────────────────────────────────────
+    # ── Detected communication style ─────────────────────────────────────────
     lines.append(f"## Detected student communication style: {style_hint}")
+    lines.append("")
+
+    # ── Inferred learning profile ─────────────────────────────────────────────
+    _STYLE_DESC = {
+        "visual":       "concrete, direct explanations — avoid abstraction, use clear visuals in text (tables, comparisons)",
+        "step-by-step": "numbered, sequential instructions — always break processes into ordered steps",
+        "example-led":  "examples first, then theory — lead with a real example before explaining the concept",
+        "conceptual":   "big-picture understanding — explain the WHY before the HOW",
+    }
+    _PACE_DESC = {
+        "fast":     "keep it punchy — this student picks things up quickly and doesn't need hand-holding",
+        "moderate": "steady pacing — explain fully but don't over-explain",
+        "thorough": "go deep — this student appreciates thorough explanations and takes their time",
+    }
+    _DETAIL_DESC = {
+        "concise":  "be brief — short, direct answers; expand only if asked",
+        "balanced": "balanced depth — enough detail to understand, no more",
+        "detailed": "be thorough — this student wants depth, examples, and edge cases",
+    }
+
+    style_desc = _STYLE_DESC.get(learning_profile.style, learning_profile.style)
+    pace_desc = _PACE_DESC.get(learning_profile.pace, learning_profile.pace)
+    detail_desc = _DETAIL_DESC.get(learning_profile.detail_level, learning_profile.detail_level)
+
+    lines.append("## Student Learning Profile (adapt every response to this):")
+    lines.append(
+        f"This student learns best with **{learning_profile.style}** explanations — {style_desc}."
+    )
+    lines.append(
+        f"They prefer **{learning_profile.pace}** pacing — {pace_desc}."
+    )
+    lines.append(
+        f"Detail preference: **{learning_profile.detail_level}** — {detail_desc}."
+    )
+    if learning_profile.data_points > 0:
+        lines.append(f"Behavioural note: {learning_profile.confidence_note}")
     lines.append("")
 
     # ── Weak areas ────────────────────────────────────────────────────────────
@@ -194,12 +233,17 @@ async def send_message(body: ChatSendRequest, db: AsyncSession = Depends(get_db)
     history_rows = list(reversed(history_result.scalars().all()))
     history = [{"role": m.role, "content": m.content} for m in history_rows]
 
-    # Detect communication style from recent user turns
+    # Detect communication style from recent user turns (sync, uses loaded history)
     recent_user_msgs = [m.content for m in history_rows if m.role == "user"][-5:]
     style_hint = _detect_style(recent_user_msgs)
 
+    # Infer learning profile from quiz + chat behaviour
+    learning_profile = await detect_learning_style(db)
+
     # Build context-aware system prompt
-    system = await _build_system_prompt(db, body.note_id, body.question_id, style_hint)
+    system = await _build_system_prompt(
+        db, body.note_id, body.question_id, style_hint, learning_profile
+    )
 
     # Append the new user message to history for the LLM call
     llm_messages = history + [{"role": "user", "content": body.message}]

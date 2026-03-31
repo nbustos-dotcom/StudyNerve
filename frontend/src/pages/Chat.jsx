@@ -4,22 +4,17 @@ import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 
 // ── Markdown component list for assistant bubbles ─────────────────────────────
-// Tailored to match the glass-morphism theme.
 
 const MD_COMPONENTS = {
-  // Paragraphs: tight spacing, no trailing margin on last child
   p: ({ children }) => (
     <p className="text-sm text-white/80 leading-relaxed mb-2 last:mb-0">{children}</p>
   ),
-  // Bold: white, not just slightly lighter
   strong: ({ children }) => (
     <strong className="font-semibold text-white">{children}</strong>
   ),
-  // Italics: indigo tint for emphasis
   em: ({ children }) => (
     <em className="italic text-indigo-200/90 not-italic" style={{ fontStyle: 'italic' }}>{children}</em>
   ),
-  // Inline code
   code: ({ inline, children }) =>
     inline ? (
       <code className="px-1.5 py-0.5 rounded-md text-[0.8em] font-mono text-indigo-300"
@@ -29,36 +24,46 @@ const MD_COMPONENTS = {
     ) : (
       <code>{children}</code>
     ),
-  // Code blocks
   pre: ({ children }) => (
     <pre className="my-2 px-3 py-2.5 rounded-xl text-xs font-mono text-slate-300 overflow-x-auto leading-relaxed"
          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
       {children}
     </pre>
   ),
-  // Unordered lists
   ul: ({ children }) => (
     <ul className="my-1.5 space-y-1 pl-4">{children}</ul>
   ),
-  // Ordered lists
   ol: ({ children }) => (
     <ol className="my-1.5 space-y-1 pl-4 list-decimal">{children}</ol>
   ),
   li: ({ children }) => (
     <li className="text-sm text-white/80 leading-relaxed list-disc marker:text-indigo-400">{children}</li>
   ),
-  // Blockquotes
   blockquote: ({ children }) => (
     <blockquote className="my-2 pl-3 border-l-2 border-indigo-500/50 text-white/60 italic">
       {children}
     </blockquote>
   ),
-  // Headings (rare in chat, but handle gracefully)
   h1: ({ children }) => <p className="text-base font-semibold text-white mb-1">{children}</p>,
   h2: ({ children }) => <p className="text-sm font-semibold text-white mb-1">{children}</p>,
   h3: ({ children }) => <p className="text-sm font-medium text-slate-200 mb-1">{children}</p>,
-  // Horizontal rule
   hr: () => <hr className="my-3 border-white/10" />,
+}
+
+// ── Relative time helper ──────────────────────────────────────────────────────
+
+function formatRelativeTime(isoString) {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  const diffMs = Date.now() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+  if (diffMins < 1) return 'just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  return date.toLocaleDateString()
 }
 
 // ── Typing indicator ──────────────────────────────────────────────────────────
@@ -202,6 +207,87 @@ function SendIcon({ disabled }) {
   )
 }
 
+// ── Chat history sidebar ──────────────────────────────────────────────────────
+
+function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat }) {
+  return (
+    <aside
+      className="flex-shrink-0 flex flex-col border-r border-white/[0.06]"
+      style={{
+        width: 250,
+        background: 'rgba(255,255,255,0.025)',
+        backdropFilter: 'blur(16px)',
+      }}
+    >
+      {/* New Chat button */}
+      <div className="flex-shrink-0 p-3">
+        <button
+          onClick={onNewChat}
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium
+                     text-white/80 transition-all duration-200 hover:text-white
+                     border border-white/[0.08] hover:border-indigo-500/40"
+          style={{ background: 'rgba(255,255,255,0.04)' }}
+        >
+          <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M8 3v10M3 8h10" />
+          </svg>
+          New Chat
+        </button>
+      </div>
+
+      {/* Sessions list */}
+      <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5" style={{ scrollbarWidth: 'none' }}>
+        {sessions.length === 0 ? (
+          <p className="text-[11px] text-slate-600 text-center mt-6 px-4 leading-relaxed">
+            Your conversations will appear here
+          </p>
+        ) : (
+          sessions.map((session) => {
+            const isActive = session.session_id === activeSessionId
+            return (
+              <button
+                key={session.session_id}
+                onClick={() => onSelectSession(session.session_id)}
+                className="w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150"
+                style={
+                  isActive
+                    ? {
+                        background: 'rgba(99,102,241,0.15)',
+                        border: '1px solid rgba(99,102,241,0.25)',
+                      }
+                    : {
+                        background: 'transparent',
+                        border: '1px solid transparent',
+                      }
+                }
+                onMouseEnter={(e) => {
+                  if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.background = 'transparent'
+                }}
+              >
+                <p className={`text-xs leading-snug truncate ${isActive ? 'text-slate-200' : 'text-slate-400'}`}>
+                  {session.preview}
+                </p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="text-[10px] text-slate-600">
+                    {formatRelativeTime(session.last_activity)}
+                  </span>
+                  <span className="text-[10px] text-slate-700">·</span>
+                  <span className="text-[10px] text-slate-600">
+                    {session.message_count} {session.message_count === 1 ? 'msg' : 'msgs'}
+                  </span>
+                </div>
+              </button>
+            )
+          })
+        )}
+      </div>
+    </aside>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Chat() {
@@ -213,16 +299,78 @@ export default function Chat() {
   const [sessionId, setSessionId] = useState(null)
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [sessions, setSessions] = useState([])
 
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
-  const sessionIdRef = useRef(null)   // avoids stale closure in auto-send
+  const sessionIdRef = useRef(null)
   const didAutoSend = useRef(false)
 
   // Auto-scroll whenever messages or typing state changes
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
+
+  // Fetch sessions list (used on mount and after each send)
+  async function fetchSessions() {
+    try {
+      const data = await api.chatSessions()
+      setSessions(data)
+      return data
+    } catch {
+      return []
+    }
+  }
+
+  // Load full history for a session, ending the current one first
+  async function loadSession(sid) {
+    if (sessionIdRef.current && sessionIdRef.current !== sid) {
+      api.endChatSession(sessionIdRef.current).catch(() => {})
+    }
+    try {
+      const history = await api.chatHistory(sid)
+      setMessages(history.map((m) => ({ role: m.role, content: m.content })))
+      sessionIdRef.current = sid
+      setSessionId(sid)
+    } catch {}
+  }
+
+  // Start a fresh session
+  function startNewChat() {
+    if (sessionIdRef.current) {
+      api.endChatSession(sessionIdRef.current).catch(() => {})
+    }
+    setMessages([])
+    sessionIdRef.current = null
+    setSessionId(null)
+    setTimeout(() => inputRef.current?.focus(), 50)
+  }
+
+  // On mount: fetch sessions and auto-load the most recent one
+  // (skip if arriving from a quiz question — that starts a fresh session)
+  useEffect(() => {
+    async function init() {
+      const data = await fetchSessions()
+      if (!(questionId && autoQuestion) && data.length > 0) {
+        const sid = data[0].session_id
+        const history = await api.chatHistory(sid).catch(() => [])
+        setMessages(history.map((m) => ({ role: m.role, content: m.content })))
+        sessionIdRef.current = sid
+        setSessionId(sid)
+      }
+    }
+    init()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Trigger insight generation when leaving the page
+  useEffect(() => {
+    return () => {
+      if (sessionIdRef.current) {
+        api.endChatSession(sessionIdRef.current).catch(() => {})
+      }
+    }
+  }, [])
 
   // Auto-send when arriving from "Ask Tutor About This"
   useEffect(() => {
@@ -250,6 +398,7 @@ export default function Chat() {
       sessionIdRef.current = res.session_id
       setSessionId(res.session_id)
       setMessages((prev) => [...prev, { role: 'assistant', content: res.response }])
+      fetchSessions() // refresh sidebar counts/previews
     } catch (e) {
       setMessages((prev) => [
         ...prev,
@@ -257,7 +406,6 @@ export default function Chat() {
       ])
     } finally {
       setIsTyping(false)
-      // Re-focus input after response
       setTimeout(() => inputRef.current?.focus(), 50)
     }
   }
@@ -273,7 +421,6 @@ export default function Chat() {
 
   return (
     <>
-      {/* Bounce keyframes injected via a style tag */}
       <style>{`
         @keyframes bounce {
           0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
@@ -281,103 +428,109 @@ export default function Chat() {
         }
       `}</style>
 
-      <div className="flex flex-col" style={{ height: 'calc(100vh - 64px)' }}>
+      <div className="flex" style={{ height: 'calc(100vh - 64px)' }}>
 
-        {/* ── Header strip ─────────────────────────────────────────────────── */}
-        <div
-          className="flex-shrink-0 flex items-center gap-3 px-6 py-3 border-b border-white/[0.06]"
-          style={{ background: 'rgba(255,255,255,0.02)' }}
-        >
+        {/* ── Chat history sidebar ──────────────────────────────────────────── */}
+        <ChatSidebar
+          sessions={sessions}
+          activeSessionId={sessionId}
+          onSelectSession={loadSession}
+          onNewChat={startNewChat}
+        />
+
+        {/* ── Main chat area ────────────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col min-w-0">
+
+          {/* Header strip */}
           <div
-            className="w-6 h-6 rounded-md flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', boxShadow: '0 2px 8px rgba(99,102,241,0.3)' }}
+            className="flex-shrink-0 flex items-center gap-3 px-6 py-3 border-b border-white/[0.06]"
+            style={{ background: 'rgba(255,255,255,0.02)' }}
           >
-            <svg className="w-3 h-3 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M8 2a5.5 5.5 0 100 11A5.5 5.5 0 008 2z" />
-              <path d="M8 5v3l1.8 1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <div
+              className="w-6 h-6 rounded-md flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', boxShadow: '0 2px 8px rgba(99,102,241,0.3)' }}
+            >
+              <svg className="w-3 h-3 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M8 2a5.5 5.5 0 100 11A5.5 5.5 0 008 2z" />
+                <path d="M8 5v3l1.8 1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-200 leading-none">Master Teacher</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {questionId ? 'Discussing a quiz question' : 'Personal AI tutor'}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-200 leading-none">Master Teacher</p>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              {questionId ? 'Discussing a quiz question' : 'Personal AI tutor'}
-            </p>
+
+          {/* Messages area */}
+          <div className="flex-1 overflow-y-auto px-4 py-6">
+            <div className="max-w-2xl mx-auto space-y-4">
+              {showWelcome && <WelcomeMessage />}
+
+              {messages.map((msg, i) => (
+                <MessageBubble key={i} message={msg} />
+              ))}
+
+              {isTyping && <TypingIndicator />}
+
+              <div ref={bottomRef} />
+            </div>
           </div>
-          {sessionId && (
-            <span className="ml-auto text-[10px] text-slate-700 font-mono truncate max-w-[120px]">
-              {sessionId.slice(0, 8)}…
-            </span>
-          )}
-        </div>
 
-        {/* ── Messages area ────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-4 py-6">
-          <div className="max-w-2xl mx-auto space-y-4">
-            {showWelcome && <WelcomeMessage />}
+          {/* Input bar */}
+          <div
+            className="flex-shrink-0 border-t border-white/[0.06] px-4 py-4"
+            style={{ background: 'rgba(10,10,26,0.6)', backdropFilter: 'blur(24px)' }}
+          >
+            <div className="max-w-2xl mx-auto flex items-end gap-3">
+              <div className="flex-1 relative">
+                <textarea
+                  ref={inputRef}
+                  rows={1}
+                  className="w-full resize-none rounded-2xl px-4 py-3 text-sm text-white/85
+                             placeholder-white/25 border border-white/[0.08]
+                             focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20
+                             transition-all duration-200 leading-relaxed"
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    backdropFilter: 'blur(12px)',
+                    maxHeight: '140px',
+                    overflowY: 'auto',
+                    scrollbarWidth: 'none',
+                  }}
+                  placeholder="Ask Master Teacher anything…"
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value)
+                    e.target.style.height = 'auto'
+                    e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'
+                  }}
+                  onKeyDown={handleKeyDown}
+                  disabled={isTyping}
+                />
+              </div>
 
-            {messages.map((msg, i) => (
-              <MessageBubble key={i} message={msg} />
-            ))}
-
-            {isTyping && <TypingIndicator />}
-
-            <div ref={bottomRef} />
-          </div>
-        </div>
-
-        {/* ── Input bar ────────────────────────────────────────────────────── */}
-        <div
-          className="flex-shrink-0 border-t border-white/[0.06] px-4 py-4"
-          style={{ background: 'rgba(10,10,26,0.6)', backdropFilter: 'blur(24px)' }}
-        >
-          <div className="max-w-2xl mx-auto flex items-end gap-3">
-            <div className="flex-1 relative">
-              <textarea
-                ref={inputRef}
-                rows={1}
-                className="w-full resize-none rounded-2xl px-4 py-3 text-sm text-white/85
-                           placeholder-white/25 border border-white/[0.08]
-                           focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20
-                           transition-all duration-200 leading-relaxed"
+              <button
+                onClick={() => doSend(input)}
+                disabled={!input.trim() || isTyping}
+                className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
+                           text-white transition-all duration-200
+                           disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  backdropFilter: 'blur(12px)',
-                  maxHeight: '140px',
-                  overflowY: 'auto',
-                  scrollbarWidth: 'none',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                  boxShadow: '0 4px 20px rgba(99,102,241,0.3)',
                 }}
-                placeholder="Ask Master Teacher anything…"
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value)
-                  // auto-grow
-                  e.target.style.height = 'auto'
-                  e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'
-                }}
-                onKeyDown={handleKeyDown}
-                disabled={isTyping}
-              />
+                aria-label="Send message"
+              >
+                <SendIcon disabled={!input.trim() || isTyping} />
+              </button>
             </div>
 
-            <button
-              onClick={() => doSend(input)}
-              disabled={!input.trim() || isTyping}
-              className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
-                         text-white transition-all duration-200
-                         disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                boxShadow: '0 4px 20px rgba(99,102,241,0.3)',
-              }}
-              aria-label="Send message"
-            >
-              <SendIcon disabled={!input.trim() || isTyping} />
-            </button>
+            <p className="max-w-2xl mx-auto text-[10px] text-white/15 mt-2 px-1">
+              Shift+Enter for new line · Enter to send
+            </p>
           </div>
-
-          <p className="max-w-2xl mx-auto text-[10px] text-white/15 mt-2 px-1">
-            Shift+Enter for new line · Enter to send
-          </p>
         </div>
       </div>
     </>

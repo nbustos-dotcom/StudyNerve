@@ -1,13 +1,13 @@
 import re
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.llm import generate_chat
-from app.models import ChatMessage, Note, Question
+from app.models import ChatMessage, Note, Question, StudentInsight
 from app.schemas import (
     ChatMessageResponse,
     ChatSendRequest,
@@ -16,6 +16,7 @@ from app.schemas import (
 )
 from app.services.gap_detector import calculate_gap_scores
 from app.services.learning_style import LearningProfile, detect_learning_style
+from app.services.memory import generate_insights, get_insights
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -93,6 +94,7 @@ async def _build_system_prompt(
     question_id: int | None,
     style_hint: str,
     learning_profile: LearningProfile,
+    insights: list[StudentInsight],
 ) -> str:
     """
     Compose the Master Teacher system prompt, injecting:
@@ -192,6 +194,14 @@ async def _build_system_prompt(
             )
         lines.append("")
 
+    # ── Long-term student insights ────────────────────────────────────────────
+    if insights:
+        lines.append("## Key observations about this student from past sessions:")
+        for ins in insights[:10]:  # cap to avoid bloating context
+            topic_ctx = f" [{ins.topic_name}]" if ins.topic_name else ""
+            lines.append(f"- ({ins.category}{topic_ctx}) {ins.insight}")
+        lines.append("")
+
     # ── Note content ──────────────────────────────────────────────────────────
     if note_id is not None:
         note = await db.get(Note, note_id)
@@ -220,7 +230,11 @@ async def _build_system_prompt(
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/send", response_model=ChatSendResponse)
-async def send_message(body: ChatSendRequest, db: AsyncSession = Depends(get_db)):
+async def send_message(
+    body: ChatSendRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     session_id = body.session_id or str(uuid.uuid4())
 
     # Load last N messages from this session for context
@@ -240,9 +254,12 @@ async def send_message(body: ChatSendRequest, db: AsyncSession = Depends(get_db)
     # Infer learning profile from quiz + chat behaviour
     learning_profile = await detect_learning_style(db)
 
+    # Load stored insights for system prompt injection
+    stored_insights = await get_insights(db)
+
     # Build context-aware system prompt
     system = await _build_system_prompt(
-        db, body.note_id, body.question_id, style_hint, learning_profile
+        db, body.note_id, body.question_id, style_hint, learning_profile, stored_insights
     )
 
     # Append the new user message to history for the LLM call
@@ -256,6 +273,16 @@ async def send_message(body: ChatSendRequest, db: AsyncSession = Depends(get_db)
     db.add(ChatMessage(role="user", content=body.message, session_id=session_id))
     db.add(ChatMessage(role="assistant", content=response_text, session_id=session_id))
     await db.flush()
+
+    # Every 5 user messages, extract insights from the session in the background
+    user_msg_count = await db.scalar(
+        select(func.count(ChatMessage.id)).where(
+            ChatMessage.session_id == session_id,
+            ChatMessage.role == "user",
+        )
+    )
+    if user_msg_count and user_msg_count % 5 == 0:
+        background_tasks.add_task(generate_insights, session_id)
 
     return ChatSendResponse(session_id=session_id, response=response_text)
 
@@ -272,7 +299,7 @@ async def get_history(session_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.get("/sessions", response_model=list[ChatSessionPreview])
 async def list_sessions(db: AsyncSession = Depends(get_db)):
-    # Subquery: first message id per session (cheapest proxy for "preview")
+    # Subquery: first message id per session (used to pull the preview text)
     first_msg_subq = (
         select(
             ChatMessage.session_id,
@@ -282,11 +309,12 @@ async def list_sessions(db: AsyncSession = Depends(get_db)):
         .subquery()
     )
 
-    # Subquery: message count per session
-    count_subq = (
+    # Subquery: message count + last activity per session
+    agg_subq = (
         select(
             ChatMessage.session_id,
             func.count(ChatMessage.id).label("cnt"),
+            func.max(ChatMessage.created_at).label("last_activity"),
         )
         .group_by(ChatMessage.session_id)
         .subquery()
@@ -297,11 +325,12 @@ async def list_sessions(db: AsyncSession = Depends(get_db)):
             ChatMessage.session_id,
             ChatMessage.content,
             ChatMessage.created_at,
-            count_subq.c.cnt,
+            agg_subq.c.cnt,
+            agg_subq.c.last_activity,
         )
         .join(first_msg_subq, ChatMessage.id == first_msg_subq.c.first_id)
-        .join(count_subq, ChatMessage.session_id == count_subq.c.session_id)
-        .order_by(ChatMessage.created_at.desc())
+        .join(agg_subq, ChatMessage.session_id == agg_subq.c.session_id)
+        .order_by(agg_subq.c.last_activity.desc())
         .limit(20)
     )
     rows = result.all()
@@ -312,6 +341,24 @@ async def list_sessions(db: AsyncSession = Depends(get_db)):
             preview=row.content[:120] + ("…" if len(row.content) > 120 else ""),
             started_at=row.created_at,
             message_count=row.cnt,
+            last_activity=row.last_activity,
         )
         for row in rows
     ]
+
+
+@router.post("/sessions/{session_id}/end")
+async def end_chat_session(
+    session_id: str,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """Trigger insight generation for a session. Call when the user finishes a session."""
+    exists = await db.scalar(
+        select(func.count(ChatMessage.id)).where(ChatMessage.session_id == session_id)
+    )
+    if not exists:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    background_tasks.add_task(generate_insights, session_id)
+    return {"session_id": session_id, "status": "insight generation queued"}

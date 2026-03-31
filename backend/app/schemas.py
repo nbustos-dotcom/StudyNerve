@@ -154,6 +154,7 @@ class ChatSessionPreview(BaseModel):
     preview: str      # first message content, truncated
     started_at: datetime
     message_count: int
+    last_activity: datetime
 
 
 # ── Learning profile ──────────────────────────────────────────────────────────
@@ -164,6 +165,19 @@ class LearningStyleResponse(BaseModel):
     detail_level: str   # "concise" | "balanced" | "detailed"
     confidence_note: str
     data_points: int
+
+
+# ── Student insights ──────────────────────────────────────────────────────────
+
+class StudentInsightResponse(BaseModel):
+    id: int
+    insight: str
+    category: str
+    topic_name: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 # ── Teach Back ────────────────────────────────────────────────────────────────

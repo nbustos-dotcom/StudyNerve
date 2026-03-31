@@ -69,6 +69,28 @@ Return ONLY valid JSON in this exact structure:
 Be lenient with wording — mark correct if the student demonstrates understanding of the concept,
 even if not word-for-word. For MCQ, only mark correct if the letter or text matches exactly."""
 
+INSIGHT_EXTRACTION_SYSTEM = """You are analyzing a tutoring conversation to extract key observations about the student.
+Return ONLY valid JSON in this exact structure:
+{
+  "insights": [
+    {
+      "insight": "Specific, actionable observation about this student",
+      "category": "misconception",
+      "topic_name": "The concept this relates to, or null if general"
+    }
+  ]
+}
+Categories must be one of: "learning_pattern", "misconception", "preference", "strength"
+Rules:
+- Extract 1-3 insights maximum — quality over quantity
+- Be specific: name the actual concept, behaviour, or pattern observed
+- topic_name should name the specific concept (e.g. "recursion", "mitosis") or null for general observations
+- Only report genuine, evidence-based observations from the conversation — no guessing
+- "misconception": student stated or implied something factually wrong
+- "strength": student demonstrated clear understanding of something
+- "preference": student expressed how they like to learn
+- "learning_pattern": recurring behaviour (e.g. skips steps, needs examples first)"""
+
 TEACH_BACK_EVALUATION_SYSTEM = """You are an expert educator evaluating a student's understanding of a topic through their own explanation.
 Return ONLY valid JSON in this exact structure:
 {
@@ -193,6 +215,15 @@ async def generate_questions(
         f"Generate exactly {count} questions about this topic. {type_instruction}"
     )
     return await generate_json(prompt, QUESTION_GENERATION_SYSTEM)
+
+
+async def extract_insights(messages: list[dict]) -> Optional[dict]:
+    """Send a conversation to Ollama and extract student insights as JSON."""
+    conversation = "\n".join(
+        f"{m['role'].upper()}: {m['content']}" for m in messages
+    )
+    prompt = f"Tutoring conversation to analyse:\n\n{conversation}"
+    return await generate_json(prompt, INSIGHT_EXTRACTION_SYSTEM)
 
 
 async def evaluate_teaching(

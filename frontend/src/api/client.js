@@ -97,4 +97,15 @@ export const api = {
    * @returns {Promise<Array<{ id, role, content, session_id, created_at }>>}
    */
   chatHistory: (sessionId) => req('GET', `/chat/history/${sessionId}`),
+
+  /**
+   * @returns {Promise<Array<{ session_id, preview, started_at, message_count, last_activity }>>}
+   */
+  chatSessions: () => req('GET', '/chat/sessions'),
+
+  /**
+   * Triggers background insight generation for a session.
+   * @param {string} sessionId
+   */
+  endChatSession: (sessionId) => req('POST', `/chat/sessions/${sessionId}/end`),
 }

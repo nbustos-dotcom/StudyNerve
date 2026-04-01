@@ -3,7 +3,9 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import _DATA_DIR, settings
 
-_DATA_DIR.mkdir(parents=True, exist_ok=True)
+# Only create the local data directory when using SQLite
+if settings.DATABASE_URL.startswith("sqlite"):
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 engine = create_async_engine(settings.DATABASE_URL, echo=False)
 

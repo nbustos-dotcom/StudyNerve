@@ -10,11 +10,12 @@ Signal sources:
 import re
 from dataclasses import dataclass
 from datetime import timezone
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Attempt, ChatMessage
+from app.models import Attempt, ChatMessage, Note, Question, Topic
 
 # ── Timing thresholds (seconds) ───────────────────────────────────────────────
 _FAST_S = 20      # faster than this → quick recall / possibly impulsive
@@ -26,19 +27,16 @@ _CONCISE_CHARS = 40
 _DETAILED_CHARS = 100
 
 # ── Style keyword patterns ────────────────────────────────────────────────────
-# "conceptual"  — asks WHY, seeks understanding of principles
 _WHY_RE = re.compile(
     r'\b(why|explain|what is|what does|what are|meaning of|purpose of|reason|'
     r'concept|theory|principle|understand)\b',
     re.IGNORECASE,
 )
-# "step-by-step" — asks HOW, wants sequential instructions
 _HOW_RE = re.compile(
     r'\b(how|steps?|process|procedure|algorithm|walk me|walk through|'
     r'guide|in order|first.*then|sequence)\b',
     re.IGNORECASE,
 )
-# "example-led"  — asks for examples before / alongside theory
 _EXAMPLE_RE = re.compile(
     r'\b(example|for instance|such as|show me|like what|demonstrate|'
     r'can you show|give me an?|real.world)\b',
@@ -55,38 +53,50 @@ class LearningProfile:
     data_points: int    # total behavioral signals available
 
 
-async def detect_learning_style(db: AsyncSession) -> LearningProfile:
+async def detect_learning_style(
+    db: AsyncSession,
+    user_id: Optional[int] = None,
+) -> LearningProfile:
     """
     Analyse quiz attempts and chat history to infer how this student learns best.
     Falls back gracefully when little data exists.
+    When user_id is provided, only considers data for that user.
     """
-    # ── Load data ─────────────────────────────────────────────────────────────
-    attempt_rows = (await db.execute(
-        select(
-            Attempt.is_correct,
-            Attempt.time_taken_seconds,
-            Attempt.created_at,
-        ).order_by(Attempt.created_at)
-    )).all()
+    # ── Load attempts ─────────────────────────────────────────────────────────
+    attempt_query = select(
+        Attempt.is_correct,
+        Attempt.time_taken_seconds,
+        Attempt.created_at,
+    ).order_by(Attempt.created_at)
 
-    chat_rows = (await db.execute(
+    if user_id is not None:
+        attempt_query = (
+            attempt_query
+            .join(Question, Attempt.question_id == Question.id)
+            .join(Topic, Question.topic_id == Topic.id)
+            .join(Note, Topic.note_id == Note.id)
+            .where(Note.user_id == user_id)
+        )
+
+    attempt_rows = (await db.execute(attempt_query)).all()
+
+    # ── Load chat messages ────────────────────────────────────────────────────
+    chat_query = (
         select(ChatMessage.content, ChatMessage.created_at)
         .where(ChatMessage.role == "user")
         .order_by(ChatMessage.created_at)
-    )).all()
+    )
+
+    if user_id is not None:
+        chat_query = chat_query.where(ChatMessage.user_id == user_id)
+
+    chat_rows = (await db.execute(chat_query)).all()
 
     data_points = len(attempt_rows) + len(chat_rows)
 
-    # ── Pace (quiz timing) ────────────────────────────────────────────────────
     pace = _detect_pace(attempt_rows)
-
-    # ── Style (chat keyword analysis) ─────────────────────────────────────────
     style = _detect_style(chat_rows)
-
-    # ── Detail level (chat message lengths + question density) ───────────────
     detail_level = _detect_detail_level(chat_rows)
-
-    # ── Confidence note (cross-signal narrative) ─────────────────────────────
     confidence_note = _build_confidence_note(attempt_rows, chat_rows)
 
     return LearningProfile(
@@ -115,7 +125,7 @@ def _detect_pace(attempts: list) -> str:
 
 def _detect_style(chat_rows: list) -> str:
     if not chat_rows:
-        return "conceptual"  # safe default when no chat data
+        return "conceptual"
 
     combined = " ".join(m.content for m in chat_rows)
     avg_len = sum(len(m.content) for m in chat_rows) / len(chat_rows)
@@ -124,15 +134,12 @@ def _detect_style(chat_rows: list) -> str:
         "conceptual":   len(_WHY_RE.findall(combined)),
         "step-by-step": len(_HOW_RE.findall(combined)),
         "example-led":  len(_EXAMPLE_RE.findall(combined)),
-        # "visual" = concrete/direct preference, inferred from very short messages
         "visual":       2 if avg_len < _CONCISE_CHARS else 0,
     }
 
-    # If nothing matched, default to conceptual
     if all(v == 0 for v in scores.values()):
         return "conceptual"
 
-    # Stable tie-break: prefer conceptual > step-by-step > example-led > visual
     order = ["conceptual", "step-by-step", "example-led", "visual"]
     best_score = max(scores.values())
     for candidate in order:
@@ -170,7 +177,6 @@ def _build_confidence_note(attempts: list, chat_rows: list) -> str:
     timed = [a for a in attempts if a.time_taken_seconds is not None]
     fragments: list[str] = []
 
-    # ── Timing pattern ────────────────────────────────────────────────────────
     if len(timed) >= _MIN_TIMED:
         fast_correct = sum(
             1 for a in timed
@@ -207,21 +213,15 @@ def _build_confidence_note(attempts: list, chat_rows: list) -> str:
                 f"({round(accuracy * 100)}% overall accuracy)"
             )
     else:
-        # No timing data — use raw accuracy for the note
         if accuracy >= 0.80:
             fragments.append("high overall accuracy suggests strong grasp of material")
         elif accuracy < 0.50:
-            fragments.append(
-                "accuracy below 50% — core concepts need reinforcement"
-            )
+            fragments.append("accuracy below 50% — core concepts need reinforcement")
         else:
             fragments.append(
                 f"overall accuracy at {round(accuracy * 100)}% — making steady progress"
             )
 
-    # ── Chat→quiz correlation ─────────────────────────────────────────────────
-    # If the student uses chat on a day and then attempts quizzes the same day,
-    # check whether accuracy on those days is better than baseline.
     if chat_rows and len(attempts) >= 5:
         chat_dates = _utc_dates(chat_rows)
         after_chat = [
@@ -251,7 +251,6 @@ def _build_confidence_note(attempts: list, chat_rows: list) -> str:
 # ── Date helpers ──────────────────────────────────────────────────────────────
 
 def _utc_date(dt):
-    """Return a date object in UTC regardless of whether dt is tz-aware."""
     if dt.tzinfo is None:
         return dt.date()
     return dt.astimezone(timezone.utc).date()

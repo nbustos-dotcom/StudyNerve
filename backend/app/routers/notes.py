@@ -4,15 +4,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.llm import extract_topics
-from app.models import Note, Topic
+from app.models import Note, Topic, User
+from app.routers.auth import get_current_user
 from app.schemas import NoteCreate, NoteResponse
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
 
 @router.post("", response_model=NoteResponse, status_code=201)
-async def create_note(body: NoteCreate, db: AsyncSession = Depends(get_db)):
-    note = Note(**body.model_dump())
+async def create_note(
+    body: NoteCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    note = Note(**body.model_dump(), user_id=current_user.id)
     db.add(note)
     await db.flush()
     await db.refresh(note)
@@ -20,37 +25,56 @@ async def create_note(body: NoteCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("", response_model=list[NoteResponse])
-async def list_notes(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Note).order_by(Note.created_at.desc()))
+async def list_notes(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Note)
+        .where(Note.user_id == current_user.id)
+        .order_by(Note.created_at.desc())
+    )
     return result.scalars().all()
 
 
 @router.get("/{note_id}", response_model=NoteResponse)
-async def get_note(note_id: int, db: AsyncSession = Depends(get_db)):
+async def get_note(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     note = await db.get(Note, note_id)
-    if not note:
+    if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
     return note
 
 
 @router.delete("/{note_id}", status_code=204)
-async def delete_note(note_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_note(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     note = await db.get(Note, note_id)
-    if not note:
+    if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
     await db.delete(note)
 
 
 @router.post("/{note_id}/extract-topics")
-async def extract_note_topics(note_id: int, db: AsyncSession = Depends(get_db)):
+async def extract_note_topics(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     note = await db.get(Note, note_id)
-    if not note:
+    if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
     llm_result = await extract_topics(note.content)
     if llm_result is None:
         raise HTTPException(
-            status_code=502, detail="Ollama unavailable or failed to extract topics"
+            status_code=502, detail="LLM unavailable or failed to extract topics"
         )
 
     topics_data = llm_result.get("topics", [])
@@ -64,7 +88,7 @@ async def extract_note_topics(note_id: int, db: AsyncSession = Depends(get_db)):
             parent_topic_id=None,
         )
         db.add(parent)
-        await db.flush()  # materialise parent.id before creating children
+        await db.flush()
         created_count += 1
 
         for subtopic_name in topic_data.get("subtopics", []):

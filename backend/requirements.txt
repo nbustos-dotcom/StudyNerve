@@ -2,7 +2,11 @@ fastapi
 uvicorn[standard]
 sqlalchemy
 aiosqlite
+asyncpg
 httpx
 pydantic
 python-multipart
 python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]
+google-generativeai

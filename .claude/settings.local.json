@@ -9,7 +9,12 @@
       "Bash(npx vite:*)",
       "Bash(npm run:*)",
       "Bash(grep:*)",
-      "Bash(node -e \"require\\(''./node_modules/react-markdown/package.json''\\); console.log\\(''ok'', require\\(''./node_modules/react-markdown/package.json''\\).version\\)\")"
+      "Bash(node -e \"require\\(''./node_modules/react-markdown/package.json''\\); console.log\\(''ok'', require\\(''./node_modules/react-markdown/package.json''\\).version\\)\")",
+      "Bash(node --input-type=module --eval \"import\\(''''./C:/Users/nateb/ai-teacher/frontend/src/pages/VisionBoard.jsx''''\\).catch\\(e => console.log\\(e.message\\)\\)\")",
+      "Bash(npm list:*)",
+      "Bash(python -m py_compile backend/app/routers/vision.py backend/app/schemas.py)",
+      "Bash(venv/Scripts/pip install:*)",
+      "Bash(venv/Scripts/python -c \":*)"
     ]
   }
 }

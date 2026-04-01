@@ -24,13 +24,13 @@ logger = logging.getLogger(__name__)
 _MAX_MESSAGES = 20
 
 
-async def generate_insights(session_id: str) -> int:
+async def generate_insights(session_id: str, user_id: int) -> int:
     """
     Pull the last _MAX_MESSAGES messages from session_id, send to the LLM for
     insight extraction, then upsert the results into StudentInsight.
 
     Upsert logic:
-      - topic_name present  → upsert by (topic_name, category); update insight text if found
+      - topic_name present  → upsert by (topic_name, category, user_id)
       - topic_name absent   → always insert (no reliable dedup key)
 
     Returns the number of insights saved/updated.
@@ -73,6 +73,7 @@ async def generate_insights(session_id: str) -> int:
                         .where(
                             StudentInsight.topic_name == topic_name,
                             StudentInsight.category == category,
+                            StudentInsight.user_id == user_id,
                         )
                         .limit(1)
                     )
@@ -86,6 +87,7 @@ async def generate_insights(session_id: str) -> int:
                         insight=insight_text,
                         category=category,
                         topic_name=topic_name,
+                        user_id=user_id,
                     ))
                 saved += 1
 
@@ -99,9 +101,11 @@ async def generate_insights(session_id: str) -> int:
             return 0
 
 
-async def get_insights(db: AsyncSession) -> list[StudentInsight]:
-    """Return all stored insights, most recently updated first."""
+async def get_insights(db: AsyncSession, user_id: int) -> list[StudentInsight]:
+    """Return all stored insights for a user, most recently updated first."""
     result = await db.execute(
-        select(StudentInsight).order_by(StudentInsight.updated_at.desc())
+        select(StudentInsight)
+        .where(StudentInsight.user_id == user_id)
+        .order_by(StudentInsight.updated_at.desc())
     )
     return result.scalars().all()

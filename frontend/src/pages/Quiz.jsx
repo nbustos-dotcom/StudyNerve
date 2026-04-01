@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import MarkdownRenderer from '../components/MarkdownRenderer'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -214,7 +215,7 @@ export default function Quiz() {
 
         {/* Question */}
         <div className="card p-6 mb-5">
-          <p className="text-slate-100 text-base leading-relaxed">{question.content}</p>
+          <MarkdownRenderer>{question.content}</MarkdownRenderer>
         </div>
 
         {/* MCQ Options */}
@@ -290,7 +291,9 @@ export default function Quiz() {
               )}
             </div>
             {currentResult.explanation && (
-              <p className="text-xs text-slate-400 leading-relaxed">{currentResult.explanation}</p>
+              <div className="mt-1">
+                <MarkdownRenderer size="sm">{currentResult.explanation}</MarkdownRenderer>
+              </div>
             )}
             {!currentResult.is_correct && (
               <button

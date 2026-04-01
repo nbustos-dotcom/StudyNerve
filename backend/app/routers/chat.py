@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.llm import generate_chat
-from app.models import ChatMessage, Note, Question, StudentInsight
+from app.models import ChatMessage, Note, Question, StudentInsight, User
+from app.routers.auth import get_current_user
 from app.schemas import (
     ChatMessageResponse,
     ChatSendRequest,
@@ -20,14 +21,11 @@ from app.services.memory import generate_insights, get_insights
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-# Maximum note content length sent to the LLM to avoid overflowing context
 _NOTE_CONTENT_LIMIT = 3000
-# Conversation turns loaded from history (each turn = 1 message)
 _HISTORY_LIMIT = 10
 
 # ── Communication style detection ─────────────────────────────────────────────
 
-# Common internet/casual abbreviations and slang
 _CASUAL_RE = re.compile(
     r'\b(idk|ngl|tbh|lol|lmao|omg|rn|imo|iirc|brb|btw|smh|fr|nah|yeah|yep|'
     r'gonna|wanna|kinda|sorta|cuz|bc|tho|wtf|haha|lmk|imo|fwiw|afaik|ig|'
@@ -35,7 +33,6 @@ _CASUAL_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Domain-specific technical vocabulary across common subjects
 _TECHNICAL_RE = re.compile(
     r'\b(algorithm|recursion|complexity|asymptotic|derivative|integral|gradient|'
     r'entropy|eigenvalue|polymorphism|inheritance|abstraction|instantiate|'
@@ -48,15 +45,6 @@ _TECHNICAL_RE = re.compile(
 
 
 def _detect_style(user_messages: list[str]) -> str:
-    """
-    Infer the student's communication style from their recent messages.
-    Returns a short descriptor string that gets injected into the system prompt.
-
-    Heuristics:
-      - Casual:   slang/abbreviations present, OR very short average message length
-      - Technical: multiple technical terms, OR long messages with dense punctuation
-      - Neutral:  everything else
-    """
     if not user_messages:
         return "neutral — be clear and direct"
 
@@ -90,21 +78,13 @@ def _detect_style(user_messages: list[str]) -> str:
 
 async def _build_system_prompt(
     db: AsyncSession,
+    user_id: int,
     note_id: int | None,
     question_id: int | None,
     style_hint: str,
     learning_profile: LearningProfile,
     insights: list[StudentInsight],
 ) -> str:
-    """
-    Compose the Master Teacher system prompt, injecting per-turn context:
-      - detected communication style (heuristics on recent messages)
-      - inferred learning profile (quiz + chat behaviour)
-      - top-5 weak topics (gap scores)
-      - long-term student insights (memory service)
-      - note content when note_id is supplied
-      - question + correct answer when question_id is supplied
-    """
     lines: list[str] = [
         "You are Master Teacher. You talk like a real person, not an AI. No corporate tone. "
         "No filler. No 'Great question!' No 'I'd be happy to help.' Just talk.",
@@ -150,11 +130,9 @@ async def _build_system_prompt(
         "",
     ]
 
-    # ── How they're communicating right now ──────────────────────────────────
     lines.append(f"## How this student is communicating right now: {style_hint}")
     lines.append("")
 
-    # ── Learning profile ──────────────────────────────────────────────────────
     _STYLE_DESC = {
         "visual":       "concrete, direct — skip abstraction, use tables/comparisons",
         "step-by-step": "numbered steps — always break processes into ordered steps",
@@ -184,7 +162,6 @@ async def _build_system_prompt(
         lines.append(f"- Behavioural note: {learning_profile.confidence_note}")
     lines.append("")
 
-    # ── Long-term student insights (injected every turn) ─────────────────────
     if insights:
         lines.append("## What you know about this student from past sessions (use this):")
         for ins in insights[:10]:
@@ -192,8 +169,7 @@ async def _build_system_prompt(
             lines.append(f"- ({ins.category}{topic_ctx}) {ins.insight}")
         lines.append("")
 
-    # ── Weak areas ────────────────────────────────────────────────────────────
-    gaps = await calculate_gap_scores(db)
+    gaps = await calculate_gap_scores(db, user_id=user_id)
     if gaps:
         lines.append("## Topics they're struggling with (weave in when relevant):")
         for g in gaps[:5]:
@@ -204,10 +180,9 @@ async def _build_system_prompt(
             )
         lines.append("")
 
-    # ── Note content ──────────────────────────────────────────────────────────
     if note_id is not None:
         note = await db.get(Note, note_id)
-        if note:
+        if note and note.user_id == user_id:
             lines.append(f"## Their study material — {note.title}:")
             content = note.content
             if len(content) > _NOTE_CONTENT_LIMIT:
@@ -215,7 +190,6 @@ async def _build_system_prompt(
             lines.append(content)
             lines.append("")
 
-    # ── Question context ──────────────────────────────────────────────────────
     if question_id is not None:
         question = await db.get(Question, question_id)
         if question:
@@ -235,89 +209,92 @@ async def _build_system_prompt(
 async def send_message(
     body: ChatSendRequest,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     session_id = body.session_id or str(uuid.uuid4())
 
-    # Load last N messages from this session for context
     history_result = await db.execute(
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
+        .where(ChatMessage.user_id == current_user.id)
         .order_by(ChatMessage.created_at.desc())
         .limit(_HISTORY_LIMIT)
     )
     history_rows = list(reversed(history_result.scalars().all()))
     history = [{"role": m.role, "content": m.content} for m in history_rows]
 
-    # Detect communication style from recent user turns (sync, uses loaded history)
     recent_user_msgs = [m.content for m in history_rows if m.role == "user"][-5:]
     style_hint = _detect_style(recent_user_msgs)
 
-    # Infer learning profile from quiz + chat behaviour
-    learning_profile = await detect_learning_style(db)
+    learning_profile = await detect_learning_style(db, user_id=current_user.id)
+    stored_insights = await get_insights(db, user_id=current_user.id)
 
-    # Load stored insights for system prompt injection
-    stored_insights = await get_insights(db)
-
-    # Build context-aware system prompt
     system = await _build_system_prompt(
-        db, body.note_id, body.question_id, style_hint, learning_profile, stored_insights
+        db, current_user.id, body.note_id, body.question_id,
+        style_hint, learning_profile, stored_insights,
     )
 
-    # Append the new user message to history for the LLM call
     llm_messages = history + [{"role": "user", "content": body.message}]
 
     response_text = await generate_chat(llm_messages, system)
     if response_text is None:
-        raise HTTPException(status_code=502, detail="Ollama unavailable or failed to respond")
+        raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond")
 
-    # Persist both turns
-    db.add(ChatMessage(role="user", content=body.message, session_id=session_id))
-    db.add(ChatMessage(role="assistant", content=response_text, session_id=session_id))
+    db.add(ChatMessage(role="user", content=body.message, session_id=session_id, user_id=current_user.id))
+    db.add(ChatMessage(role="assistant", content=response_text, session_id=session_id, user_id=current_user.id))
     await db.flush()
 
-    # Every 5 user messages, extract insights from the session in the background
     user_msg_count = await db.scalar(
         select(func.count(ChatMessage.id)).where(
             ChatMessage.session_id == session_id,
+            ChatMessage.user_id == current_user.id,
             ChatMessage.role == "user",
         )
     )
     if user_msg_count and user_msg_count % 5 == 0:
-        background_tasks.add_task(generate_insights, session_id)
+        background_tasks.add_task(generate_insights, session_id, current_user.id)
 
     return ChatSendResponse(session_id=session_id, response=response_text)
 
 
 @router.get("/history/{session_id}", response_model=list[ChatMessageResponse])
-async def get_history(session_id: str, db: AsyncSession = Depends(get_db)):
+async def get_history(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
+        .where(ChatMessage.user_id == current_user.id)
         .order_by(ChatMessage.created_at)
     )
     return result.scalars().all()
 
 
 @router.get("/sessions", response_model=list[ChatSessionPreview])
-async def list_sessions(db: AsyncSession = Depends(get_db)):
-    # Subquery: first message id per session (used to pull the preview text)
+async def list_sessions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     first_msg_subq = (
         select(
             ChatMessage.session_id,
             func.min(ChatMessage.id).label("first_id"),
         )
+        .where(ChatMessage.user_id == current_user.id)
         .group_by(ChatMessage.session_id)
         .subquery()
     )
 
-    # Subquery: message count + last activity per session
     agg_subq = (
         select(
             ChatMessage.session_id,
             func.count(ChatMessage.id).label("cnt"),
             func.max(ChatMessage.created_at).label("last_activity"),
         )
+        .where(ChatMessage.user_id == current_user.id)
         .group_by(ChatMessage.session_id)
         .subquery()
     )
@@ -353,14 +330,17 @@ async def list_sessions(db: AsyncSession = Depends(get_db)):
 async def end_chat_session(
     session_id: str,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Trigger insight generation for a session. Call when the user finishes a session."""
     exists = await db.scalar(
-        select(func.count(ChatMessage.id)).where(ChatMessage.session_id == session_id)
+        select(func.count(ChatMessage.id)).where(
+            ChatMessage.session_id == session_id,
+            ChatMessage.user_id == current_user.id,
+        )
     )
     if not exists:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    background_tasks.add_task(generate_insights, session_id)
+    background_tasks.add_task(generate_insights, session_id, current_user.id)
     return {"session_id": session_id, "status": "insight generation queued"}

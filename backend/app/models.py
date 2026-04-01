@@ -11,10 +11,25 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
 class Note(Base):
     __tablename__ = "notes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     subject: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -109,6 +124,9 @@ class StudySession(Base):
     __tablename__ = "study_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
@@ -124,6 +142,9 @@ class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # "user" | "assistant"
     content: Mapped[str] = mapped_column(Text, nullable=False)
     session_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
@@ -136,6 +157,9 @@ class StudentInsight(Base):
     __tablename__ = "student_insights"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     insight: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String(50), nullable=False)  # "learning_pattern" | "misconception" | "preference" | "strength"
     topic_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -144,4 +168,84 @@ class StudentInsight(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
+class VisionBoard(Base):
+    __tablename__ = "vision_boards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # "canvas_assignment" | "manual"
+    source_type: Mapped[str] = mapped_column(String(30), nullable=False, default="manual")
+    # Canvas assignment ID when source_type == "canvas_assignment"
+    source_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Linked note (optional)
+    note_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("notes.id", ondelete="SET NULL"), nullable=True
+    )
+    # "active" | "completed"
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    # Cached progress 0–100, updated whenever steps are toggled
+    progress: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    steps: Mapped[list["VisionStep"]] = relationship(
+        "VisionStep",
+        back_populates="board",
+        cascade="all, delete-orphan",
+        order_by="VisionStep.order_index",
+        foreign_keys="[VisionStep.board_id]",
+    )
+    note: Mapped[Optional["Note"]] = relationship("Note")
+
+
+class VisionStep(Base):
+    __tablename__ = "vision_steps"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    board_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("vision_boards.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # 0-based position among siblings (same parent_step_id)
+    order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Nullable self-FK enables branching sub-steps
+    parent_step_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("vision_steps.id", ondelete="CASCADE"), nullable=True
+    )
+    is_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    estimated_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    board: Mapped["VisionBoard"] = relationship(
+        "VisionBoard", back_populates="steps", foreign_keys=[board_id]
+    )
+    parent: Mapped[Optional["VisionStep"]] = relationship(
+        "VisionStep",
+        back_populates="children",
+        remote_side="VisionStep.id",
+        foreign_keys="[VisionStep.parent_step_id]",
+    )
+    children: Mapped[list["VisionStep"]] = relationship(
+        "VisionStep",
+        back_populates="parent",
+        cascade="all, delete-orphan",
+        order_by="VisionStep.order_index",
+        foreign_keys="[VisionStep.parent_step_id]",
     )

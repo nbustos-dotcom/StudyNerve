@@ -4,6 +4,34 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    name: str
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    name: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
 # ── Notes ────────────────────────────────────────────────────────────────────
 
 class NoteCreate(BaseModel):
@@ -176,6 +204,95 @@ class StudentInsightResponse(BaseModel):
     topic_name: Optional[str]
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Vision Board ─────────────────────────────────────────────────────────────
+
+class CreateVisionBoardRequest(BaseModel):
+    # Manual creation
+    title: Optional[str] = None
+    description: Optional[str] = None
+    # Optional note to link (manual boards) — its content seeds the LLM breakdown
+    note_id: Optional[int] = None
+    # Canvas import — both required when used
+    canvas_assignment_id: Optional[int] = None
+    canvas_course_id: Optional[int] = None
+
+
+class UpdateVisionStepRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    is_completed: Optional[bool] = None
+    estimated_minutes: Optional[int] = None
+
+
+class AddVisionStepRequest(BaseModel):
+    title: str
+    description: Optional[str] = None
+    parent_step_id: Optional[int] = None
+    order_index: Optional[int] = None
+    estimated_minutes: Optional[int] = None
+
+
+class ReorderStepsRequest(BaseModel):
+    step_ids: list[int]  # ordered list — position in list = new order_index
+
+
+class AskStepRequest(BaseModel):
+    question: str
+
+
+class VisionStepResponse(BaseModel):
+    id: int
+    board_id: int
+    title: str
+    description: Optional[str]
+    order_index: int
+    parent_step_id: Optional[int]
+    is_completed: bool
+    estimated_minutes: Optional[int]
+    created_at: datetime
+    updated_at: datetime
+    substeps: list["VisionStepResponse"] = []
+
+    model_config = {"from_attributes": True}
+
+
+# Pydantic v2 requires an explicit rebuild for self-referential models
+VisionStepResponse.model_rebuild()
+
+
+class VisionBoardSummary(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    source_type: str
+    source_id: Optional[int]
+    note_id: Optional[int]
+    status: str
+    progress: int
+    step_count: int = 0
+    completed_steps: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VisionBoardDetail(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    source_type: str
+    source_id: Optional[int]
+    note_id: Optional[int]
+    status: str
+    progress: int
+    created_at: datetime
+    updated_at: datetime
+    steps: list[VisionStepResponse] = []
 
     model_config = {"from_attributes": True}
 

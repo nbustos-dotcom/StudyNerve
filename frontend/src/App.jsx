@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Notes from './pages/Notes'
 import Quiz from './pages/Quiz'
 import Results from './pages/Results'
+import VisionBoard from './pages/VisionBoard'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="chat" element={<Chat />} />
         <Route path="results" element={<Results />} />
         <Route path="canvas" element={<Canvas />} />
+        <Route path="vision" element={<VisionBoard />} />
       </Route>
     </Routes>
   )

@@ -7,6 +7,7 @@ const NAV = [
   { to: '/chat',       label: 'Tutor'               },
   { to: '/results',    label: 'Results'             },
   { to: '/canvas',     label: 'Canvas'              },
+  { to: '/vision',     label: 'Vision'              },
 ]
 
 const navbarStyle = {

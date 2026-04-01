@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from typing import Optional
@@ -8,17 +9,17 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_client: Optional[httpx.AsyncClient] = None
+_http_client: Optional[httpx.AsyncClient] = None
 
 
 def get_client() -> httpx.AsyncClient:
-    global _client
-    if _client is None or _client.is_closed:
-        _client = httpx.AsyncClient(
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(
             base_url=settings.OLLAMA_BASE_URL,
             timeout=httpx.Timeout(120.0),
         )
-    return _client
+    return _http_client
 
 
 # ── Prompt templates ─────────────────────────────────────────────────────────
@@ -109,10 +110,9 @@ Rules:
 - feedback should be 2-4 sentences maximum: direct, not soft"""
 
 
-# ── Core generation function ──────────────────────────────────────────────────
+# ── Ollama backend ────────────────────────────────────────────────────────────
 
-async def generate_json(prompt: str, system: str) -> Optional[dict]:
-    """POST to Ollama /api/generate and return parsed JSON. Retries on parse failure."""
+async def _generate_json_ollama(prompt: str, system: str) -> Optional[dict]:
     client = get_client()
     payload = {
         "model": settings.OLLAMA_MODEL,
@@ -152,10 +152,133 @@ async def generate_json(prompt: str, system: str) -> Optional[dict]:
     return None
 
 
+async def _generate_chat_ollama(messages: list[dict], system: str) -> Optional[str]:
+    client = get_client()
+    payload = {
+        "model": settings.OLLAMA_MODEL,
+        "messages": [{"role": "system", "content": system}] + messages,
+        "stream": False,
+        "options": {
+            "temperature": 0.7,
+            "num_predict": 1024,
+        },
+    }
+    try:
+        response = await client.post("/api/chat", json=payload)
+        response.raise_for_status()
+        return response.json()["message"]["content"]
+    except httpx.ConnectError:
+        logger.error("Ollama unreachable at %s", settings.OLLAMA_BASE_URL)
+        return None
+    except httpx.HTTPStatusError as exc:
+        logger.error("Ollama HTTP error: %s", exc)
+        return None
+    except (KeyError, ValueError) as exc:
+        logger.error("Chat response parse error: %s", exc)
+        return None
+
+
+# ── Gemini backend ────────────────────────────────────────────────────────────
+
+async def _generate_json_gemini(prompt: str, system: str) -> Optional[dict]:
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        logger.error("google-generativeai package not installed")
+        return None
+
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+    model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=system)
+
+    for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
+        try:
+            response = await asyncio.to_thread(
+                model.generate_content,
+                prompt,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.7,
+                    "max_output_tokens": 2048,
+                },
+            )
+            return json.loads(response.text)
+        except (json.JSONDecodeError, ValueError) as exc:
+            logger.warning(
+                "Gemini JSON parse failure on attempt %d/%d: %s",
+                attempt,
+                settings.MAX_LLM_RETRIES,
+                exc,
+            )
+            if attempt == settings.MAX_LLM_RETRIES:
+                logger.error("All %d Gemini retries exhausted", settings.MAX_LLM_RETRIES)
+                return None
+        except Exception as exc:
+            logger.error("Gemini error: %s", exc)
+            return None
+
+    return None
+
+
+async def _generate_chat_gemini(messages: list[dict], system: str) -> Optional[str]:
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        logger.error("google-generativeai package not installed")
+        return None
+
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+    model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=system)
+
+    # Map roles: Gemini uses "user" and "model" (not "assistant")
+    history = []
+    for m in messages[:-1]:
+        history.append({
+            "role": "user" if m["role"] == "user" else "model",
+            "parts": [m["content"]],
+        })
+
+    last_message = messages[-1]["content"] if messages else ""
+
+    try:
+        chat = model.start_chat(history=history)
+        response = await asyncio.to_thread(
+            chat.send_message,
+            last_message,
+            generation_config={"temperature": 0.7, "max_output_tokens": 1024},
+        )
+        return response.text
+    except Exception as exc:
+        logger.error("Gemini chat error: %s", exc)
+        return None
+
+
+# ── Public interface (dispatches by LLM_PROVIDER) ────────────────────────────
+
+async def generate_json(prompt: str, system: str) -> Optional[dict]:
+    if settings.LLM_PROVIDER == "gemini":
+        return await _generate_json_gemini(prompt, system)
+    return await _generate_json_ollama(prompt, system)
+
+
+async def generate_chat(messages: list[dict], system: str) -> Optional[str]:
+    if settings.LLM_PROVIDER == "gemini":
+        return await _generate_chat_gemini(messages, system)
+    return await _generate_chat_ollama(messages, system)
+
+
 # ── Health check ─────────────────────────────────────────────────────────────
 
 async def check_health() -> dict:
-    """Check if Ollama is reachable and the configured model is available."""
+    if settings.LLM_PROVIDER == "gemini":
+        has_key = bool(settings.GEMINI_API_KEY)
+        return {
+            "provider": "gemini",
+            "model": "gemini-2.0-flash",
+            "api_key_set": has_key,
+            "ready": has_key,
+        }
+
+    # Ollama health check
     client = get_client()
     try:
         response = await client.get("/api/tags")
@@ -166,6 +289,7 @@ async def check_health() -> dict:
             settings.OLLAMA_MODEL in name for name in available_models
         )
         return {
+            "provider": "ollama",
             "ollama_reachable": True,
             "model": settings.OLLAMA_MODEL,
             "model_available": model_available,
@@ -174,6 +298,7 @@ async def check_health() -> dict:
     except httpx.ConnectError:
         logger.warning("Health check failed: Ollama unreachable")
         return {
+            "provider": "ollama",
             "ollama_reachable": False,
             "model": settings.OLLAMA_MODEL,
             "model_available": False,
@@ -182,6 +307,7 @@ async def check_health() -> dict:
     except Exception as exc:
         logger.error("Health check error: %s", exc)
         return {
+            "provider": "ollama",
             "ollama_reachable": False,
             "model": settings.OLLAMA_MODEL,
             "model_available": False,
@@ -218,7 +344,6 @@ async def generate_questions(
 
 
 async def extract_insights(messages: list[dict]) -> Optional[dict]:
-    """Send a conversation to Ollama and extract student insights as JSON."""
     conversation = "\n".join(
         f"{m['role'].upper()}: {m['content']}" for m in messages
     )
@@ -256,36 +381,3 @@ async def evaluate_answer(
         "Evaluate whether the student's answer is correct."
     )
     return await generate_json(prompt, ANSWER_EVALUATION_SYSTEM)
-
-
-async def generate_chat(messages: list[dict], system: str) -> Optional[str]:
-    """
-    POST to Ollama /api/chat with conversation history.
-    Does NOT use JSON mode — returns the assistant's plain text reply.
-
-    `messages` is a list of {"role": "user"|"assistant", "content": "..."} dicts
-    in chronological order. The system prompt is prepended automatically.
-    """
-    client = get_client()
-    payload = {
-        "model": settings.OLLAMA_MODEL,
-        "messages": [{"role": "system", "content": system}] + messages,
-        "stream": False,
-        "options": {
-            "temperature": 0.7,
-            "num_predict": 1024,
-        },
-    }
-    try:
-        response = await client.post("/api/chat", json=payload)
-        response.raise_for_status()
-        return response.json()["message"]["content"]
-    except httpx.ConnectError:
-        logger.error("Ollama unreachable at %s", settings.OLLAMA_BASE_URL)
-        return None
-    except httpx.HTTPStatusError as exc:
-        logger.error("Ollama HTTP error: %s", exc)
-        return None
-    except (KeyError, ValueError) as exc:
-        logger.error("Chat response parse error: %s", exc)
-        return None

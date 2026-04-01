@@ -1,54 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
-
-// ── Markdown component list for assistant bubbles ─────────────────────────────
-
-const MD_COMPONENTS = {
-  p: ({ children }) => (
-    <p className="text-sm text-white/80 leading-relaxed mb-2 last:mb-0">{children}</p>
-  ),
-  strong: ({ children }) => (
-    <strong className="font-semibold text-white">{children}</strong>
-  ),
-  em: ({ children }) => (
-    <em className="italic text-indigo-200/90 not-italic" style={{ fontStyle: 'italic' }}>{children}</em>
-  ),
-  code: ({ inline, children }) =>
-    inline ? (
-      <code className="px-1.5 py-0.5 rounded-md text-[0.8em] font-mono text-indigo-300"
-            style={{ background: 'rgba(99,102,241,0.15)' }}>
-        {children}
-      </code>
-    ) : (
-      <code>{children}</code>
-    ),
-  pre: ({ children }) => (
-    <pre className="my-2 px-3 py-2.5 rounded-xl text-xs font-mono text-slate-300 overflow-x-auto leading-relaxed"
-         style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
-      {children}
-    </pre>
-  ),
-  ul: ({ children }) => (
-    <ul className="my-1.5 space-y-1 pl-4">{children}</ul>
-  ),
-  ol: ({ children }) => (
-    <ol className="my-1.5 space-y-1 pl-4 list-decimal">{children}</ol>
-  ),
-  li: ({ children }) => (
-    <li className="text-sm text-white/80 leading-relaxed list-disc marker:text-indigo-400">{children}</li>
-  ),
-  blockquote: ({ children }) => (
-    <blockquote className="my-2 pl-3 border-l-2 border-indigo-500/50 text-white/60 italic">
-      {children}
-    </blockquote>
-  ),
-  h1: ({ children }) => <p className="text-base font-semibold text-white mb-1">{children}</p>,
-  h2: ({ children }) => <p className="text-sm font-semibold text-white mb-1">{children}</p>,
-  h3: ({ children }) => <p className="text-sm font-medium text-slate-200 mb-1">{children}</p>,
-  hr: () => <hr className="my-3 border-white/10" />,
-}
+import MarkdownRenderer from '../components/MarkdownRenderer'
 
 // ── Relative time helper ──────────────────────────────────────────────────────
 
@@ -162,7 +115,7 @@ function MessageBubble({ message }) {
       >
         {message.error
           ? message.content
-          : <ReactMarkdown components={MD_COMPONENTS}>{message.content}</ReactMarkdown>
+          : <MarkdownRenderer>{message.content}</MarkdownRenderer>
         }
       </div>
     </div>

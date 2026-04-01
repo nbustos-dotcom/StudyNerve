@@ -2,11 +2,12 @@ import math
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Attempt, Question, Topic
+from app.models import Attempt, Note, Question, Topic
 
 # Exponential decay rate: attempts ~10 days old are weighted at ~37% of today's
 DECAY_LAMBDA = 0.1
@@ -24,7 +25,10 @@ class TopicGapScore:
     gap_score: float
 
 
-async def calculate_gap_scores(db: AsyncSession) -> list[TopicGapScore]:
+async def calculate_gap_scores(
+    db: AsyncSession,
+    user_id: Optional[int] = None,
+) -> list[TopicGapScore]:
     """
     For each topic with attempt history, compute:
       - accuracy         = correct / total
@@ -33,8 +37,9 @@ async def calculate_gap_scores(db: AsyncSession) -> list[TopicGapScore]:
       - gap_score        = (1 - accuracy) * recency_weight * frequency_factor
 
     Returns topics sorted by gap_score descending (weakest first).
+    When user_id is provided, only considers attempts for that user's notes.
     """
-    result = await db.execute(
+    query = (
         select(
             Attempt.is_correct,
             Attempt.created_at,
@@ -44,8 +49,17 @@ async def calculate_gap_scores(db: AsyncSession) -> list[TopicGapScore]:
         )
         .join(Question, Attempt.question_id == Question.id)
         .join(Topic, Question.topic_id == Topic.id)
-        .order_by(Attempt.created_at)
     )
+
+    if user_id is not None:
+        query = (
+            query
+            .join(Note, Topic.note_id == Note.id)
+            .where(Note.user_id == user_id)
+        )
+
+    query = query.order_by(Attempt.created_at)
+    result = await db.execute(query)
     rows = result.all()
 
     if not rows:
@@ -98,7 +112,6 @@ async def calculate_gap_scores(db: AsyncSession) -> list[TopicGapScore]:
 
         # Frequency factor: topics with fewer attempts get a boost so they
         # surface before the model has had a chance to test them adequately.
-        # log(max+2)/log(total+2) → 1.0 for the most-tested topic, higher for others.
         frequency_factor = math.log(max_attempts + 2) / math.log(total + 2)
 
         gap_score = (1.0 - accuracy) * recency_weight * frequency_factor

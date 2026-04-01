@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.llm import evaluate_answer, generate_questions
-from app.models import Attempt, Note, Question, StudySession, Topic
+from app.models import Attempt, Note, Question, StudySession, Topic, User
+from app.routers.auth import get_current_user
 from app.schemas import (
     AdaptiveQuizRequest,
     AnswerResult,
@@ -28,12 +29,15 @@ router = APIRouter(prefix="/quiz", tags=["quiz"])
 # ── Question generation ───────────────────────────────────────────────────────
 
 @router.post("/generate", response_model=list[QuestionResponse])
-async def generate_quiz(body: QuizGenerateRequest, db: AsyncSession = Depends(get_db)):
+async def generate_quiz(
+    body: QuizGenerateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     note = await db.get(Note, body.note_id)
-    if not note:
+    if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    # Resolve topic — use first existing topic or create a default one
     topic_result = await db.execute(
         select(Topic).where(Topic.note_id == body.note_id).limit(1)
     )
@@ -62,7 +66,7 @@ async def generate_quiz(body: QuizGenerateRequest, db: AsyncSession = Depends(ge
         if llm_result is None:
             raise HTTPException(
                 status_code=502,
-                detail="Ollama unavailable or failed to generate questions",
+                detail="LLM unavailable or failed to generate questions",
             )
 
         for q_data in llm_result.get("questions", []):
@@ -90,7 +94,11 @@ async def generate_quiz(body: QuizGenerateRequest, db: AsyncSession = Depends(ge
 # ── Answer submission ─────────────────────────────────────────────────────────
 
 @router.post("/submit", response_model=AnswerResult)
-async def submit_answer(body: AnswerSubmit, db: AsyncSession = Depends(get_db)):
+async def submit_answer(
+    body: AnswerSubmit,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     question = await db.get(Question, body.question_id)
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
@@ -106,7 +114,6 @@ async def submit_answer(body: AnswerSubmit, db: AsyncSession = Depends(get_db)):
             student_answer=body.user_answer,
         )
         if llm_result is None:
-            # Fall back to exact match if Ollama unavailable
             is_correct = body.user_answer.strip().lower() == question.correct_answer.strip().lower()
         else:
             is_correct = bool(llm_result.get("is_correct", False))
@@ -133,8 +140,11 @@ async def submit_answer(body: AnswerSubmit, db: AsyncSession = Depends(get_db)):
 # ── Study sessions ────────────────────────────────────────────────────────────
 
 @router.post("/session/start", response_model=SessionResponse, status_code=201)
-async def start_session(db: AsyncSession = Depends(get_db)):
-    session = StudySession()
+async def start_session(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    session = StudySession(user_id=current_user.id)
     db.add(session)
     await db.flush()
     await db.refresh(session)
@@ -142,16 +152,24 @@ async def start_session(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/session/{session_id}/end", response_model=SessionResponse)
-async def end_session(session_id: int, db: AsyncSession = Depends(get_db)):
+async def end_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     session = await db.get(StudySession, session_id)
-    if not session:
+    if not session or session.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Session not found")
 
     session.ended_at = datetime.now(timezone.utc)
 
-    # Tally correct/total attempts that occurred during this session window
+    # Tally correct/total attempts for this user during the session window,
+    # joining through Question → Note to scope by user
     attempts_result = await db.execute(
         select(func.count(Attempt.id), func.sum(func.cast(Attempt.is_correct, Integer)))
+        .join(Question, Attempt.question_id == Question.id)
+        .join(Note, Question.note_id == Note.id)
+        .where(Note.user_id == current_user.id)
         .where(Attempt.created_at >= session.started_at)
         .where(Attempt.created_at <= session.ended_at)
     )
@@ -167,20 +185,46 @@ async def end_session(session_id: int, db: AsyncSession = Depends(get_db)):
 # ── Stats ─────────────────────────────────────────────────────────────────────
 
 @router.get("/stats/overview", response_model=OverviewStats)
-async def overview_stats(db: AsyncSession = Depends(get_db)):
-    total_notes = await db.scalar(select(func.count(Note.id))) or 0
-    total_questions = await db.scalar(select(func.count(Question.id))) or 0
-    total_attempts = await db.scalar(select(func.count(Attempt.id))) or 0
+async def overview_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    total_notes = (
+        await db.scalar(
+            select(func.count(Note.id)).where(Note.user_id == current_user.id)
+        )
+        or 0
+    )
+    total_questions = (
+        await db.scalar(
+            select(func.count(Question.id))
+            .join(Note, Question.note_id == Note.id)
+            .where(Note.user_id == current_user.id)
+        )
+        or 0
+    )
+    total_attempts = (
+        await db.scalar(
+            select(func.count(Attempt.id))
+            .join(Question, Attempt.question_id == Question.id)
+            .join(Note, Question.note_id == Note.id)
+            .where(Note.user_id == current_user.id)
+        )
+        or 0
+    )
     correct_attempts = (
         await db.scalar(
-            select(func.count(Attempt.id)).where(Attempt.is_correct.is_(True))
+            select(func.count(Attempt.id))
+            .join(Question, Attempt.question_id == Question.id)
+            .join(Note, Question.note_id == Note.id)
+            .where(Note.user_id == current_user.id)
+            .where(Attempt.is_correct.is_(True))
         )
         or 0
     )
 
     overall_accuracy = correct_attempts / total_attempts if total_attempts > 0 else 0.0
-
-    topic_accuracies = await _topic_accuracies(db)
+    topic_accuracies = await _topic_accuracies(db, current_user.id)
 
     return OverviewStats(
         total_notes=total_notes,
@@ -192,11 +236,14 @@ async def overview_stats(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/stats/topics", response_model=list[TopicAccuracy])
-async def topic_stats(db: AsyncSession = Depends(get_db)):
-    return await _topic_accuracies(db)
+async def topic_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _topic_accuracies(db, current_user.id)
 
 
-async def _topic_accuracies(db: AsyncSession) -> list[TopicAccuracy]:
+async def _topic_accuracies(db: AsyncSession, user_id: int) -> list[TopicAccuracy]:
     result = await db.execute(
         select(
             Topic.id,
@@ -206,6 +253,8 @@ async def _topic_accuracies(db: AsyncSession) -> list[TopicAccuracy]:
         )
         .join(Question, Attempt.question_id == Question.id)
         .join(Topic, Question.topic_id == Topic.id)
+        .join(Note, Question.note_id == Note.id)
+        .where(Note.user_id == user_id)
         .group_by(Topic.id, Topic.name)
         .order_by(Topic.name)
     )
@@ -225,9 +274,11 @@ async def _topic_accuracies(db: AsyncSession) -> list[TopicAccuracy]:
 # ── Gap detection ─────────────────────────────────────────────────────────────
 
 @router.get("/gaps", response_model=list[TopicGapScoreResponse])
-async def get_gaps(db: AsyncSession = Depends(get_db)):
-    """Return gap scores for all topics that have attempt history, sorted weakest first."""
-    scores = await calculate_gap_scores(db)
+async def get_gaps(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    scores = await calculate_gap_scores(db, user_id=current_user.id)
     return [
         TopicGapScoreResponse(
             topic_id=s.topic_id,
@@ -244,23 +295,19 @@ async def get_gaps(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/generate-adaptive", response_model=list[QuestionResponse])
-async def generate_adaptive_quiz(body: AdaptiveQuizRequest, db: AsyncSession = Depends(get_db)):
-    """
-    Generate questions focused on the weakest topics for a given note.
-    Uses gap scores to pick topics; falls back to normal generation if no gap data exists.
-    """
+async def generate_adaptive_quiz(
+    body: AdaptiveQuizRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     note = await db.get(Note, body.note_id)
-    if not note:
+    if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    # Get gap scores filtered to this note's topics
-    all_gaps = await calculate_gap_scores(db)
+    all_gaps = await calculate_gap_scores(db, user_id=current_user.id)
     note_gaps = [g for g in all_gaps if g.note_id == body.note_id]
 
-    # Fall back to normal generation when there's no prior attempt data for this note
     if not note_gaps:
-        fallback_req = QuizGenerateRequest(note_id=body.note_id, num_questions=body.count)
-        # Reuse the generate endpoint logic inline
         topic_result = await db.execute(
             select(Topic).where(Topic.note_id == body.note_id).limit(1)
         )
@@ -277,7 +324,7 @@ async def generate_adaptive_quiz(body: AdaptiveQuizRequest, db: AsyncSession = D
             question_type="mcq",
         )
         if llm_result is None:
-            raise HTTPException(status_code=502, detail="Ollama unavailable or failed to generate questions")
+            raise HTTPException(status_code=502, detail="LLM unavailable or failed to generate questions")
 
         saved: list[Question] = []
         for q_data in llm_result.get("questions", []):
@@ -300,8 +347,6 @@ async def generate_adaptive_quiz(body: AdaptiveQuizRequest, db: AsyncSession = D
             await db.refresh(q)
         return saved
 
-    # Distribute questions across weakest topics (weighted by gap score)
-    # Pick up to 3 weakest topics; give more questions to worse-scoring ones
     weakest = note_gaps[:3]
     total_gap = sum(g.gap_score for g in weakest) or 1.0
 
@@ -311,7 +356,6 @@ async def generate_adaptive_quiz(body: AdaptiveQuizRequest, db: AsyncSession = D
         if remaining_budget <= 0:
             break
 
-        # Last topic gets whatever is left to avoid rounding shortfall
         if i == len(weakest) - 1:
             topic_count = remaining_budget
         else:

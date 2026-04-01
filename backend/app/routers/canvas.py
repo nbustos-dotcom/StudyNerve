@@ -21,6 +21,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import _ENV_FILE, settings
 from app.database import get_db
+from app.models import User
+from app.routers.auth import get_current_user
 from app.schemas import NoteResponse
 from app.services import canvas as svc
 
@@ -55,8 +57,7 @@ def _http_error(exc: httpx.HTTPStatusError) -> HTTPException:
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/status")
-async def canvas_status():
-    """Verify the Canvas token is set and the API is reachable."""
+async def canvas_status(current_user: User = Depends(get_current_user)):
     if not settings.CANVAS_API_TOKEN:
         return {"connected": False, "reason": "token not configured"}
     try:
@@ -71,8 +72,7 @@ async def canvas_status():
 
 
 @router.get("/courses")
-async def list_courses():
-    """List all active enrolled courses."""
+async def list_courses(current_user: User = Depends(get_current_user)):
     _require_token()
     try:
         return await svc.get_courses()
@@ -83,8 +83,10 @@ async def list_courses():
 
 
 @router.get("/courses/{course_id}/assignments")
-async def list_assignments(course_id: int):
-    """List assignments for a course ordered by due date."""
+async def list_assignments(
+    course_id: int,
+    current_user: User = Depends(get_current_user),
+):
     _require_token()
     try:
         return await svc.get_assignments(course_id)
@@ -95,8 +97,10 @@ async def list_assignments(course_id: int):
 
 
 @router.get("/upcoming")
-async def upcoming_assignments(days: int = Query(default=14, ge=1, le=90)):
-    """Return assignments due within the next N days across all active courses."""
+async def upcoming_assignments(
+    days: int = Query(default=14, ge=1, le=90),
+    current_user: User = Depends(get_current_user),
+):
     _require_token()
     try:
         return await svc.get_upcoming_assignments(days=days)
@@ -110,12 +114,9 @@ async def upcoming_assignments(days: int = Query(default=14, ge=1, le=90)):
 async def import_assignment(
     assignment_id: int,
     course_id: int = Query(..., description="Canvas course ID the assignment belongs to"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Fetch a single Canvas assignment and create a Note from it.
-    Requires ?course_id=<id> because Canvas scopes assignments under courses.
-    """
     _require_token()
     try:
         assignment = await svc.get_single_assignment(course_id, assignment_id)
@@ -124,7 +125,6 @@ async def import_assignment(
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="Could not reach Canvas.")
 
-    # Fetch course name for the subject tag
     course_name = ""
     try:
         courses = await svc.get_courses()
@@ -134,19 +134,20 @@ async def import_assignment(
     except Exception:
         pass
 
-    note = await svc.import_assignment_as_note(db, assignment, course_name=course_name)
+    note = await svc.import_assignment_as_note(
+        db, assignment, course_name=course_name, user_id=current_user.id
+    )
     return note
 
 
 @router.post("/sync")
-async def sync_all(db: AsyncSession = Depends(get_db)):
-    """
-    Import all assignments from all active courses as notes.
-    Existing notes are not deduped — call this intentionally.
-    """
+async def sync_all(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     _require_token()
     try:
-        result = await svc.sync_courses(db)
+        result = await svc.sync_courses(db, user_id=current_user.id)
     except httpx.HTTPStatusError as exc:
         raise _http_error(exc)
     except httpx.RequestError:
@@ -155,26 +156,22 @@ async def sync_all(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/settings")
-async def save_settings(body: CanvasSettingsRequest):
-    """
-    Persist Canvas URL and API token to backend/.env.
-    The token is written to disk and updated in memory — never echoed back.
-    """
+async def save_settings(
+    body: CanvasSettingsRequest,
+    current_user: User = Depends(get_current_user),
+):
     url = body.canvas_url.strip().rstrip("/")
     token = body.canvas_token.strip()
 
     if not url:
         raise HTTPException(status_code=422, detail="canvas_url must not be empty.")
 
-    # Write to .env file (creates it if absent)
     set_key(str(_ENV_FILE), "CANVAS_API_URL", url)
     set_key(str(_ENV_FILE), "CANVAS_API_TOKEN", token)
 
-    # Update os.environ so the running process picks it up immediately
     os.environ["CANVAS_API_URL"] = url
     os.environ["CANVAS_API_TOKEN"] = token
 
-    # Update the in-memory settings object for the current session
     settings.CANVAS_API_URL = url
     settings.CANVAS_API_TOKEN = token
 

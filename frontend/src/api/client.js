@@ -135,4 +135,42 @@ export const api = {
 
   /** @param {{ canvas_url: string, canvas_token: string }} data */
   canvasSaveSettings: (data) => req('POST', '/canvas/settings', data),
+
+  // ── Vision Board ─────────────────────────────────────────────────────────────
+  /** @returns {Promise<Array>} list of VisionBoardSummary */
+  visionBoards: () => req('GET', '/vision/boards'),
+
+  /** @param {number} id @returns {Promise} VisionBoardDetail with nested steps */
+  visionBoard: (id) => req('GET', `/vision/boards/${id}`),
+
+  /**
+   * @param {{ title?: string, description?: string, canvas_assignment_id?: number, canvas_course_id?: number }} data
+   * @returns {Promise} VisionBoardDetail
+   */
+  visionCreate: (data) => req('POST', '/vision/create', data),
+
+  /**
+   * @param {number} stepId
+   * @param {{ title?: string, description?: string, is_completed?: boolean, estimated_minutes?: number }} data
+   */
+  visionUpdateStep: (stepId, data) => req('PUT', `/vision/steps/${stepId}`, data),
+
+  /**
+   * @param {number} boardId
+   * @param {{ title: string, description?: string, parent_step_id?: number, order_index?: number, estimated_minutes?: number }} data
+   */
+  visionAddStep: (boardId, data) => req('POST', `/vision/boards/${boardId}/add-step`, data),
+
+  /** @param {number} stepId */
+  visionDeleteStep: (stepId) => req('DELETE', `/vision/steps/${stepId}`),
+
+  /**
+   * @param {number} stepId
+   * @param {string} question
+   * @returns {Promise<{ step_id: number, question: string, answer: string }>}
+   */
+  visionAskStep: (stepId, question) => req('POST', `/vision/steps/${stepId}/ask`, { question }),
+
+  /** @param {number} boardId @param {number[]} stepIds */
+  visionReorder: (boardId, stepIds) => req('PUT', `/vision/boards/${boardId}/reorder`, { step_ids: stepIds }),
 }

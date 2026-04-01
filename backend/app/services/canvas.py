@@ -9,6 +9,7 @@ using the standard-library html.parser — no extra dependency needed.
 import re
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
+from typing import Optional
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +30,6 @@ class _Stripper(HTMLParser):
 
     def text(self) -> str:
         raw = " ".join(self._chunks)
-        # collapse runs of whitespace / blank lines
         raw = re.sub(r"[ \t]+", " ", raw)
         raw = re.sub(r"\n{3,}", "\n\n", raw)
         return raw.strip()
@@ -42,7 +42,6 @@ def _strip_html(html: str | None) -> str:
     try:
         s.feed(html)
     except Exception:
-        # fall back to a naive regex strip if the parser chokes
         return re.sub(r"<[^>]+>", " ", html).strip()
     return s.text()
 
@@ -128,7 +127,7 @@ async def get_upcoming_assignments(days: int = 14) -> list[dict]:
         try:
             assignments = await get_assignments(course["id"])
         except httpx.HTTPStatusError:
-            continue  # skip courses we can't access
+            continue
 
         for a in assignments:
             due_str = a.get("due_at")
@@ -150,6 +149,7 @@ async def import_assignment_as_note(
     db: AsyncSession,
     assignment: dict,
     course_name: str = "",
+    user_id: Optional[int] = None,
 ) -> Note:
     """
     Create a Note from a Canvas assignment dict.
@@ -176,6 +176,7 @@ async def import_assignment_as_note(
         title=assignment.get("name", "Canvas Assignment"),
         content=content,
         subject=course_name or None,
+        user_id=user_id,
     )
     db.add(note)
     await db.flush()
@@ -183,7 +184,7 @@ async def import_assignment_as_note(
     return note
 
 
-async def sync_courses(db: AsyncSession) -> dict:
+async def sync_courses(db: AsyncSession, user_id: Optional[int] = None) -> dict:
     """
     Import all assignments from all active courses as notes.
     Returns a summary dict.
@@ -201,7 +202,7 @@ async def sync_courses(db: AsyncSession) -> dict:
 
         count = 0
         for a in assignments:
-            await import_assignment_as_note(db, a, course_name=course["name"])
+            await import_assignment_as_note(db, a, course_name=course["name"], user_id=user_id)
             count += 1
 
         total_imported += count

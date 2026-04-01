@@ -6,7 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
 from app.llm import check_health
 
-from app.routers import canvas, chat, notes, profile, quiz, topics
+from app.routers import canvas, chat, notes, profile, quiz, topics, vision
+from app.routers.auth import router as auth_router
 
 
 @asynccontextmanager
@@ -25,12 +26,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/api")
 app.include_router(notes.router, prefix="/api")
 app.include_router(topics.router, prefix="/api")
 app.include_router(quiz.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(profile.router, prefix="/api")
 app.include_router(canvas.router, prefix="/api")
+app.include_router(vision.router, prefix="/api")
 
 
 @app.get("/api/health")

@@ -1,3 +1,6 @@
+import re
+import sys
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -15,11 +18,19 @@ def _resolve_db_url(url: str) -> str:
 
 _db_url = _resolve_db_url(settings.DATABASE_URL)
 
+# Log the scheme/format so we can see what driver is being used without exposing credentials
+_safe_url = re.sub(r":([^/@]+)@", ":***@", _db_url)
+print(f"[database] URL format: {_safe_url}", flush=True)
+
 # Only create the local data directory when using SQLite
 if _db_url.startswith("sqlite"):
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-engine = create_async_engine(_db_url, echo=False)
+try:
+    engine = create_async_engine(_db_url, echo=False)
+except Exception as _exc:
+    print(f"[database] ERROR creating engine: {_exc}", flush=True)
+    sys.exit(1)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

@@ -1,3 +1,4 @@
+import traceback
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,6 +9,7 @@ from app.llm import check_health
 
 from app.routers import canvas, chat, notes, profile, quiz, topics, vision
 from app.routers.auth import router as auth_router
+from app.routers.settings import router as settings_router
 
 
 @asynccontextmanager
@@ -27,6 +29,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/api")
+app.include_router(settings_router, prefix="/api")
 app.include_router(notes.router, prefix="/api")
 app.include_router(topics.router, prefix="/api")
 app.include_router(quiz.router, prefix="/api")
@@ -39,3 +42,28 @@ app.include_router(vision.router, prefix="/api")
 @app.get("/api/health")
 async def health():
     return await check_health()
+
+
+@app.get("/api/test-gemini")
+async def test_gemini():
+    import asyncio
+    from app.config import settings
+
+    api_key = settings.GEMINI_API_KEY
+    if not api_key:
+        return {"ok": False, "error": "GEMINI_API_KEY is not set in .env or environment"}
+
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        return {"ok": False, "error": "google-generativeai package not installed"}
+
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = await asyncio.to_thread(model.generate_content, "Say hello")
+        return {"ok": True, "response": response.text}
+    except Exception as exc:
+        tb = traceback.format_exc()
+        print(tb, flush=True)
+        return {"ok": False, "error": str(exc), "traceback": tb}

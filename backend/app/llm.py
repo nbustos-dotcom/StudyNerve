@@ -1,25 +1,12 @@
-import asyncio
-import json
 import logging
 from typing import Optional
 
 import httpx
 
 from app.config import settings
+from app.providers.router import get_provider
 
 logger = logging.getLogger(__name__)
-
-_http_client: Optional[httpx.AsyncClient] = None
-
-
-def get_client() -> httpx.AsyncClient:
-    global _http_client
-    if _http_client is None or _http_client.is_closed:
-        _http_client = httpx.AsyncClient(
-            base_url=settings.OLLAMA_BASE_URL,
-            timeout=httpx.Timeout(120.0),
-        )
-    return _http_client
 
 
 # ── Prompt templates ─────────────────────────────────────────────────────────
@@ -110,166 +97,34 @@ Rules:
 - feedback should be 2-4 sentences maximum: direct, not soft"""
 
 
-# ── Ollama backend ────────────────────────────────────────────────────────────
+# ── Public interface ──────────────────────────────────────────────────────────
 
-async def _generate_json_ollama(prompt: str, system: str) -> Optional[dict]:
-    client = get_client()
-    payload = {
-        "model": settings.OLLAMA_MODEL,
-        "prompt": prompt,
-        "system": system,
-        "format": "json",
-        "stream": False,
-        "options": {
-            "temperature": 0.7,
-            "num_predict": 2048,
-        },
-    }
-
-    for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
-        try:
-            response = await client.post("/api/generate", json=payload)
-            response.raise_for_status()
-            raw = response.json().get("response", "")
-            return json.loads(raw)
-        except httpx.ConnectError:
-            logger.error("Ollama unreachable at %s", settings.OLLAMA_BASE_URL)
-            return None
-        except httpx.HTTPStatusError as exc:
-            logger.error("Ollama HTTP error: %s", exc)
-            return None
-        except (json.JSONDecodeError, ValueError) as exc:
-            logger.warning(
-                "JSON parse failure on attempt %d/%d: %s",
-                attempt,
-                settings.MAX_LLM_RETRIES,
-                exc,
-            )
-            if attempt == settings.MAX_LLM_RETRIES:
-                logger.error("All %d retries exhausted — giving up", settings.MAX_LLM_RETRIES)
-                return None
-
-    return None
+async def generate_json(
+    prompt: str,
+    system: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[dict]:
+    provider = get_provider(provider_name, api_key)
+    return await provider.generate_json(prompt, system)
 
 
-async def _generate_chat_ollama(messages: list[dict], system: str) -> Optional[str]:
-    client = get_client()
-    payload = {
-        "model": settings.OLLAMA_MODEL,
-        "messages": [{"role": "system", "content": system}] + messages,
-        "stream": False,
-        "options": {
-            "temperature": 0.7,
-            "num_predict": 1024,
-        },
-    }
-    try:
-        response = await client.post("/api/chat", json=payload)
-        response.raise_for_status()
-        return response.json()["message"]["content"]
-    except httpx.ConnectError:
-        logger.error("Ollama unreachable at %s", settings.OLLAMA_BASE_URL)
-        return None
-    except httpx.HTTPStatusError as exc:
-        logger.error("Ollama HTTP error: %s", exc)
-        return None
-    except (KeyError, ValueError) as exc:
-        logger.error("Chat response parse error: %s", exc)
-        return None
-
-
-# ── Gemini backend ────────────────────────────────────────────────────────────
-
-async def _generate_json_gemini(prompt: str, system: str) -> Optional[dict]:
-    try:
-        import google.generativeai as genai
-    except ImportError:
-        logger.error("google-generativeai package not installed")
-        return None
-
-    genai.configure(api_key=settings.GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=system)
-
-    for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
-        try:
-            response = await asyncio.to_thread(
-                model.generate_content,
-                prompt,
-                generation_config={
-                    "response_mime_type": "application/json",
-                    "temperature": 0.7,
-                    "max_output_tokens": 2048,
-                },
-            )
-            return json.loads(response.text)
-        except (json.JSONDecodeError, ValueError) as exc:
-            logger.warning(
-                "Gemini JSON parse failure on attempt %d/%d: %s",
-                attempt,
-                settings.MAX_LLM_RETRIES,
-                exc,
-            )
-            if attempt == settings.MAX_LLM_RETRIES:
-                logger.error("All %d Gemini retries exhausted", settings.MAX_LLM_RETRIES)
-                return None
-        except Exception as exc:
-            logger.error("Gemini error: %s", exc)
-            return None
-
-    return None
-
-
-async def _generate_chat_gemini(messages: list[dict], system: str) -> Optional[str]:
-    try:
-        import google.generativeai as genai
-    except ImportError:
-        logger.error("google-generativeai package not installed")
-        return None
-
-    genai.configure(api_key=settings.GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=system)
-
-    # Map roles: Gemini uses "user" and "model" (not "assistant")
-    history = []
-    for m in messages[:-1]:
-        history.append({
-            "role": "user" if m["role"] == "user" else "model",
-            "parts": [m["content"]],
-        })
-
-    last_message = messages[-1]["content"] if messages else ""
-
-    try:
-        chat = model.start_chat(history=history)
-        response = await asyncio.to_thread(
-            chat.send_message,
-            last_message,
-            generation_config={"temperature": 0.7, "max_output_tokens": 1024},
-        )
-        return response.text
-    except Exception as exc:
-        logger.error("Gemini chat error: %s", exc)
-        return None
-
-
-# ── Public interface (dispatches by LLM_PROVIDER) ────────────────────────────
-
-async def generate_json(prompt: str, system: str) -> Optional[dict]:
-    if settings.LLM_PROVIDER == "gemini":
-        return await _generate_json_gemini(prompt, system)
-    return await _generate_json_ollama(prompt, system)
-
-
-async def generate_chat(messages: list[dict], system: str) -> Optional[str]:
-    if settings.LLM_PROVIDER == "gemini":
-        return await _generate_chat_gemini(messages, system)
-    return await _generate_chat_ollama(messages, system)
+async def generate_chat(
+    messages: list[dict],
+    system: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[str]:
+    provider = get_provider(provider_name, api_key)
+    return await provider.generate_chat(messages, system)
 
 
 # ── Health check ─────────────────────────────────────────────────────────────
 
 async def check_health() -> dict:
-    if settings.LLM_PROVIDER == "gemini":
+    provider_name = settings.LLM_PROVIDER
+
+    if provider_name == "gemini":
         has_key = bool(settings.GEMINI_API_KEY)
         return {
             "provider": "gemini",
@@ -278,23 +133,43 @@ async def check_health() -> dict:
             "ready": has_key,
         }
 
-    # Ollama health check
-    client = get_client()
-    try:
-        response = await client.get("/api/tags")
-        response.raise_for_status()
-        data = response.json()
-        available_models = [m["name"] for m in data.get("models", [])]
-        model_available = any(
-            settings.OLLAMA_MODEL in name for name in available_models
-        )
+    if provider_name == "openai":
+        has_key = bool(settings.OPENAI_API_KEY)
         return {
-            "provider": "ollama",
-            "ollama_reachable": True,
-            "model": settings.OLLAMA_MODEL,
-            "model_available": model_available,
-            "available_models": available_models,
+            "provider": "openai",
+            "model": "gpt-4o-mini",
+            "api_key_set": has_key,
+            "ready": has_key,
         }
+
+    if provider_name == "anthropic":
+        has_key = bool(settings.ANTHROPIC_API_KEY)
+        return {
+            "provider": "anthropic",
+            "model": "claude-sonnet-4-20250514",
+            "api_key_set": has_key,
+            "ready": has_key,
+        }
+
+    # Ollama health check
+    try:
+        async with httpx.AsyncClient(
+            base_url=settings.OLLAMA_BASE_URL, timeout=httpx.Timeout(10.0)
+        ) as client:
+            response = await client.get("/api/tags")
+            response.raise_for_status()
+            data = response.json()
+            available_models = [m["name"] for m in data.get("models", [])]
+            model_available = any(
+                settings.OLLAMA_MODEL in name for name in available_models
+            )
+            return {
+                "provider": "ollama",
+                "ollama_reachable": True,
+                "model": settings.OLLAMA_MODEL,
+                "model_available": model_available,
+                "available_models": available_models,
+            }
     except httpx.ConnectError:
         logger.warning("Health check failed: Ollama unreachable")
         return {
@@ -317,9 +192,13 @@ async def check_health() -> dict:
 
 # ── Convenience functions ─────────────────────────────────────────────────────
 
-async def extract_topics(note_content: str) -> Optional[dict]:
+async def extract_topics(
+    note_content: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[dict]:
     prompt = f"Extract the topics and subtopics from the following note:\n\n{note_content}"
-    return await generate_json(prompt, TOPIC_EXTRACTION_SYSTEM)
+    return await generate_json(prompt, TOPIC_EXTRACTION_SYSTEM, provider_name, api_key)
 
 
 async def generate_questions(
@@ -327,6 +206,8 @@ async def generate_questions(
     topic_name: str,
     count: int,
     question_type: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
 ) -> Optional[dict]:
     type_instruction = (
         "Generate only multiple-choice (MCQ) questions."
@@ -340,21 +221,27 @@ async def generate_questions(
         f"Source content:\n{note_content}\n\n"
         f"Generate exactly {count} questions about this topic. {type_instruction}"
     )
-    return await generate_json(prompt, QUESTION_GENERATION_SYSTEM)
+    return await generate_json(prompt, QUESTION_GENERATION_SYSTEM, provider_name, api_key)
 
 
-async def extract_insights(messages: list[dict]) -> Optional[dict]:
+async def extract_insights(
+    messages: list[dict],
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[dict]:
     conversation = "\n".join(
         f"{m['role'].upper()}: {m['content']}" for m in messages
     )
     prompt = f"Tutoring conversation to analyse:\n\n{conversation}"
-    return await generate_json(prompt, INSIGHT_EXTRACTION_SYSTEM)
+    return await generate_json(prompt, INSIGHT_EXTRACTION_SYSTEM, provider_name, api_key)
 
 
 async def evaluate_teaching(
     topic_name: str,
     student_explanation: str,
     note_content: Optional[str] = None,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
 ) -> Optional[dict]:
     context = ""
     if note_content:
@@ -366,13 +253,15 @@ async def evaluate_teaching(
         f"Student's explanation:\n{student_explanation}\n\n"
         "Evaluate this explanation against the topic and reference material."
     )
-    return await generate_json(prompt, TEACH_BACK_EVALUATION_SYSTEM)
+    return await generate_json(prompt, TEACH_BACK_EVALUATION_SYSTEM, provider_name, api_key)
 
 
 async def evaluate_answer(
     question: str,
     correct_answer: str,
     student_answer: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
 ) -> Optional[dict]:
     prompt = (
         f"Question: {question}\n"
@@ -380,4 +269,4 @@ async def evaluate_answer(
         f"Student's answer: {student_answer}\n\n"
         "Evaluate whether the student's answer is correct."
     )
-    return await generate_json(prompt, ANSWER_EVALUATION_SYSTEM)
+    return await generate_json(prompt, ANSWER_EVALUATION_SYSTEM, provider_name, api_key)

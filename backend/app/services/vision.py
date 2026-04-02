@@ -47,6 +47,8 @@ async def generate_breakdown(
     title: str,
     description: str,
     note_content: str | None = None,
+    provider_name: str | None = None,
+    api_key: str | None = None,
 ) -> dict | None:
     """
     Ask Ollama to break an assignment into ordered steps (with optional sub-steps).
@@ -62,7 +64,7 @@ async def generate_breakdown(
         parts.append(f"\nAdditional context from notes:\n{truncated}")
 
     prompt = "\n".join(parts)
-    return await generate_json(prompt, _BREAKDOWN_SYSTEM)
+    return await generate_json(prompt, _BREAKDOWN_SYSTEM, provider_name, api_key)
 
 
 async def calculate_progress(board_id: int, db: AsyncSession) -> int:

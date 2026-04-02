@@ -6,6 +6,7 @@ from app.database import get_db
 from app.llm import extract_topics
 from app.models import Note, Topic, User
 from app.routers.auth import get_current_user
+from app.routers.settings import get_user_llm_kwargs
 from app.schemas import NoteCreate, NoteResponse
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -71,7 +72,8 @@ async def extract_note_topics(
     if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    llm_result = await extract_topics(note.content)
+    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+    llm_result = await extract_topics(note.content, **llm_kwargs)
     if llm_result is None:
         raise HTTPException(
             status_code=502, detail="LLM unavailable or failed to extract topics"

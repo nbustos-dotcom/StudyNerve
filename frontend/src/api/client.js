@@ -1,13 +1,20 @@
 const BASE = '/api'
 
-async function req(method, path, body) {
-  const opts = {
-    method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  }
+function getToken() {
+  return localStorage.getItem('mt_token')
+}
 
-  const res = await fetch(`${BASE}${path}`, opts)
+async function req(method, path, body) {
+  const token = getToken()
+  const headers = {}
+  if (body) headers['Content-Type'] = 'application/json'
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
 
   if (res.status === 204) return null
 
@@ -16,6 +23,14 @@ async function req(method, path, body) {
     data = await res.json()
   } catch {
     data = null
+  }
+
+  if (res.status === 401) {
+    // Token expired or invalid — clear storage and redirect to login
+    localStorage.removeItem('mt_token')
+    localStorage.removeItem('mt_user')
+    window.location.href = '/login'
+    throw new Error('Session expired. Please log in again.')
   }
 
   if (!res.ok) {
@@ -27,6 +42,26 @@ async function req(method, path, body) {
 }
 
 export const api = {
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+  /** @param {{ email: string, password: string, name: string }} data */
+  register: (data) => req('POST', '/auth/register', data),
+
+  /** @param {{ email: string, password: string }} data */
+  login: (data) => req('POST', '/auth/login', data),
+
+  /** @returns {Promise<{ id, email, name, created_at }>} */
+  getMe: () => req('GET', '/auth/me'),
+
+  // ── User Settings ────────────────────────────────────────────────────────────
+  /** @returns {Promise<{ llm_provider, llm_api_key_set, canvas_url, canvas_connected }>} */
+  getSettings: () => req('GET', '/settings'),
+
+  /** @param {{ provider: string, api_key?: string }} data */
+  saveProvider: (data) => req('POST', '/settings/provider', data),
+
+  /** @param {{ canvas_url: string, canvas_token: string }} data */
+  saveCanvasSettings: (data) => req('POST', '/settings/canvas', data),
+
   // ── Health ──────────────────────────────────────────────────────────────────
   checkHealth: () => req('GET', '/health'),
 

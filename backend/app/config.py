@@ -19,6 +19,8 @@ class Settings:
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "ollama")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-prod")
     MAX_LLM_RETRIES: int = int(os.getenv("MAX_LLM_RETRIES", "3"))
     CANVAS_API_URL: str = os.getenv("CANVAS_API_URL", "https://mtu.instructure.com/api/v1")

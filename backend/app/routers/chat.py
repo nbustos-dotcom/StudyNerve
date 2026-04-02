@@ -9,6 +9,7 @@ from app.database import get_db
 from app.llm import generate_chat
 from app.models import ChatMessage, Note, Question, StudentInsight, User
 from app.routers.auth import get_current_user
+from app.routers.settings import get_user_llm_kwargs
 from app.schemas import (
     ChatMessageResponse,
     ChatSendRequest,
@@ -237,7 +238,8 @@ async def send_message(
 
     llm_messages = history + [{"role": "user", "content": body.message}]
 
-    response_text = await generate_chat(llm_messages, system)
+    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+    response_text = await generate_chat(llm_messages, system, **llm_kwargs)
     if response_text is None:
         raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond")
 

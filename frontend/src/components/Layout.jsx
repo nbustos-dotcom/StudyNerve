@@ -1,14 +1,23 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { api } from '../api/client'
 
 const NAV = [
-  { to: '/',           label: 'Dashboard', end: true },
-  { to: '/notes',      label: 'Notes'               },
-  { to: '/quiz',       label: 'Quiz'                },
-  { to: '/chat',       label: 'Tutor'               },
-  { to: '/results',    label: 'Results'             },
-  { to: '/canvas',     label: 'Canvas'              },
-  { to: '/vision',     label: 'Vision'              },
+  { to: '/',        label: 'Dashboard', end: true },
+  { to: '/notes',   label: 'Notes'               },
+  { to: '/quiz',    label: 'Quiz'                },
+  { to: '/chat',    label: 'Tutor'               },
+  { to: '/results', label: 'Results'             },
+  { to: '/canvas',  label: 'Canvas'              },
+  { to: '/vision',  label: 'Vision'              },
 ]
+
+const PROVIDER_LABELS = {
+  ollama:    'Ollama (local)',
+  gemini:    'Gemini',
+  openai:    'OpenAI',
+  anthropic: 'Claude',
+}
 
 const navbarStyle = {
   background: 'rgba(10, 10, 26, 0.72)',
@@ -27,7 +36,22 @@ const inactivePillStyle = {
   border: '1px solid transparent',
 }
 
-export default function Layout() {
+export default function Layout({ user, onLogout }) {
+  const navigate = useNavigate()
+  const [provider, setProvider] = useState('ollama')
+  const [showUserMenu, setShowUserMenu] = useState(false)
+
+  useEffect(() => {
+    api.getSettings()
+      .then((s) => setProvider(s.llm_provider || 'ollama'))
+      .catch(() => {})
+  }, [])
+
+  function handleLogout() {
+    onLogout()
+    navigate('/login')
+  }
+
   return (
     <div className="relative z-10 min-h-screen">
 
@@ -78,22 +102,104 @@ export default function Layout() {
               {label}
             </NavLink>
           ))}
+          <NavLink
+            to="/settings"
+            className={({ isActive }) =>
+              `px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActive ? 'text-indigo-300' : 'text-white/50 hover:text-white/80'
+              }`
+            }
+            style={({ isActive }) => (isActive ? activePillStyle : inactivePillStyle)}
+            title="Settings"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 10a2 2 0 100-4 2 2 0 000 4z" />
+              <path d="M13.4 9.6l.6-1.6-.6-1.6-1.6-.6-1-1.4V3l-1.6-.6L8 3l-1.2-.6L5.2 3v1.4l-1 1.4-1.6.6L2 8l.6 1.6 1.6.6 1 1.4V13l1.6.6L8 13l1.2.6 1.6-.6v-1.4l1-1.4 1.6-.6z" />
+            </svg>
+          </NavLink>
         </nav>
 
-        {/* Right: Ollama badge */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <div
-            className="w-1.5 h-1.5 rounded-full"
-            style={{ background: 'rgba(99,102,241,0.7)', boxShadow: '0 0 5px rgba(99,102,241,0.9)' }}
-          />
-          <span className="text-[11px] text-white/30 tracking-wide whitespace-nowrap">
-            Powered by Ollama
-          </span>
+        {/* Right: provider badge + user */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Provider indicator */}
+          <div className="flex items-center gap-1.5">
+            <div
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: 'rgba(99,102,241,0.7)', boxShadow: '0 0 5px rgba(99,102,241,0.9)' }}
+            />
+            <span className="text-[11px] text-white/30 tracking-wide whitespace-nowrap">
+              {PROVIDER_LABELS[provider] ?? provider}
+            </span>
+          </div>
+
+          {/* User menu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu((v) => !v)}
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all duration-150"
+              style={{
+                background: showUserMenu ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <div
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-indigo-300 flex-shrink-0"
+                style={{ background: 'rgba(99,102,241,0.25)' }}
+              >
+                {user?.name?.[0]?.toUpperCase() ?? '?'}
+              </div>
+              <span className="text-xs text-white/60 max-w-[96px] truncate">{user?.name}</span>
+              <svg className="w-3 h-3 text-white/30" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M3 5l3 3 3-3" />
+              </svg>
+            </button>
+
+            {showUserMenu && (
+              <div
+                className="absolute right-0 top-full mt-1.5 w-44 rounded-xl py-1 z-50"
+                style={{
+                  background: 'rgba(12,12,28,0.95)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                }}
+              >
+                <div className="px-3 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+                  <p className="text-xs font-medium text-slate-300 truncate">{user?.name}</p>
+                  <p className="text-[10px] text-slate-600 truncate mt-0.5">{user?.email}</p>
+                </div>
+                <NavLink
+                  to="/settings"
+                  onClick={() => setShowUserMenu(false)}
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                    <path d="M8 10a2 2 0 100-4 2 2 0 000 4z" />
+                    <path d="M13.4 9.6l.6-1.6-.6-1.6-1.6-.6-1-1.4V3l-1.6-.6L8 3l-1.2-.6L5.2 3v1.4l-1 1.4-1.6.6L2 8l.6 1.6 1.6.6 1 1.4V13l1.6.6L8 13l1.2.6 1.6-.6v-1.4l1-1.4 1.6-.6z" />
+                  </svg>
+                  Settings
+                </NavLink>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400/70 hover:text-red-400 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3M10 11l3-3-3-3M14 8H6" />
+                  </svg>
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
+      {/* Overlay to close menu */}
+      {showUserMenu && (
+        <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+      )}
+
       {/* ── Page content ────────────────────────────────────────────────────── */}
-      {/* pt-16 clears the fixed 64px nav. Pages handle their own max-width/padding. */}
       <main className="pt-16">
         <Outlet />
       </main>

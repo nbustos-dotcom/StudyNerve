@@ -10,6 +10,7 @@ from app.database import get_db
 from app.llm import evaluate_answer, generate_questions
 from app.models import Attempt, Note, Question, StudySession, Topic, User
 from app.routers.auth import get_current_user
+from app.routers.settings import get_user_llm_kwargs
 from app.schemas import (
     AdaptiveQuizRequest,
     AnswerResult,
@@ -51,6 +52,8 @@ async def generate_quiz(
     count_per_type = math.ceil(body.num_questions / len(question_types))
     saved: list[Question] = []
 
+    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+
     for q_type in question_types:
         remaining = body.num_questions - len(saved)
         if remaining <= 0:
@@ -62,6 +65,7 @@ async def generate_quiz(
             topic_name=topic.name,
             count=batch_count,
             question_type=q_type,
+            **llm_kwargs,
         )
         if llm_result is None:
             raise HTTPException(
@@ -108,10 +112,12 @@ async def submit_answer(
     if question.type == "mcq":
         is_correct = body.user_answer.strip().upper() == question.correct_answer.strip().upper()
     else:
+        llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
         llm_result = await evaluate_answer(
             question=question.content,
             correct_answer=question.correct_answer,
             student_answer=body.user_answer,
+            **llm_kwargs,
         )
         if llm_result is None:
             is_correct = body.user_answer.strip().lower() == question.correct_answer.strip().lower()
@@ -307,6 +313,8 @@ async def generate_adaptive_quiz(
     all_gaps = await calculate_gap_scores(db, user_id=current_user.id)
     note_gaps = [g for g in all_gaps if g.note_id == body.note_id]
 
+    adaptive_llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+
     if not note_gaps:
         topic_result = await db.execute(
             select(Topic).where(Topic.note_id == body.note_id).limit(1)
@@ -322,6 +330,7 @@ async def generate_adaptive_quiz(
             topic_name=topic.name,
             count=body.count,
             question_type="mcq",
+            **adaptive_llm_kwargs,
         )
         if llm_result is None:
             raise HTTPException(status_code=502, detail="LLM unavailable or failed to generate questions")
@@ -371,6 +380,7 @@ async def generate_adaptive_quiz(
             topic_name=gap.topic_name,
             count=topic_count,
             question_type="mcq",
+            **adaptive_llm_kwargs,
         )
         if llm_result is None:
             continue

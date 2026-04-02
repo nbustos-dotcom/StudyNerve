@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 
 // ── Due-date helpers ──────────────────────────────────────────────────────────
@@ -66,71 +67,22 @@ function ImportIcon() {
   )
 }
 
-// ── Connect form ──────────────────────────────────────────────────────────────
-
-function ConnectForm({ url, setUrl, token, setToken, onSubmit, loading, error }) {
-  return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <label className="label">Canvas API URL</label>
-        <input
-          className="input"
-          type="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://mtu.instructure.com/api/v1"
-          required
-        />
-      </div>
-      <div>
-        <label className="label">API Token</label>
-        <input
-          className="input font-mono text-xs tracking-wide"
-          type="password"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="Paste your Canvas access token"
-          autoComplete="off"
-          required
-        />
-        <p className="text-[11px] text-slate-600 mt-1.5 leading-relaxed">
-          Canvas → Account → Settings → Approved Integrations → New Access Token
-        </p>
-      </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
-      <button type="submit" disabled={loading || !token.trim()} className="btn-primary">
-        {loading ? <><Spinner small />Connecting…</> : 'Connect to Canvas'}
-      </button>
-    </form>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Canvas() {
-  // Connection
   const [status, setStatus] = useState(null)
   const [statusLoading, setStatusLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [canvasUrl, setCanvasUrl] = useState('https://mtu.instructure.com/api/v1')
-  const [canvasToken, setCanvasToken] = useState('')
-  const [connecting, setConnecting] = useState(false)
-  const [connectError, setConnectError] = useState(null)
 
-  // Courses
   const [courses, setCourses] = useState([])
   const [coursesLoading, setCoursesLoading] = useState(false)
 
-  // Selected course view
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [assignments, setAssignments] = useState([])
   const [assignmentsLoading, setAssignmentsLoading] = useState(false)
 
-  // Per-assignment import state
   const [imported, setImported] = useState(new Set())
   const [importing, setImporting] = useState(new Set())
 
-  // Sync
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState(null)
 
@@ -159,31 +111,6 @@ export default function Canvas() {
     } finally {
       setCoursesLoading(false)
     }
-  }
-
-  async function handleConnect(e) {
-    e.preventDefault()
-    setConnecting(true)
-    setConnectError(null)
-    try {
-      await api.canvasSaveSettings({ canvas_url: canvasUrl, canvas_token: canvasToken })
-      setCanvasToken('')
-      setShowForm(false)
-      await checkStatus()
-    } catch (err) {
-      setConnectError(err.message)
-    } finally {
-      setConnecting(false)
-    }
-  }
-
-  async function handleDisconnect() {
-    try { await api.canvasSaveSettings({ canvas_url: canvasUrl, canvas_token: '' }) } catch {}
-    setStatus({ connected: false })
-    setCourses([])
-    setSelectedCourse(null)
-    setAssignments([])
-    setSyncResult(null)
   }
 
   async function selectCourse(course) {
@@ -271,10 +198,7 @@ export default function Canvas() {
             </svg>
           )}
           {syncResult.msg}
-          <button
-            onClick={() => setSyncResult(null)}
-            className="ml-auto text-white/20 hover:text-white/50 transition-colors"
-          >
+          <button onClick={() => setSyncResult(null)} className="ml-auto text-white/20 hover:text-white/50 transition-colors">
             <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <path d="M2 2l8 8M10 2l-8 8" />
             </svg>
@@ -282,74 +206,52 @@ export default function Canvas() {
         </div>
       )}
 
-      {/* ── Connection card ─────────────────────────────────────────────────── */}
+      {/* ── Connection status card ──────────────────────────────────────────── */}
       {statusLoading ? (
         <div className="card p-5 mb-8 flex items-center gap-3">
           <Spinner small />
           <span className="text-sm text-slate-500">Checking Canvas connection…</span>
         </div>
       ) : status?.connected ? (
-        <>
-          <div className="card p-5 mb-8 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"
-                style={{ boxShadow: '0 0 8px rgba(52,211,153,0.7)' }}
-              />
-              <div>
-                <p className="text-sm font-medium text-slate-200">Connected to Canvas</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {status.courses_visible} active course{status.courses_visible !== 1 ? 's' : ''} visible
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              {showForm ? (
-                <button className="btn-ghost text-xs" onClick={() => setShowForm(false)}>Cancel</button>
-              ) : (
-                <>
-                  <button className="btn-ghost text-xs" onClick={() => setShowForm(true)}>
-                    Change Token
-                  </button>
-                  <button
-                    className="btn-ghost text-xs"
-                    style={{ color: 'rgba(248,113,113,0.5)' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = 'rgb(248,113,113)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(248,113,113,0.5)')}
-                    onClick={handleDisconnect}
-                  >
-                    Disconnect
-                  </button>
-                </>
-              )}
+        <div className="card p-5 mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"
+              style={{ boxShadow: '0 0 8px rgba(52,211,153,0.7)' }}
+            />
+            <div>
+              <p className="text-sm font-medium text-slate-200">Connected to Canvas</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {status.courses_visible} active course{status.courses_visible !== 1 ? 's' : ''} visible
+              </p>
             </div>
           </div>
-
-          {showForm && (
-            <div className="card p-6 mb-8" style={{ borderColor: 'rgba(99,102,241,0.2)' }}>
-              <p className="text-xs text-slate-500 mb-4">Update your Canvas API token</p>
-              <ConnectForm
-                url={canvasUrl} setUrl={setCanvasUrl}
-                token={canvasToken} setToken={setCanvasToken}
-                onSubmit={handleConnect} loading={connecting} error={connectError}
-              />
-            </div>
-          )}
-        </>
+          <Link
+            to="/settings"
+            className="btn-ghost text-xs"
+          >
+            Manage in Settings
+          </Link>
+        </div>
       ) : (
         <div className="card p-6 mb-8">
-          <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-3 mb-4">
             <div className="w-2 h-2 rounded-full bg-slate-600 flex-shrink-0" />
             <p className="text-sm font-medium text-slate-300">Not connected to Canvas</p>
             {status?.reason && (
               <span className="text-xs text-slate-600">— {status.reason}</span>
             )}
           </div>
-          <ConnectForm
-            url={canvasUrl} setUrl={setCanvasUrl}
-            token={canvasToken} setToken={setCanvasToken}
-            onSubmit={handleConnect} loading={connecting} error={connectError}
-          />
+          <p className="text-sm text-slate-500 mb-4">
+            Connect your Canvas account in{' '}
+            <Link to="/settings" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+              Settings
+            </Link>{' '}
+            to import assignments and sync your courses.
+          </p>
+          <Link to="/settings" className="btn-primary inline-flex">
+            Go to Settings
+          </Link>
         </div>
       )}
 
@@ -397,7 +299,6 @@ export default function Canvas() {
       {/* ── Assignments panel ───────────────────────────────────────────────── */}
       {status?.connected && selectedCourse && (
         <section>
-          {/* Breadcrumb */}
           <div className="flex items-center gap-2 mb-6">
             <button
               onClick={() => { setSelectedCourse(null); setAssignments([]) }}
@@ -432,13 +333,10 @@ export default function Canvas() {
 
                 return (
                   <div key={a.id} className="card p-5 flex items-start gap-4">
-                    {/* Urgency dot */}
                     <div
                       className={`flex-shrink-0 w-1.5 h-1.5 rounded-full mt-[7px] ${u.dot}`}
                       style={{ boxShadow: u.shadow }}
                     />
-
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-200 leading-snug">{a.name}</p>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
@@ -460,15 +358,11 @@ export default function Canvas() {
                         </p>
                       )}
                     </div>
-
-                    {/* Import button */}
                     <button
                       onClick={() => !isImported && !isImporting && importAssignment(a)}
                       disabled={isImported || isImporting}
                       className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                        isImported
-                          ? 'text-emerald-400 cursor-default'
-                          : 'btn-secondary'
+                        isImported ? 'text-emerald-400 cursor-default' : 'btn-secondary'
                       }`}
                       style={
                         isImported

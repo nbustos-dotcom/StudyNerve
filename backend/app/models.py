@@ -209,6 +209,19 @@ class VisionBoard(Base):
     note: Mapped[Optional["Note"]] = relationship("Note")
 
 
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    llm_provider: Mapped[str] = mapped_column(String(30), nullable=False, default="ollama")
+    llm_api_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    canvas_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    canvas_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
 class VisionStep(Base):
     __tablename__ = "vision_steps"
 

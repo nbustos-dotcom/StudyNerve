@@ -8,5 +8,5 @@ pydantic
 python-multipart
 python-dotenv
 python-jose[cryptography]
-passlib[bcrypt]
+bcrypt
 google-generativeai

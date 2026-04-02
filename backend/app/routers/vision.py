@@ -22,6 +22,7 @@ from app.database import get_db
 from app.llm import generate_chat
 from app.models import Note, User, VisionBoard, VisionStep
 from app.routers.auth import get_current_user
+from app.routers.settings import get_user_llm_kwargs
 from app.schemas import (
     AddVisionStepRequest,
     AskStepRequest,
@@ -172,7 +173,8 @@ async def create_board(
     db.add(board)
     await db.flush()
 
-    breakdown = await vision_svc.generate_breakdown(title, description, linked_note_content)
+    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+    breakdown = await vision_svc.generate_breakdown(title, description, linked_note_content, **llm_kwargs)
     steps_data: list[dict] = (breakdown or {}).get("steps", [])
 
     for order, step_data in enumerate(steps_data):
@@ -442,9 +444,11 @@ async def ask_about_step(
 
     system = "\n".join(lines)
 
+    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
     answer = await generate_chat(
         [{"role": "user", "content": body.question}],
         system,
+        **llm_kwargs,
     )
     if answer is None:
         raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond.")

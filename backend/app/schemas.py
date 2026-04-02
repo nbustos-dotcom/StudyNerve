@@ -297,6 +297,25 @@ class VisionBoardDetail(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── User Settings ─────────────────────────────────────────────────────────────
+
+class ProviderSettingsRequest(BaseModel):
+    provider: str  # "ollama" | "gemini" | "openai" | "anthropic"
+    api_key: Optional[str] = None
+
+
+class CanvasSettingsRequest(BaseModel):
+    canvas_url: str
+    canvas_token: str
+
+
+class UserSettingsResponse(BaseModel):
+    llm_provider: str
+    llm_api_key_set: bool
+    canvas_url: Optional[str]
+    canvas_connected: bool
+
+
 # ── Teach Back ────────────────────────────────────────────────────────────────
 
 class TeachBackRequest(BaseModel):

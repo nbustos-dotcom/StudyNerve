@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ai-teacher-backend
+    runtime: docker
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: FRONTEND_URL
+        sync: false

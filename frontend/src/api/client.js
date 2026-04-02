@@ -1,4 +1,6 @@
-const BASE = '/api'
+import { API_BASE_URL } from './config.js'
+
+const BASE = `${API_BASE_URL}/api`
 
 function getToken() {
   return localStorage.getItem('mt_token')

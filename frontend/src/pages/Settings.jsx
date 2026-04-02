@@ -6,6 +6,7 @@ const PROVIDERS = [
   { value: 'gemini',   label: 'Google Gemini', needsKey: true,  hint: 'Uses gemini-2.0-flash. Get a key at aistudio.google.com.' },
   { value: 'openai',   label: 'OpenAI',        needsKey: true,  hint: 'Uses gpt-4o-mini by default. Get a key at platform.openai.com.' },
   { value: 'anthropic',label: 'Claude (Anthropic)', needsKey: true, hint: 'Uses claude-sonnet-4. Get a key at console.anthropic.com.' },
+  { value: 'groq',     label: 'Groq',              needsKey: true,  hint: 'Uses llama-3.1-8b-instant. Get a free key at console.groq.com.' },
 ]
 
 function Spinner() {

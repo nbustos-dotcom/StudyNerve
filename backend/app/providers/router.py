@@ -41,6 +41,12 @@ def get_provider(provider_name: str | None = None, api_key: str | None = None) -
         key = api_key or settings.ANTHROPIC_API_KEY
         return AnthropicProvider(api_key=key, max_retries=settings.MAX_LLM_RETRIES)
 
+    if provider_name == "groq":
+        from app.providers.groq_provider import GroqProvider
+        from app.config import settings
+        key = api_key or settings.GROQ_API_KEY
+        return GroqProvider(api_key=key, max_retries=settings.MAX_LLM_RETRIES)
+
     raise ValueError(
         f"Unknown provider '{provider_name}'. Supported: ollama, gemini, openai, anthropic"
     )

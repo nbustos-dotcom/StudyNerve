@@ -22,7 +22,7 @@ from app.schemas import CanvasSettingsRequest, ProviderSettingsRequest, UserSett
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
-_VALID_PROVIDERS = {"ollama", "gemini", "openai", "anthropic"}
+_VALID_PROVIDERS = {"ollama", "gemini", "openai", "anthropic", "groq"}
 
 
 async def _get_or_create_settings(db: AsyncSession, user_id: int) -> UserSettings:

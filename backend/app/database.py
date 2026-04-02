@@ -26,8 +26,15 @@ print(f"[database] URL format: {_safe_url}", flush=True)
 if _db_url.startswith("sqlite"):
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+# pgBouncer (Supabase connection pooler) runs in transaction mode, which does
+# not support PostgreSQL prepared statements. Disabling the asyncpg statement
+# cache is harmless on direct connections and required on pooled ones.
+_engine_kwargs: dict = {}
+if _db_url.startswith("postgresql+asyncpg://"):
+    _engine_kwargs["connect_args"] = {"statement_cache_size": 0}
+
 try:
-    engine = create_async_engine(_db_url, echo=False)
+    engine = create_async_engine(_db_url, echo=False, **_engine_kwargs)
 except Exception as _exc:
     print(f"[database] ERROR creating engine: {_exc}", flush=True)
     sys.exit(1)

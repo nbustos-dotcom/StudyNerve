@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 
@@ -12,12 +12,6 @@ const NAV = [
   { to: '/vision',  label: 'Vision'              },
 ]
 
-const PROVIDER_LABELS = {
-  ollama:    'Ollama (local)',
-  gemini:    'Gemini',
-  openai:    'OpenAI',
-  anthropic: 'Claude',
-}
 
 const navbarStyle = {
   background: 'rgba(10, 10, 26, 0.72)',
@@ -38,14 +32,7 @@ const inactivePillStyle = {
 
 export default function Layout({ user, onLogout }) {
   const navigate = useNavigate()
-  const [provider, setProvider] = useState('ollama')
   const [showUserMenu, setShowUserMenu] = useState(false)
-
-  useEffect(() => {
-    api.getSettings()
-      .then((s) => setProvider(s.llm_provider || 'ollama'))
-      .catch(() => {})
-  }, [])
 
   function handleLogout() {
     onLogout()
@@ -128,7 +115,7 @@ export default function Layout({ user, onLogout }) {
               style={{ background: 'rgba(99,102,241,0.7)', boxShadow: '0 0 5px rgba(99,102,241,0.9)' }}
             />
             <span className="text-[11px] text-white/30 tracking-wide whitespace-nowrap">
-              {PROVIDER_LABELS[provider] ?? provider}
+              Powered by AI
             </span>
           </div>
 

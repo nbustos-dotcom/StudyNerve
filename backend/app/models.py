@@ -216,7 +216,7 @@ class UserSettings(Base):
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
     )
-    llm_provider: Mapped[str] = mapped_column(String(30), nullable=False, default="ollama")
+    llm_provider: Mapped[str] = mapped_column(String(30), nullable=False, default=lambda: __import__('os').getenv("LLM_PROVIDER", "ollama"))
     llm_api_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     canvas_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     canvas_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

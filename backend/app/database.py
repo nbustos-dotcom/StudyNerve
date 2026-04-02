@@ -3,11 +3,23 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import _DATA_DIR, settings
 
+
+def _resolve_db_url(url: str) -> str:
+    """Normalise the DATABASE_URL to use the asyncpg driver for Postgres."""
+    if url.startswith("postgres://"):
+        return "postgresql+asyncpg://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        return "postgresql+asyncpg://" + url[len("postgresql://"):]
+    return url
+
+
+_db_url = _resolve_db_url(settings.DATABASE_URL)
+
 # Only create the local data directory when using SQLite
-if settings.DATABASE_URL.startswith("sqlite"):
+if _db_url.startswith("sqlite"):
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-engine = create_async_engine(settings.DATABASE_URL, echo=False)
+engine = create_async_engine(_db_url, echo=False)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

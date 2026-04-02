@@ -300,7 +300,7 @@ class VisionBoardDetail(BaseModel):
 # ── User Settings ─────────────────────────────────────────────────────────────
 
 class ProviderSettingsRequest(BaseModel):
-    provider: str  # "ollama" | "gemini" | "openai" | "anthropic"
+    provider: str  # "ollama" | "gemini" | "openai" | "anthropic" | "groq"
     api_key: Optional[str] = None
 
 

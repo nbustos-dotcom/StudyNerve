@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import MarkdownRenderer from '../components/MarkdownRenderer'
+import NeuralNetIcon from '../components/NeuralNetIcon'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -23,12 +24,7 @@ function CheckIcon({ done }) {
 }
 
 function ClockIcon() {
-  return (
-    <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-      <circle cx="6" cy="6" r="4.5" />
-      <path d="M6 3.5v2.5l1.5 1.5" strokeLinejoin="round" />
-    </svg>
-  )
+  return <NeuralNetIcon size={12} idPrefix="vb-time" />
 }
 
 function BackIcon() {

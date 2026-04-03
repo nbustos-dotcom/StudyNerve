@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import NeuralNetIcon from '../components/NeuralNetIcon'
 
 const glassCard = {
   background: 'rgba(15, 15, 35, 0.6)',
@@ -87,18 +88,7 @@ export default function Login({ onAuth }) {
       <div className="w-full max-w-sm">
         {/* Brand */}
         <div className="flex flex-col items-center mb-8 gap-3">
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-              boxShadow: '0 6px 28px rgba(99,102,241,0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
-            }}
-          >
-            <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 3a8 8 0 100 16A8 8 0 0012 3z" />
-              <path d="M12 7v5l2.5 2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
+          <NeuralNetIcon size={48} idPrefix="login" />
           <div className="text-center">
             <h1
               className="text-2xl font-bold tracking-tight bg-clip-text text-transparent"

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client'
+import NeuralNetIcon from './NeuralNetIcon'
 
 const WIZARD_PROVIDERS = [
   { value: 'groq',      label: 'Groq',             badge: 'Recommended · Free', badgeColor: '#34d399', url: 'https://console.groq.com/keys' },
@@ -15,17 +16,8 @@ const TOTAL_STEPS = 5
 function StepWelcome() {
   return (
     <div>
-      <div style={{
-        width: 56, height: 56, borderRadius: '16px',
-        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-        boxShadow: '0 8px 32px rgba(99,102,241,0.5)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        marginBottom: '28px',
-      }}>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-          <path d="M12 3a8 8 0 100 16A8 8 0 0012 3z" />
-          <path d="M12 7v5l2.5 2.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+      <div style={{ marginBottom: '28px' }}>
+        <NeuralNetIcon size={56} idPrefix="wizard" />
       </div>
 
       <h1 style={{

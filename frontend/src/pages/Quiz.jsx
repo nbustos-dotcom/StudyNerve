@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import MarkdownRenderer from '../components/MarkdownRenderer'
+import NeuralNetIcon from '../components/NeuralNetIcon'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -304,10 +305,7 @@ export default function Quiz() {
                   )
                 }
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M8 2a5.5 5.5 0 100 11A5.5 5.5 0 008 2z" />
-                  <path d="M8 5v3l1.8 1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <NeuralNetIcon size={14} idPrefix="quiz-ask" />
                 Ask Tutor About This
               </button>
             )}

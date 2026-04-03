@@ -422,14 +422,13 @@ export default function Chat() {
         {/* ── Main chat area ────────────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col min-w-0">
 
-          {/* Header strip */}
+          {/* Mobile-only sessions toggle — no branding, desktop shows nothing */}
           <div
-            className="flex-shrink-0 flex items-center gap-3 px-4 md:px-6 py-3 border-b border-white/[0.06]"
+            className="md:hidden flex-shrink-0 flex items-center px-4 py-2 border-b border-white/[0.06]"
             style={{ background: 'rgba(255,255,255,0.02)' }}
           >
-            {/* Mobile sidebar toggle */}
             <button
-              className="md:hidden flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white/50 hover:text-white/80 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white/50 hover:text-white/80 transition-colors"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               onClick={() => setShowSidebar((v) => !v)}
             >
@@ -438,22 +437,6 @@ export default function Chat() {
               </svg>
               Sessions
             </button>
-
-            <div
-              className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', boxShadow: '0 2px 8px rgba(99,102,241,0.3)' }}
-            >
-              <svg className="w-3 h-3 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M8 2a5.5 5.5 0 100 11A5.5 5.5 0 008 2z" />
-                <path d="M8 5v3l1.8 1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-200 leading-none">StudyNerve AI</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                {questionId ? 'Discussing a quiz question' : 'Personal AI tutor'}
-              </p>
-            </div>
           </div>
 
           {/* Messages area */}

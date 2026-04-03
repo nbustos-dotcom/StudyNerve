@@ -104,7 +104,7 @@ export default function Login({ onAuth }) {
               className="text-2xl font-bold tracking-tight bg-clip-text text-transparent"
               style={{ backgroundImage: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, #818cf8 100%)' }}
             >
-              Master Teacher
+              Nerve
             </h1>
             <p className="text-sm text-slate-500 mt-1">Your personal AI tutor</p>
           </div>

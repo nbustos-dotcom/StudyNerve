@@ -133,7 +133,7 @@ function WelcomeMessage() {
         style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)' }}
       >
         <p>
-          I&apos;m <span className="text-indigo-300 font-semibold">Master Teacher</span>, your personal AI tutor.
+          I&apos;m <span className="text-indigo-300 font-semibold">Nerve</span>, your personal AI tutor.
           I know what you&apos;re studying and where you need help.
         </p>
         <p className="mt-1.5 text-slate-400">Ask me anything.</p>
@@ -443,7 +443,7 @@ export default function Chat() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-200 leading-none">Master Teacher</p>
+              <p className="text-sm font-semibold text-slate-200 leading-none">Nerve</p>
               <p className="text-[11px] text-slate-500 mt-0.5">
                 {questionId ? 'Discussing a quiz question' : 'Personal AI tutor'}
               </p>
@@ -486,7 +486,7 @@ export default function Chat() {
                     overflowY: 'auto',
                     scrollbarWidth: 'none',
                   }}
-                  placeholder="Ask Master Teacher anything…"
+                  placeholder="Ask Nerve anything…"
                   value={input}
                   onChange={(e) => {
                     setInput(e.target.value)

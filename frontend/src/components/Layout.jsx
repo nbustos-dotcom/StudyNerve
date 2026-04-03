@@ -68,7 +68,7 @@ export default function Layout({ user, onLogout }) {
               fontFamily: "'Sora', sans-serif",
             }}
           >
-            Master Teacher
+            Nerve
           </span>
         </div>
 

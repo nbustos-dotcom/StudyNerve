@@ -392,7 +392,7 @@ async def ask_about_step(
         linked_note = await db.get(Note, board.note_id)
 
     lines: list[str] = [
-        "You are Master Teacher. Direct, sharp, human — no corporate tone, no filler.",
+        "You are Nerve. Direct, sharp, human — no corporate tone, no filler.",
         "A student is asking about a specific step in their assignment plan.",
         "You have the full assignment text — use it. Don't give generic advice.",
         "",

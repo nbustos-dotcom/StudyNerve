@@ -373,7 +373,7 @@ function CreateForm({ onCreated }) {
             )}
           </button>
           {generating && (
-            <p className="text-xs text-slate-600">Master Teacher is thinking. This usually takes 20–30 seconds.</p>
+            <p className="text-xs text-slate-600">Nerve is thinking. This usually takes 20–30 seconds.</p>
           )}
         </div>
       </form>
@@ -572,7 +572,7 @@ function NodePanel({ node, boardId, onClose, onRefresh }) {
             <textarea
               className="input text-xs resize-none"
               rows={2}
-              placeholder="Ask Master Teacher about this step…"
+              placeholder="Ask Nerve about this step…"
               value={question}
               onChange={e => setQuestion(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAsk(e) } }}
@@ -589,7 +589,7 @@ function NodePanel({ node, boardId, onClose, onRefresh }) {
 
           {asking && (
             <div className="mt-3 text-xs text-slate-500 flex items-center gap-1.5">
-              <Spinner sm />Master Teacher is thinking…
+              <Spinner sm />Nerve is thinking…
             </div>
           )}
 
@@ -1060,7 +1060,7 @@ export default function VisionBoard() {
       <div className="p-4 sm:p-8 max-w-5xl mx-auto">
         <div className="mb-8">
           <h1 className="text-xl font-semibold text-slate-100">Vision Boards</h1>
-          <p className="text-sm text-slate-500 mt-1">Break assignments into steps. Master Teacher maps it out.</p>
+          <p className="text-sm text-slate-500 mt-1">Break assignments into steps. Nerve maps it out.</p>
         </div>
 
         <CreateForm onCreated={handleCreated} />

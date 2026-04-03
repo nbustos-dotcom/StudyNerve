@@ -2,7 +2,7 @@ import os
 import traceback
 from contextlib import asynccontextmanager
 
-print("Starting Master Teacher API...", flush=True)
+print("Starting Nerve API...", flush=True)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

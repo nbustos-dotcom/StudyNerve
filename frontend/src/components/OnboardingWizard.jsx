@@ -34,7 +34,7 @@ function StepWelcome() {
         WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
         marginBottom: '16px', fontFamily: "'Sora', sans-serif",
       }}>
-        Welcome to Nerve
+        Welcome to StudyNerve AI
       </h1>
 
       <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.7, marginBottom: '16px' }}>
@@ -293,7 +293,7 @@ function StepReady() {
         You&apos;re Ready!
       </h2>
       <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, maxWidth: '340px', margin: '0 auto' }}>
-        Start by adding your first set of study notes. Nerve will take it from there.
+        Start by adding your first set of study notes. StudyNerve AI will take it from there.
       </p>
     </div>
   )

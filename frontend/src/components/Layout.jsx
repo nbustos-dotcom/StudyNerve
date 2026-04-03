@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import NeuralNetIcon from './NeuralNetIcon'
 
 const NAV = [
   { to: '/',        label: 'Dashboard', end: true },
@@ -48,19 +49,8 @@ export default function Layout({ user, onLogout }) {
         style={navbarStyle}
       >
         {/* Brand */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-              boxShadow: '0 3px 14px rgba(99,102,241,0.45), inset 0 1px 0 rgba(255,255,255,0.2)',
-            }}
-          >
-            <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.9">
-              <path d="M8 2a5.5 5.5 0 100 11A5.5 5.5 0 008 2z" />
-              <path d="M8 5v3l1.8 1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
+        <div className="flex items-center gap-2.5 flex-shrink-0">
+          <NeuralNetIcon size={28} idPrefix="nav" />
           <span
             className="text-base font-bold tracking-tight bg-clip-text text-transparent"
             style={{

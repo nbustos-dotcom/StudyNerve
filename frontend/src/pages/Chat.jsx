@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import MarkdownRenderer from '../components/MarkdownRenderer'
+import NeuralNetIcon from '../components/NeuralNetIcon'
 
 // ── Relative time helper ──────────────────────────────────────────────────────
 
@@ -52,16 +53,21 @@ function Avatar({ role }) {
   if (role === 'assistant') {
     return (
       <div
-        className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center self-end mb-0.5"
+        className="flex-shrink-0 self-end mb-0.5 rounded-xl overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-          boxShadow: '0 2px 10px rgba(99,102,241,0.35)',
+          width: 32,
+          height: 32,
+          background: 'rgba(99,102,241,0.10)',
+          border: '1px solid rgba(99,102,241,0.22)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          /* outer accent glow to match the app's indigo theme */
+          boxShadow: '0 0 0 1px rgba(99,102,241,0.08), 0 0 14px rgba(99,102,241,0.30)',
+          /* CSS drop-shadow adds a second halo around the SVG shapes themselves */
+          filter: 'drop-shadow(0 0 4px rgba(139,92,246,0.45))',
         }}
       >
-        <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.9">
-          <path d="M8 2a5.5 5.5 0 100 11A5.5 5.5 0 008 2z" />
-          <path d="M8 5v3l1.8 1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <NeuralNetIcon size={32} idPrefix="chat-avatar" />
       </div>
     )
   }

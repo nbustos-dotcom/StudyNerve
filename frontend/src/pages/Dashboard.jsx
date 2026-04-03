@@ -182,7 +182,7 @@ export default function Dashboard() {
   }, [])
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Dashboard</h1>
         <p className="text-sm text-slate-500 mt-1">Your study overview</p>
@@ -202,7 +202,7 @@ export default function Dashboard() {
 
       {stats && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <StatCard label="Notes" value={stats.total_notes} sub="uploaded" />
             <StatCard label="Questions" value={stats.total_questions} sub="generated" />
             <StatCard label="Attempts" value={stats.total_attempts} sub="answered" />

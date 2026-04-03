@@ -198,7 +198,7 @@ export default function Quiz() {
     const isMcq = question.type === 'mcq'
 
     return (
-      <div className="p-8 max-w-2xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-2xl mx-auto">
         {/* Progress */}
         <div className="mb-8">
           <div className="flex justify-between text-xs text-slate-500 mb-2">
@@ -229,7 +229,7 @@ export default function Quiz() {
                   setSelectedAnswer(key)
                   submitAnswer(key)
                 }}
-                className={`w-full text-left flex items-start gap-3 px-4 py-3 rounded-xl border text-sm transition-colors ${optionStyle(
+                className={`w-full text-left flex items-start gap-3 px-4 py-3 min-h-[52px] rounded-xl border text-sm transition-colors ${optionStyle(
                   key, selectedAnswer, currentResult
                 )}`}
               >
@@ -333,7 +333,7 @@ export default function Quiz() {
     const scoreColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
 
     return (
-      <div className="p-8 max-w-2xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-2xl mx-auto">
         <div className="text-center mb-10">
           <p className="text-slate-500 text-sm mb-1">Quiz complete</p>
           <p className={`text-5xl font-bold mb-2 ${scoreColor}`}>{pct}%</p>
@@ -377,7 +377,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
   const canGenerate = config.note_id && (mode === 'adaptive' || config.question_types.length > 0)
 
   return (
-    <div className="p-8 max-w-xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-xl mx-auto">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Quiz</h1>
         <p className="text-sm text-slate-500 mt-1">Generate questions from your notes with AI</p>

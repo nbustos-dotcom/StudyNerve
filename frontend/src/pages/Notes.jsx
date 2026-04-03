@@ -105,7 +105,7 @@ export default function Notes() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Notes</h1>
         <p className="text-sm text-slate-500 mt-1">Paste study material and extract topics for quizzing</p>
@@ -115,7 +115,7 @@ export default function Notes() {
       <div className="card p-6 mb-8">
         <h2 className="text-sm font-medium text-slate-300 mb-4">Add Note</h2>
         <form onSubmit={handleCreate} className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="col-span-2">
               <label className="label">Title *</label>
               <input

@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 
 const PROVIDERS = [
-  { value: 'ollama',    label: 'Local Ollama',  needsKey: false, hint: 'Runs on your machine — no API key required.' },
-  { value: 'gemini',   label: 'Google Gemini', needsKey: true,  hint: 'Uses gemini-2.0-flash. Get a key at aistudio.google.com.' },
-  { value: 'openai',   label: 'OpenAI',        needsKey: true,  hint: 'Uses gpt-4o-mini by default. Get a key at platform.openai.com.' },
-  { value: 'anthropic',label: 'Claude (Anthropic)', needsKey: true, hint: 'Uses claude-sonnet-4. Get a key at console.anthropic.com.' },
-  { value: 'groq',     label: 'Groq',              needsKey: true,  hint: 'Uses llama-3.1-8b-instant. Get a free key at console.groq.com.' },
+  { value: 'ollama',    label: 'Local Ollama',      needsKey: false, hint: 'Runs on your machine — no API key required.' },
+  { value: 'gemini',   label: 'Google Gemini',      needsKey: true,  hint: 'Uses gemini-2.0-flash.',            apiKeyUrl: 'https://aistudio.google.com/apikey',              apiKeyLabel: 'Get free key →' },
+  { value: 'openai',   label: 'OpenAI',             needsKey: true,  hint: 'Uses gpt-4o-mini by default.',      apiKeyUrl: 'https://platform.openai.com/api-keys',            apiKeyLabel: 'Get key →' },
+  { value: 'anthropic',label: 'Claude (Anthropic)', needsKey: true,  hint: 'Uses claude-sonnet-4.',             apiKeyUrl: 'https://console.anthropic.com/settings/keys',     apiKeyLabel: 'Get key →' },
+  { value: 'groq',     label: 'Groq',               needsKey: true,  hint: 'Uses llama-3.1-8b-instant. Free tier available.', apiKeyUrl: 'https://console.groq.com/keys', apiKeyLabel: 'Get free key →' },
 ]
 
 function Spinner() {
@@ -114,7 +114,7 @@ export default function Settings() {
   const selectedMeta = PROVIDERS.find((p) => p.value === provider)
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Settings</h1>
@@ -174,6 +174,17 @@ export default function Settings() {
                   </div>
                   {!p.needsKey && (
                     <div className="text-[10px] text-emerald-500 mt-0.5">No API key</div>
+                  )}
+                  {p.apiKeyUrl && (
+                    <a
+                      href={p.apiKeyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-sm text-indigo-400 hover:text-indigo-300 transition mt-0.5 inline-block"
+                    >
+                      {p.apiKeyLabel}
+                    </a>
                   )}
                 </button>
               ))}

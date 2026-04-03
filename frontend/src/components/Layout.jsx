@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { api } from '../api/client'
 
 const NAV = [
   { to: '/',        label: 'Dashboard', end: true },
@@ -33,6 +32,7 @@ const inactivePillStyle = {
 export default function Layout({ user, onLogout }) {
   const navigate = useNavigate()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   function handleLogout() {
     onLogout()
@@ -44,7 +44,7 @@ export default function Layout({ user, onLogout }) {
 
       {/* ── Top navigation bar ──────────────────────────────────────────────── */}
       <header
-        className="fixed top-0 left-0 right-0 z-50 h-16 flex items-center px-6"
+        className="fixed top-0 left-0 right-0 z-50 h-16 flex items-center px-4 md:px-6"
         style={navbarStyle}
       >
         {/* Brand */}
@@ -72,8 +72,8 @@ export default function Layout({ user, onLogout }) {
           </span>
         </div>
 
-        {/* Nav links — centered */}
-        <nav className="flex items-center gap-1 mx-auto">
+        {/* Nav links — centered, hidden on mobile */}
+        <nav className="hidden md:flex items-center gap-1 mx-auto">
           {NAV.map(({ to, label, end }) => (
             <NavLink
               key={to}
@@ -106,8 +106,8 @@ export default function Layout({ user, onLogout }) {
           </NavLink>
         </nav>
 
-        {/* Right: provider badge + user */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Right: provider badge + user — hidden on mobile */}
+        <div className="hidden md:flex items-center gap-3 flex-shrink-0">
           {/* Provider indicator */}
           <div className="flex items-center gap-1.5">
             <div
@@ -179,11 +179,109 @@ export default function Layout({ user, onLogout }) {
             )}
           </div>
         </div>
+
+        {/* Hamburger — mobile only */}
+        <button
+          className="md:hidden ml-auto p-2 rounded-lg transition-colors"
+          onClick={() => setShowMobileMenu((v) => !v)}
+          style={{
+            color: 'rgba(255,255,255,0.6)',
+            background: showMobileMenu ? 'rgba(99,102,241,0.12)' : 'transparent',
+          }}
+          aria-label="Toggle menu"
+        >
+          {showMobileMenu ? (
+            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M5 5l10 10M15 5l-10 10" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M3 6h14M3 10h14M3 14h14" />
+            </svg>
+          )}
+        </button>
       </header>
 
-      {/* Overlay to close menu */}
-      {showUserMenu && (
-        <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+      {/* ── Mobile nav dropdown ──────────────────────────────────────────────── */}
+      {showMobileMenu && (
+        <div
+          className="md:hidden fixed top-16 left-0 right-0 z-40"
+          style={{
+            background: 'rgba(10,10,26,0.98)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <nav className="flex flex-col py-2">
+            {NAV.map(({ to, label, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                onClick={() => setShowMobileMenu(false)}
+                className={({ isActive }) =>
+                  `px-5 py-3.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'text-indigo-300 bg-indigo-500/10'
+                      : 'text-white/55 hover:text-white/85 hover:bg-white/[0.03]'
+                  }`
+                }
+              >
+                {label}
+              </NavLink>
+            ))}
+            <NavLink
+              to="/settings"
+              onClick={() => setShowMobileMenu(false)}
+              className={({ isActive }) =>
+                `px-5 py-3.5 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'text-indigo-300 bg-indigo-500/10'
+                    : 'text-white/55 hover:text-white/85 hover:bg-white/[0.03]'
+                }`
+              }
+            >
+              Settings
+            </NavLink>
+
+            {/* User info + sign out */}
+            <div
+              className="mx-4 mt-2 mb-2 px-4 py-3 rounded-xl"
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.07)',
+              }}
+            >
+              <div className="flex items-center gap-2.5 mb-2">
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0"
+                  style={{ background: 'rgba(99,102,241,0.25)' }}
+                >
+                  {user?.name?.[0]?.toUpperCase() ?? '?'}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-slate-300 truncate">{user?.name}</p>
+                  <p className="text-[10px] text-slate-600 truncate">{user?.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowMobileMenu(false); handleLogout() }}
+                className="text-xs text-red-400/60 hover:text-red-400 transition-colors"
+              >
+                Sign out
+              </button>
+            </div>
+          </nav>
+        </div>
+      )}
+
+      {/* Overlay to close menus */}
+      {(showUserMenu || showMobileMenu) && (
+        <div
+          className="fixed inset-0 z-30"
+          onClick={() => { setShowUserMenu(false); setShowMobileMenu(false) }}
+        />
       )}
 
       {/* ── Page content ────────────────────────────────────────────────────── */}

@@ -253,6 +253,7 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [sessions, setSessions] = useState([])
+  const [showSidebar, setShowSidebar] = useState(false)
 
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
@@ -383,24 +384,57 @@ export default function Chat() {
 
       <div className="flex" style={{ height: 'calc(100vh - 64px)' }}>
 
-        {/* ── Chat history sidebar ──────────────────────────────────────────── */}
-        <ChatSidebar
-          sessions={sessions}
-          activeSessionId={sessionId}
-          onSelectSession={loadSession}
-          onNewChat={startNewChat}
-        />
+        {/* ── Desktop sidebar (always visible on md+) ───────────────────────── */}
+        <div className="hidden md:flex">
+          <ChatSidebar
+            sessions={sessions}
+            activeSessionId={sessionId}
+            onSelectSession={loadSession}
+            onNewChat={startNewChat}
+          />
+        </div>
+
+        {/* ── Mobile sidebar overlay ────────────────────────────────────────── */}
+        {showSidebar && (
+          <>
+            <div
+              className="md:hidden fixed inset-0 z-40"
+              style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+              onClick={() => setShowSidebar(false)}
+            />
+            <div className="md:hidden fixed top-16 left-0 bottom-0 z-50" style={{ width: 270 }}>
+              <ChatSidebar
+                sessions={sessions}
+                activeSessionId={sessionId}
+                onSelectSession={(sid) => { loadSession(sid); setShowSidebar(false) }}
+                onNewChat={() => { startNewChat(); setShowSidebar(false) }}
+              />
+            </div>
+          </>
+        )}
 
         {/* ── Main chat area ────────────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col min-w-0">
 
           {/* Header strip */}
           <div
-            className="flex-shrink-0 flex items-center gap-3 px-6 py-3 border-b border-white/[0.06]"
+            className="flex-shrink-0 flex items-center gap-3 px-4 md:px-6 py-3 border-b border-white/[0.06]"
             style={{ background: 'rgba(255,255,255,0.02)' }}
           >
+            {/* Mobile sidebar toggle */}
+            <button
+              className="md:hidden flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white/50 hover:text-white/80 transition-colors"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+              onClick={() => setShowSidebar((v) => !v)}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M2 4h12M2 8h8M2 12h10" />
+              </svg>
+              Sessions
+            </button>
+
             <div
-              className="w-6 h-6 rounded-md flex items-center justify-center"
+              className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', boxShadow: '0 2px 8px rgba(99,102,241,0.3)' }}
             >
               <svg className="w-3 h-3 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">

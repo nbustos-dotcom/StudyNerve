@@ -191,3 +191,25 @@
     @apply block text-[11px] font-medium text-white/35 mb-1.5 uppercase tracking-widest;
   }
 }
+
+/* ── Mobile touch targets & safe padding ──────────────────────────────────── */
+
+@media (max-width: 767px) {
+  /* Minimum 44px touch targets */
+  .btn-primary,
+  .btn-secondary {
+    min-height: 44px;
+  }
+
+  .input,
+  select.input {
+    min-height: 44px;
+    font-size: 16px; /* prevent iOS zoom on focus */
+  }
+
+  /* Ensure page content doesn't bleed to screen edges */
+  main > * {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}

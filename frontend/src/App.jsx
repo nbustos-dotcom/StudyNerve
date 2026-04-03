@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
+import OnboardingWizard from './components/OnboardingWizard'
 import Canvas from './pages/Canvas'
 import Chat from './pages/Chat'
 import Dashboard from './pages/Dashboard'
@@ -21,8 +22,21 @@ function useAuth() {
     }
   })
 
+  const [showWizard, setShowWizard] = useState(() => {
+    try {
+      const stored = localStorage.getItem('mt_user')
+      const onboarded = localStorage.getItem('mt_onboarded')
+      return Boolean(stored) && !onboarded
+    } catch {
+      return false
+    }
+  })
+
   function handleAuth(userData) {
     setUser(userData)
+    if (!localStorage.getItem('mt_onboarded')) {
+      setShowWizard(true)
+    }
   }
 
   function handleLogout() {
@@ -31,11 +45,16 @@ function useAuth() {
     setUser(null)
   }
 
-  return { user, handleAuth, handleLogout }
+  function handleWizardComplete() {
+    localStorage.setItem('mt_onboarded', '1')
+    setShowWizard(false)
+  }
+
+  return { user, showWizard, handleAuth, handleLogout, handleWizardComplete }
 }
 
 export default function App() {
-  const { user, handleAuth, handleLogout } = useAuth()
+  const { user, showWizard, handleAuth, handleLogout, handleWizardComplete } = useAuth()
 
   if (!user) {
     return (
@@ -47,18 +66,21 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/login" element={<Navigate to="/" replace />} />
-      <Route path="/" element={<Layout user={user} onLogout={handleLogout} />}>
-        <Route index element={<Dashboard />} />
-        <Route path="notes" element={<Notes />} />
-        <Route path="quiz" element={<Quiz />} />
-        <Route path="chat" element={<Chat />} />
-        <Route path="results" element={<Results />} />
-        <Route path="canvas" element={<Canvas />} />
-        <Route path="vision" element={<VisionBoard />} />
-        <Route path="settings" element={<Settings />} />
-      </Route>
-    </Routes>
+    <>
+      {showWizard && <OnboardingWizard onComplete={handleWizardComplete} />}
+      <Routes>
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/" element={<Layout user={user} onLogout={handleLogout} />}>
+          <Route index element={<Dashboard />} />
+          <Route path="notes" element={<Notes />} />
+          <Route path="quiz" element={<Quiz />} />
+          <Route path="chat" element={<Chat />} />
+          <Route path="results" element={<Results />} />
+          <Route path="canvas" element={<Canvas />} />
+          <Route path="vision" element={<VisionBoard />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
+      </Routes>
+    </>
   )
 }

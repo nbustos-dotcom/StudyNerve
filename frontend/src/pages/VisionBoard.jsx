@@ -948,9 +948,9 @@ function BoardView({ board: initialBoard, onBack, onBoardUpdate }) {
           />
         </div>
 
-        {/* Node panel — slide in from right */}
+        {/* Node panel — desktop: inline; mobile: overlay from right */}
         <div
-          className="flex-shrink-0 overflow-hidden transition-all duration-300 ease-out"
+          className="hidden md:block flex-shrink-0 overflow-hidden transition-all duration-300 ease-out"
           style={{ width: selectedNode && selectedNode.type !== 'root' ? 296 : 0 }}
         >
           {selectedNode && selectedNode.type !== 'root' && (
@@ -964,6 +964,25 @@ function BoardView({ board: initialBoard, onBack, onBoardUpdate }) {
             </div>
           )}
         </div>
+
+        {/* Node panel — mobile overlay */}
+        {selectedNode && selectedNode.type !== 'root' && (
+          <>
+            <div
+              className="md:hidden fixed inset-0 z-30"
+              style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+              onClick={() => setSelectedId(null)}
+            />
+            <div className="md:hidden fixed top-16 right-0 bottom-0 z-40 w-[min(296px,90vw)]">
+              <NodePanel
+                node={selectedNode}
+                boardId={board.id}
+                onClose={() => setSelectedId(null)}
+                onRefresh={refresh}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Add Step modal */}
@@ -1038,7 +1057,7 @@ export default function VisionBoard() {
     <>
       {animStyles}
 
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-5xl mx-auto">
         <div className="mb-8">
           <h1 className="text-xl font-semibold text-slate-100">Vision Boards</h1>
           <p className="text-sm text-slate-500 mt-1">Break assignments into steps. Master Teacher maps it out.</p>

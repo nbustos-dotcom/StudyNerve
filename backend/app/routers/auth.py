@@ -32,7 +32,7 @@ def _verify_password(plain: str, hashed: str) -> bool:
 def _create_token(user_id: int) -> str:
     expires = datetime.now(timezone.utc) + timedelta(minutes=_TOKEN_EXPIRE_MINUTES)
     return jwt.encode(
-        {"sub": str(user_id), "exp": expires},
+        {"sub": str(user_id), "exp": int(expires.timestamp())},
         settings.SECRET_KEY,
         algorithm=_ALGORITHM,
     )

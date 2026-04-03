@@ -28,11 +28,17 @@ async function req(method, path, body) {
   }
 
   if (res.status === 401) {
-    // Token expired or invalid — clear storage and redirect to login
-    localStorage.removeItem('mt_token')
-    localStorage.removeItem('mt_user')
-    window.location.href = '/login'
-    throw new Error('Session expired. Please log in again.')
+    const detail = data?.detail || 'Session expired. Please log in again.'
+    const message = Array.isArray(detail) ? detail[0]?.msg ?? String(detail) : String(detail)
+    // Only treat as session expiry (clear + redirect) for authenticated routes.
+    // Auth endpoints (/auth/login, /auth/register) return 401 for wrong
+    // credentials — that is not an expired session, just a bad password.
+    if (!path.startsWith('/auth/')) {
+      localStorage.removeItem('mt_token')
+      localStorage.removeItem('mt_user')
+      window.location.href = '/login'
+    }
+    throw new Error(message)
   }
 
   if (!res.ok) {

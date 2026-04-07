@@ -55,6 +55,7 @@ async def generate_insights(session_id: str, user_id: int) -> int:
             result = await db.execute(
                 select(ChatMessage)
                 .where(ChatMessage.session_id == session_id)
+                .where(ChatMessage.user_id == user_id)
                 .order_by(ChatMessage.created_at.desc())
                 .limit(_MAX_MESSAGES)
             )

@@ -216,14 +216,20 @@ async def list_boards(
     )
     boards = boards_result.scalars().all()
 
-    counts_result = await db.execute(
-        select(
-            VisionStep.board_id,
-            func.count(VisionStep.id).label("total"),
-            func.count(VisionStep.id).filter(VisionStep.is_completed == True).label("done"),  # noqa: E712
-        ).group_by(VisionStep.board_id)
-    )
-    counts = {row.board_id: (int(row.total), int(row.done or 0)) for row in counts_result}
+    board_ids = [b.id for b in boards]
+    if board_ids:
+        counts_result = await db.execute(
+            select(
+                VisionStep.board_id,
+                func.count(VisionStep.id).label("total"),
+                func.count(VisionStep.id).filter(VisionStep.is_completed == True).label("done"),  # noqa: E712
+            )
+            .where(VisionStep.board_id.in_(board_ids))
+            .group_by(VisionStep.board_id)
+        )
+        counts = {row.board_id: (int(row.total), int(row.done or 0)) for row in counts_result}
+    else:
+        counts = {}
 
     summaries = []
     for b in boards:

@@ -39,6 +39,12 @@ async def generate_quiz(
     if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
+    if not note.content or not note.content.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Add some content to this note before generating a quiz.",
+        )
+
     topic_result = await db.execute(
         select(Topic).where(Topic.note_id == body.note_id).limit(1)
     )
@@ -105,6 +111,11 @@ async def submit_answer(
 ):
     question = await db.get(Question, body.question_id)
     if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    # Verify the question belongs to the current user via its note
+    _q_note = await db.get(Note, question.note_id)
+    if not _q_note or _q_note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Question not found")
 
     feedback: str | None = None
@@ -309,6 +320,12 @@ async def generate_adaptive_quiz(
     note = await db.get(Note, body.note_id)
     if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
+
+    if not note.content or not note.content.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Add some content to this note before generating a quiz.",
+        )
 
     all_gaps = await calculate_gap_scores(db, user_id=current_user.id)
     note_gaps = [g for g in all_gaps if g.note_id == body.note_id]

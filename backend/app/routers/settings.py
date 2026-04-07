@@ -34,13 +34,34 @@ async def _get_or_create_settings(db: AsyncSession, user_id: int) -> UserSetting
 
 
 async def get_user_llm_kwargs(db: AsyncSession, user_id: int) -> dict:
-    """Return {'provider_name': ..., 'api_key': ...} from UserSettings, or {} for defaults."""
+    """
+    Return {'provider_name': ..., 'api_key': ...} from UserSettings.
+    Falls back to {} (empty dict) so callers use the global LLM_PROVIDER env var.
+    api_key is None when the user hasn't saved a key — providers then fall back
+    to their own *_API_KEY env var.
+    """
     row = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
     if row:
+        import logging as _logging
+        _logging.getLogger(__name__).info(
+            "get_user_llm_kwargs: user=%d provider=%s key_set=%s",
+            user_id,
+            row.llm_provider,
+            bool(row.llm_api_key),
+        )
+        print(
+            f"[settings] user={user_id} provider={row.llm_provider} key_set={bool(row.llm_api_key)}",
+            flush=True,
+        )
         return {
             "provider_name": row.llm_provider,
             "api_key": row.llm_api_key or None,
         }
+    import logging as _logging
+    _logging.getLogger(__name__).info(
+        "get_user_llm_kwargs: user=%d — no UserSettings row, using global defaults", user_id
+    )
+    print(f"[settings] user={user_id} — no UserSettings row, using global defaults", flush=True)
     return {}
 
 

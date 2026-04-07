@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 print("Starting StudyNerve AI API...", flush=True)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
@@ -54,11 +54,17 @@ async def health():
 
 
 @app.get("/api/test-providers")
-async def test_providers():
+async def test_providers(authorization: str | None = Header(default=None)):
     """
-    Smoke-test every configured LLM provider. No auth required.
-    Uses API keys from environment variables / .env.
-    Prints full tracebacks + response bodies to server console on failure.
+    Smoke-test every configured LLM provider.
+
+    - No auth required, but if a Bearer token is supplied the endpoint will
+      look up that user's saved provider + API key from the database and
+      test with those instead of the environment-variable defaults.
+    - For the user's selected provider, their saved key is used (key_source="user").
+    - For all other providers, the env-var key is used (key_source="env").
+    - Full tracebacks + API response bodies are printed to the server console
+      on failure so you can see exactly what the remote API returned.
     """
     import asyncio as _asyncio
     import traceback as _tb
@@ -67,26 +73,59 @@ async def test_providers():
 
     from app.config import settings as _s
 
+    # ── Resolve user's saved provider + key (if a token was sent) ────────────
+    user_saved_provider: str | None = None
+    user_saved_key: str | None = None
+
+    if authorization and authorization.startswith("Bearer "):
+        _token = authorization[7:]
+        try:
+            from jose import JWTError, jwt as _jwt
+            _payload = _jwt.decode(_token, _s.SECRET_KEY, algorithms=["HS256"])
+            _user_id = int(_payload.get("sub", 0))
+            if _user_id:
+                from sqlalchemy import select as _select
+                from app.database import AsyncSessionLocal as _ASL
+                from app.models import UserSettings as _US
+                async with _ASL() as _db:
+                    _row = await _db.scalar(_select(_US).where(_US.user_id == _user_id))
+                    if _row:
+                        user_saved_provider = _row.llm_provider
+                        user_saved_key = _row.llm_api_key or None
+                print(
+                    f"[test-providers] user={_user_id} "
+                    f"saved_provider={user_saved_provider} "
+                    f"saved_key_set={bool(user_saved_key)}",
+                    flush=True,
+                )
+        except Exception:
+            print(f"[test-providers] could not decode auth token:\n{_tb.format_exc()}", flush=True)
+
     results = []
     _user_msg = [{"role": "user", "content": "Say hello in one sentence."}]
 
+    def _key_for(provider: str, env_key: str) -> tuple[str, str]:
+        """
+        Return (key, key_source) for a given provider.
+        Uses the user's saved key when they've selected this provider and
+        have a key stored; otherwise falls back to the env var.
+        """
+        if user_saved_provider == provider and user_saved_key:
+            return user_saved_key, "user_saved"
+        return env_key, "env_var"
+
     def _err(name: str, exc: Exception, extra: dict | None = None) -> dict:
-        """Build a failure result, capturing HTTP response body when available."""
         body = None
         if isinstance(exc, _httpx.HTTPStatusError):
             body = exc.response.text
-        entry: dict = {
-            "provider": name,
-            "success": False,
-            "error": str(exc),
-        }
+        entry: dict = {"provider": name, "success": False, "error": str(exc)}
         if body:
             entry["response_body"] = body
         if extra:
             entry.update(extra)
-        print(f"[test-providers] {name}:\n{_tb.format_exc()}", flush=True)
+        print(f"[test-providers] {name} FAILED:\n{_tb.format_exc()}", flush=True)
         if body:
-            print(f"[test-providers] {name} response body: {body}", flush=True)
+            print(f"[test-providers] {name} API response body:\n{body}", flush=True)
         return entry
 
     # ── Ollama ────────────────────────────────────────────────────────────────
@@ -102,17 +141,23 @@ async def test_providers():
                 "provider": "ollama",
                 "url": _s.OLLAMA_BASE_URL,
                 "model": _s.OLLAMA_MODEL,
+                "key_source": "n/a",
                 "success": True,
                 "response": r.json()["message"]["content"],
             })
     except Exception as exc:
-        results.append(_err("ollama", exc, {"url": _s.OLLAMA_BASE_URL, "model": _s.OLLAMA_MODEL}))
+        results.append(_err("ollama", exc, {
+            "url": _s.OLLAMA_BASE_URL,
+            "model": _s.OLLAMA_MODEL,
+        }))
 
     # ── Groq ─────────────────────────────────────────────────────────────────
-    _groq_key = _s.GROQ_API_KEY
+    _groq_key, _groq_src = _key_for("groq", _s.GROQ_API_KEY)
     try:
         if not _groq_key:
-            raise RuntimeError("GROQ_API_KEY not set")
+            raise RuntimeError(
+                "GROQ_API_KEY not set (env var empty and no user-saved key)"
+            )
         async with _httpx.AsyncClient(timeout=30.0) as c:
             r = await c.post(
                 "https://api.groq.com/openai/v1/chat/completions",
@@ -128,6 +173,7 @@ async def test_providers():
                 "provider": "groq",
                 "url": "https://api.groq.com/openai/v1/chat/completions",
                 "model": "llama-3.1-8b-instant",
+                "key_source": _groq_src,
                 "api_key_set": True,
                 "success": True,
                 "response": r.json()["choices"][0]["message"]["content"],
@@ -136,14 +182,17 @@ async def test_providers():
         results.append(_err("groq", exc, {
             "url": "https://api.groq.com/openai/v1/chat/completions",
             "model": "llama-3.1-8b-instant",
+            "key_source": _groq_src,
             "api_key_set": bool(_groq_key),
         }))
 
     # ── OpenAI ────────────────────────────────────────────────────────────────
-    _openai_key = _s.OPENAI_API_KEY
+    _openai_key, _openai_src = _key_for("openai", _s.OPENAI_API_KEY)
     try:
         if not _openai_key:
-            raise RuntimeError("OPENAI_API_KEY not set")
+            raise RuntimeError(
+                "OPENAI_API_KEY not set (env var empty and no user-saved key)"
+            )
         async with _httpx.AsyncClient(timeout=30.0) as c:
             r = await c.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -159,6 +208,7 @@ async def test_providers():
                 "provider": "openai",
                 "url": "https://api.openai.com/v1/chat/completions",
                 "model": "gpt-4o-mini",
+                "key_source": _openai_src,
                 "api_key_set": True,
                 "success": True,
                 "response": r.json()["choices"][0]["message"]["content"],
@@ -167,15 +217,18 @@ async def test_providers():
         results.append(_err("openai", exc, {
             "url": "https://api.openai.com/v1/chat/completions",
             "model": "gpt-4o-mini",
+            "key_source": _openai_src,
             "api_key_set": bool(_openai_key),
         }))
 
     # ── Anthropic ─────────────────────────────────────────────────────────────
-    # system must be a top-level string field; messages may only contain user/assistant.
-    _anthropic_key = _s.ANTHROPIC_API_KEY
+    # system is a top-level string field; messages may only contain user/assistant.
+    _anthropic_key, _anthropic_src = _key_for("anthropic", _s.ANTHROPIC_API_KEY)
     try:
         if not _anthropic_key:
-            raise RuntimeError("ANTHROPIC_API_KEY not set")
+            raise RuntimeError(
+                "ANTHROPIC_API_KEY not set (env var empty and no user-saved key)"
+            )
         async with _httpx.AsyncClient(timeout=30.0) as c:
             r = await c.post(
                 "https://api.anthropic.com/v1/messages",
@@ -196,6 +249,7 @@ async def test_providers():
                 "provider": "anthropic",
                 "url": "https://api.anthropic.com/v1/messages",
                 "model": "claude-sonnet-4-20250514",
+                "key_source": _anthropic_src,
                 "api_key_set": True,
                 "success": True,
                 "response": r.json()["content"][0]["text"],
@@ -204,22 +258,25 @@ async def test_providers():
         results.append(_err("anthropic", exc, {
             "url": "https://api.anthropic.com/v1/messages",
             "model": "claude-sonnet-4-20250514",
+            "key_source": _anthropic_src,
             "api_key_set": bool(_anthropic_key),
         }))
 
     # ── Gemini ────────────────────────────────────────────────────────────────
-    _gemini_key = _s.GEMINI_API_KEY
+    _gemini_key, _gemini_src = _key_for("gemini", _s.GEMINI_API_KEY)
     try:
         if not _gemini_key:
-            raise RuntimeError("GEMINI_API_KEY not set")
+            raise RuntimeError(
+                "GEMINI_API_KEY not set (env var empty and no user-saved key)"
+            )
         import google.generativeai as _genai  # type: ignore
-        # Always call configure before creating the model so the correct key is active.
         _genai.configure(api_key=_gemini_key)
         _gmodel = _genai.GenerativeModel("gemini-2.0-flash")
         _resp = await _asyncio.to_thread(_gmodel.generate_content, "Say hello in one sentence.")
         results.append({
             "provider": "gemini",
             "model": "gemini-2.0-flash",
+            "key_source": _gemini_src,
             "api_key_set": True,
             "success": True,
             "response": _resp.text,
@@ -227,10 +284,15 @@ async def test_providers():
     except Exception as exc:
         results.append(_err("gemini", exc, {
             "model": "gemini-2.0-flash",
+            "key_source": _gemini_src,
             "api_key_set": bool(_gemini_key),
         }))
 
-    return {"results": results}
+    return {
+        "user_provider": user_saved_provider,
+        "user_key_set": bool(user_saved_key),
+        "results": results,
+    }
 
 
 @app.get("/api/test-gemini")

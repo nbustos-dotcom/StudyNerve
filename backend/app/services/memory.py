@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
 from app.llm import extract_insights as llm_extract_insights
-from app.models import ChatMessage, StudentInsight
+from app.models import ChatMessage, StudentInsight, UserSettings
 
 logger = logging.getLogger(__name__)
 
@@ -29,15 +29,29 @@ async def generate_insights(session_id: str, user_id: int) -> int:
     Pull the last _MAX_MESSAGES messages from session_id, send to the LLM for
     insight extraction, then upsert the results into StudentInsight.
 
-    Upsert logic:
-      - topic_name present  → upsert by (topic_name, category, user_id)
-      - topic_name absent   → always insert (no reliable dedup key)
+    Uses the user's saved LLM provider + API key from UserSettings so background
+    tasks honour the same provider the user chose in Settings.
 
     Returns the number of insights saved/updated.
     Creates its own DB session — safe to call from background tasks.
     """
     async with AsyncSessionLocal() as db:
         try:
+            # ── Resolve the user's saved LLM provider and key ─────────────────
+            settings_row = await db.scalar(
+                select(UserSettings).where(UserSettings.user_id == user_id)
+            )
+            provider_name: str | None = settings_row.llm_provider if settings_row else None
+            api_key: str | None = (settings_row.llm_api_key if settings_row else None) or None
+
+            logger.info(
+                "generate_insights: user=%d provider=%s key_set=%s",
+                user_id,
+                provider_name or "default",
+                bool(api_key),
+            )
+
+            # ── Fetch recent chat messages ─────────────────────────────────────
             result = await db.execute(
                 select(ChatMessage)
                 .where(ChatMessage.session_id == session_id)
@@ -50,7 +64,11 @@ async def generate_insights(session_id: str, user_id: int) -> int:
                 return 0
 
             msg_dicts = [{"role": m.role, "content": m.content} for m in messages]
-            llm_result = await llm_extract_insights(msg_dicts)
+            llm_result = await llm_extract_insights(
+                msg_dicts,
+                provider_name=provider_name,
+                api_key=api_key,
+            )
 
             if not llm_result or not llm_result.get("insights"):
                 return 0

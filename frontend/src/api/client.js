@@ -76,6 +76,13 @@ export const api = {
   // ── Health ──────────────────────────────────────────────────────────────────
   checkHealth: () => req('GET', '/health'),
 
+  /**
+   * Smoke-test every LLM provider. Sends the user's auth token so the backend
+   * can test with the user's saved API key instead of env-var defaults.
+   * @returns {Promise<{ user_provider, user_key_set, results: Array }>}
+   */
+  testProviders: () => req('GET', '/test-providers'),
+
   // ── Notes ───────────────────────────────────────────────────────────────────
   /** @returns {Promise<Array>} */
   getNotes: () => req('GET', '/notes'),

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 
@@ -34,7 +35,69 @@ function SectionCard({ title, children }) {
   )
 }
 
+function DeleteAccountModal({ onConfirm, onCancel, deleting }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+    >
+      <div
+        className="rounded-2xl p-6 max-w-md w-full mx-4"
+        style={{
+          background: 'rgba(12,12,28,0.98)',
+          border: '1px solid rgba(239,68,68,0.2)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+        }}
+      >
+        {/* Icon + title */}
+        <div className="flex items-center gap-3 mb-4">
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}
+          >
+            <svg className="w-5 h-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-slate-100">Delete Account</h3>
+            <p className="text-xs text-slate-500 mt-0.5">This cannot be undone</p>
+          </div>
+        </div>
+
+        <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+          This permanently deletes your account and <span className="text-slate-300">all your data</span> — notes, quiz history, chat sessions, AI insights, vision boards, and settings. There is no recovery.
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={deleting}
+            className="flex-1 btn-ghost"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+            style={{
+              background: 'rgba(239,68,68,0.12)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              color: 'rgb(252,165,165)',
+            }}
+          >
+            {deleting ? 'Deleting…' : 'Delete Everything'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Settings() {
+  const navigate = useNavigate()
+
   // ── Provider state ───────────────────────────────────────────────────────────
   const [currentSettings, setCurrentSettings] = useState(null)
   const [provider, setProvider] = useState('ollama')
@@ -43,10 +106,15 @@ export default function Settings() {
   const [providerMsg, setProviderMsg] = useState(null)
 
   // ── Canvas state ─────────────────────────────────────────────────────────────
-  const [canvasUrl, setCanvasUrl] = useState('https://mtu.instructure.com/api/v1')
+  const [canvasUrl, setCanvasUrl] = useState('')
   const [canvasToken, setCanvasToken] = useState('')
   const [canvasSaving, setCanvasSaving] = useState(false)
   const [canvasMsg, setCanvasMsg] = useState(null)
+
+  // ── Delete account state ─────────────────────────────────────────────────────
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
 
   useEffect(() => { loadSettings() }, [])
 
@@ -55,7 +123,11 @@ export default function Settings() {
       const s = await api.getSettings()
       setCurrentSettings(s)
       setProvider(s.llm_provider || 'ollama')
-      if (s.canvas_url) setCanvasUrl(s.canvas_url)
+      if (s.canvas_url) {
+        // Strip /api/v1 suffix if present — backend now stores base URL,
+        // but old entries may still have it.
+        setCanvasUrl(s.canvas_url.replace(/\/api\/v\d+\/?$/, ''))
+      }
     } catch {
       // ignore
     }
@@ -87,8 +159,13 @@ export default function Settings() {
     try {
       const result = await api.saveCanvasSettings({ canvas_url: canvasUrl, canvas_token: canvasToken })
       setCurrentSettings((prev) => ({ ...prev, canvas_url: result.canvas_url, canvas_connected: result.canvas_connected }))
+      if (result.canvas_url) setCanvasUrl(result.canvas_url.replace(/\/api\/v\d+\/?$/, ''))
       setCanvasToken('')
-      setCanvasMsg({ ok: true, text: 'Canvas settings saved.' })
+      if (result.canvas_connected) {
+        setCanvasMsg({ ok: true, text: 'Canvas connected and verified.' })
+      } else {
+        setCanvasMsg({ ok: false, text: 'Settings saved but Canvas connection failed — check your token.' })
+      }
     } catch (err) {
       setCanvasMsg({ ok: false, text: err.message })
     } finally {
@@ -100,7 +177,7 @@ export default function Settings() {
     setCanvasSaving(true)
     setCanvasMsg(null)
     try {
-      await api.saveCanvasSettings({ canvas_url: canvasUrl, canvas_token: '' })
+      await api.saveCanvasSettings({ canvas_url: canvasUrl || 'https://canvas.instructure.com', canvas_token: '' })
       setCurrentSettings((prev) => ({ ...prev, canvas_connected: false }))
       setCanvasToken('')
       setCanvasMsg({ ok: true, text: 'Canvas disconnected.' })
@@ -108,6 +185,22 @@ export default function Settings() {
       setCanvasMsg({ ok: false, text: err.message })
     } finally {
       setCanvasSaving(false)
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await api.deleteAccount()
+      localStorage.removeItem('mt_token')
+      localStorage.removeItem('mt_user')
+      localStorage.removeItem('mt_onboarded')
+      window.location.href = '/login'
+    } catch (err) {
+      setDeleting(false)
+      setShowDeleteModal(false)
+      setDeleteError(err.message)
     }
   }
 
@@ -143,7 +236,7 @@ export default function Settings() {
             </div>
           )}
 
-          {/* Provider dropdown */}
+          {/* Provider grid */}
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-2">Provider</label>
             <div className="grid grid-cols-2 gap-2">
@@ -194,7 +287,7 @@ export default function Settings() {
             )}
           </div>
 
-          {/* API key input (only for cloud providers) */}
+          {/* API key input */}
           {selectedMeta?.needsKey && (
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1.5">
@@ -230,11 +323,7 @@ export default function Settings() {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={providerSaving}
-            className="btn-primary"
-          >
+          <button type="submit" disabled={providerSaving} className="btn-primary">
             {providerSaving ? <><Spinner />Saving…</> : 'Save Provider'}
           </button>
         </form>
@@ -254,7 +343,7 @@ export default function Settings() {
                 <>
                   <span className="text-emerald-400 font-medium">Connected</span>
                   {currentSettings.canvas_url && (
-                    <span className="text-slate-600"> · {currentSettings.canvas_url}</span>
+                    <span className="text-slate-600"> · {currentSettings.canvas_url.replace(/\/api\/v\d+\/?$/, '')}</span>
                   )}
                 </>
               ) : (
@@ -278,15 +367,18 @@ export default function Settings() {
 
         <form onSubmit={saveCanvas} className="space-y-4">
           <div>
-            <label className="label">Canvas API URL</label>
+            <label className="label">Canvas URL</label>
             <input
               className="input"
               type="url"
               value={canvasUrl}
               onChange={(e) => setCanvasUrl(e.target.value)}
-              placeholder="https://mtu.instructure.com/api/v1"
+              placeholder="https://mtu.instructure.com"
               required
             />
+            <p className="text-[11px] text-slate-600 mt-1.5 leading-relaxed">
+              Enter your university's Canvas domain — do <strong className="text-slate-500">not</strong> include <code className="text-slate-500">/api/v1</code>, we add that automatically.
+            </p>
           </div>
           <div>
             <label className="label">API Token</label>
@@ -316,11 +408,7 @@ export default function Settings() {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={canvasSaving}
-            className="btn-primary"
-          >
+          <button type="submit" disabled={canvasSaving} className="btn-primary">
             {canvasSaving ? (
               <><Spinner />{currentSettings?.canvas_connected ? 'Updating…' : 'Connecting…'}</>
             ) : (
@@ -329,6 +417,53 @@ export default function Settings() {
           </button>
         </form>
       </SectionCard>
+
+      {/* ── Danger Zone ───────────────────────────────────────────────────────── */}
+      <SectionCard title="Danger Zone">
+        <p className="text-sm text-slate-500 mb-4">
+          Permanently delete your account and all associated data. This cannot be undone.
+        </p>
+
+        {deleteError && (
+          <div
+            className="text-xs rounded-lg px-3 py-2.5 text-red-300 mb-4"
+            style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)' }}
+          >
+            {deleteError}
+          </div>
+        )}
+
+        <button
+          onClick={() => { setDeleteError(null); setShowDeleteModal(true) }}
+          className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+          style={{
+            background: 'rgba(239,68,68,0.06)',
+            border: '1px solid rgba(239,68,68,0.15)',
+            color: 'rgba(252,165,165,0.7)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239,68,68,0.12)'
+            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.28)'
+            e.currentTarget.style.color = 'rgb(252,165,165)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(239,68,68,0.06)'
+            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'
+            e.currentTarget.style.color = 'rgba(252,165,165,0.7)'
+          }}
+        >
+          Delete Account
+        </button>
+      </SectionCard>
+
+      {/* ── Delete confirmation modal ─────────────────────────────────────────── */}
+      {showDeleteModal && (
+        <DeleteAccountModal
+          onConfirm={handleDeleteAccount}
+          onCancel={() => setShowDeleteModal(false)}
+          deleting={deleting}
+        />
+      )}
     </div>
   )
 }

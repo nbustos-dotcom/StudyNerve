@@ -1,9 +1,10 @@
 """
 Canvas LMS integration service.
 
-All functions that hit the Canvas REST API use an httpx async client with
-Bearer auth.  HTML in assignment descriptions is stripped to plain text
-using the standard-library html.parser — no extra dependency needed.
+All functions that hit the Canvas REST API accept an explicit (url, token)
+pair so callers can pass per-user credentials instead of global settings.
+HTML in assignment descriptions is stripped to plain text using the
+standard-library html.parser — no extra dependency needed.
 """
 
 import re
@@ -14,7 +15,6 @@ from typing import Optional
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.models import Note
 
 
@@ -48,10 +48,16 @@ def _strip_html(html: str | None) -> str:
 
 # ── Canvas HTTP client factory ────────────────────────────────────────────────
 
-def _client() -> httpx.AsyncClient:
+def _api_url(base_url: str) -> str:
+    """Normalise base_url to always end with /api/v1."""
+    clean = re.sub(r"/api/v\d+/?$", "", base_url).rstrip("/")
+    return clean + "/api/v1"
+
+
+def _client(base_url: str, token: str) -> httpx.AsyncClient:
     return httpx.AsyncClient(
-        base_url=settings.CANVAS_API_URL.rstrip("/"),
-        headers={"Authorization": f"Bearer {settings.CANVAS_API_TOKEN}"},
+        base_url=_api_url(base_url),
+        headers={"Authorization": f"Bearer {token}"},
         timeout=20.0,
     )
 
@@ -80,9 +86,9 @@ def _shape_assignment(raw: dict, course_id: int | None = None) -> dict:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-async def get_courses(db: AsyncSession | None = None) -> list[dict]:
+async def get_courses(canvas_url: str, canvas_token: str, db: AsyncSession | None = None) -> list[dict]:
     """Return all active enrolled courses: id, name, code."""
-    async with _client() as c:
+    async with _client(canvas_url, canvas_token) as c:
         resp = await c.get("/courses", params={"enrollment_state": "active", "per_page": 100})
         resp.raise_for_status()
     return [
@@ -92,9 +98,9 @@ async def get_courses(db: AsyncSession | None = None) -> list[dict]:
     ]
 
 
-async def get_assignments(course_id: int) -> list[dict]:
+async def get_assignments(course_id: int, canvas_url: str, canvas_token: str) -> list[dict]:
     """Return assignments for a course ordered by due date."""
-    async with _client() as c:
+    async with _client(canvas_url, canvas_token) as c:
         resp = await c.get(
             f"/courses/{course_id}/assignments",
             params={"order_by": "due_at", "per_page": 100},
@@ -107,25 +113,34 @@ async def get_assignments(course_id: int) -> list[dict]:
     ]
 
 
-async def get_single_assignment(course_id: int, assignment_id: int) -> dict:
+async def get_single_assignment(
+    course_id: int,
+    assignment_id: int,
+    canvas_url: str,
+    canvas_token: str,
+) -> dict:
     """Fetch one assignment by ID."""
-    async with _client() as c:
+    async with _client(canvas_url, canvas_token) as c:
         resp = await c.get(f"/courses/{course_id}/assignments/{assignment_id}")
         resp.raise_for_status()
     return _shape_assignment(resp.json(), course_id)
 
 
-async def get_upcoming_assignments(days: int = 14) -> list[dict]:
+async def get_upcoming_assignments(
+    canvas_url: str,
+    canvas_token: str,
+    days: int = 14,
+) -> list[dict]:
     """Return assignments due within the next *days* days across all active courses."""
     now = datetime.now(timezone.utc)
     cutoff = now + timedelta(days=days)
 
-    courses = await get_courses()
+    courses = await get_courses(canvas_url, canvas_token)
     upcoming: list[dict] = []
 
     for course in courses:
         try:
-            assignments = await get_assignments(course["id"])
+            assignments = await get_assignments(course["id"], canvas_url, canvas_token)
         except httpx.HTTPStatusError:
             continue
 
@@ -184,18 +199,23 @@ async def import_assignment_as_note(
     return note
 
 
-async def sync_courses(db: AsyncSession, user_id: Optional[int] = None) -> dict:
+async def sync_courses(
+    db: AsyncSession,
+    canvas_url: str,
+    canvas_token: str,
+    user_id: Optional[int] = None,
+) -> dict:
     """
     Import all assignments from all active courses as notes.
     Returns a summary dict.
     """
-    courses = await get_courses()
+    courses = await get_courses(canvas_url, canvas_token)
     total_imported = 0
     details: list[dict] = []
 
     for course in courses:
         try:
-            assignments = await get_assignments(course["id"])
+            assignments = await get_assignments(course["id"], canvas_url, canvas_token)
         except httpx.HTTPStatusError as exc:
             details.append({"course": course["name"], "error": str(exc)})
             continue
@@ -213,3 +233,21 @@ async def sync_courses(db: AsyncSession, user_id: Optional[int] = None) -> dict:
         "total_imported": total_imported,
         "details": details,
     }
+
+
+async def validate_connection(canvas_url: str, canvas_token: str) -> tuple[bool, str]:
+    """
+    Try hitting GET /courses with the given credentials.
+    Returns (ok, message).
+    """
+    try:
+        courses = await get_courses(canvas_url, canvas_token)
+        return True, f"Connected — {len(courses)} active course(s) visible."
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 401:
+            return False, "Token is invalid or expired."
+        return False, f"Canvas returned {exc.response.status_code}."
+    except httpx.RequestError:
+        return False, "Could not reach Canvas — check the URL."
+    except Exception as exc:
+        return False, str(exc)

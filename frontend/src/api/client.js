@@ -60,6 +60,9 @@ export const api = {
   /** @returns {Promise<{ id, email, name, created_at }>} */
   getMe: () => req('GET', '/auth/me'),
 
+  /** Permanently delete the authenticated user and all their data. */
+  deleteAccount: () => req('DELETE', '/auth/delete-account'),
+
   // ── User Settings ────────────────────────────────────────────────────────────
   /** @returns {Promise<{ llm_provider, llm_api_key_set, canvas_url, canvas_connected }>} */
   getSettings: () => req('GET', '/settings'),

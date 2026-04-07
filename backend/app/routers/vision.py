@@ -22,7 +22,7 @@ from app.database import get_db
 from app.llm import generate_chat
 from app.models import Note, User, VisionBoard, VisionStep
 from app.routers.auth import get_current_user
-from app.routers.settings import get_user_llm_kwargs
+from app.routers.settings import get_user_canvas_creds, get_user_llm_kwargs
 from app.schemas import (
     AddVisionStepRequest,
     AskStepRequest,
@@ -130,9 +130,10 @@ async def create_board(
                 status_code=422,
                 detail="canvas_course_id is required when canvas_assignment_id is provided.",
             )
+        canvas_url, canvas_token = await get_user_canvas_creds(db, current_user.id)
         try:
             assignment = await canvas_svc.get_single_assignment(
-                body.canvas_course_id, body.canvas_assignment_id
+                body.canvas_course_id, body.canvas_assignment_id, canvas_url, canvas_token
             )
         except httpx.HTTPStatusError as exc:
             raise HTTPException(

@@ -8,38 +8,54 @@ from app.providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
+_MODEL_NAME = "gemini-2.0-flash"
+
 
 class GeminiProvider(LLMProvider):
     def __init__(self, api_key: str, max_retries: int = 3):
         self.api_key = api_key or ""
         self.max_retries = max_retries
-        self.model_name = "gemini-2.0-flash"
+        self.model_name = _MODEL_NAME
 
-    def _configure(self):
-        """Import, validate key, and configure the SDK. Returns the genai module."""
+    def _get_model(self, system_instruction: str | None = None):
+        """
+        Import the SDK, validate the API key, call genai.configure, and return
+        a GenerativeModel instance. configure() is called on every request so
+        the correct key is always active (important when multiple users with
+        different keys share the same process).
+        """
         try:
             import google.generativeai as genai
         except ImportError:
-            raise RuntimeError("google-generativeai package not installed")
-
-        logger.info("Using provider: gemini | API key present: %s", bool(self.api_key))
+            raise RuntimeError(
+                "google-generativeai package not installed. "
+                "Run: pip install google-generativeai"
+            )
 
         if not self.api_key:
             raise RuntimeError(
                 "Gemini API key is missing. Set it in Settings → AI Provider."
             )
 
+        # Always configure before building the model — this sets the global
+        # API key used by the SDK for the current request.
         genai.configure(api_key=self.api_key)
-        return genai
+        logger.info("Gemini: configured with key present=%s", bool(self.api_key))
+
+        kwargs = {}
+        if system_instruction:
+            kwargs["system_instruction"] = system_instruction
+
+        return genai.GenerativeModel(self.model_name, **kwargs)
+
+    # ── JSON generation ───────────────────────────────────────────────────────
 
     async def generate_json(self, prompt: str, system: str) -> Optional[dict]:
         try:
-            genai = self._configure()
+            model = self._get_model(system_instruction=system)
         except RuntimeError as exc:
             logger.error("Gemini setup error: %s", exc)
             return None
-
-        model = genai.GenerativeModel(self.model_name, system_instruction=system)
 
         for attempt in range(1, self.max_retries + 1):
             try:
@@ -70,34 +86,30 @@ class GeminiProvider(LLMProvider):
 
         return None
 
+    # ── Chat generation ───────────────────────────────────────────────────────
+
     async def generate_chat(self, messages: list[dict], system: str) -> Optional[str]:
         try:
-            genai = self._configure()
+            model = self._get_model(system_instruction=system)
         except RuntimeError as exc:
             logger.error("Gemini setup error: %s", exc)
             return None
 
-        model = genai.GenerativeModel(self.model_name, system_instruction=system)
-
-        # Build a contents list for generate_content — maps "assistant" → "model"
-        # so Gemini's role validation doesn't reject it.
+        # Map "assistant" → "model" — Gemini uses "model" for the AI role.
         contents = [
             {
                 "role": "user" if m["role"] == "user" else "model",
                 "parts": [m["content"]],
             }
             for m in messages
+            if m.get("role") in ("user", "assistant")
         ]
 
-        # Gemini requires the conversation to start with a "user" turn and
-        # alternate user/model. If the last entry is "model" (shouldn't happen
-        # during normal chat, but guard anyway), drop it.
-        if contents and contents[-1]["role"] != "user":
-            logger.warning("Gemini: last message is not from user — dropping it")
-            contents = contents[:-1]
-
-        if not contents:
-            logger.error("Gemini: no user messages to send")
+        # Gemini requires alternating user/model turns and must end on "user".
+        if not contents or contents[-1]["role"] != "user":
+            logger.error(
+                "Gemini: messages must not be empty and must end with a user turn"
+            )
             return None
 
         try:

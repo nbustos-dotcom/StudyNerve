@@ -105,3 +105,17 @@ async def login(body: UserLogin, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.delete("/delete-account")
+async def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Permanently delete the authenticated user and ALL their data.
+    Cascades: notes, topics, questions, attempts, chat messages,
+    student insights, vision boards, vision steps, user settings.
+    """
+    await db.delete(current_user)
+    return {"message": "Account and all data deleted successfully."}

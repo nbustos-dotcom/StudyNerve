@@ -194,85 +194,123 @@ export default function Layout({ user, onLogout }) {
         </button>
       </header>
 
-      {/* ── Mobile nav dropdown ──────────────────────────────────────────────── */}
+      {/* ── Mobile slide-out nav ─────────────────────────────────────────────── */}
+      {/* Backdrop */}
       {showMobileMenu && (
         <div
-          className="md:hidden fixed top-16 left-0 right-0 z-40"
-          style={{
-            background: 'rgba(10,10,26,0.98)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
-          }}
-        >
-          <nav className="flex flex-col py-2">
-            {NAV.map(({ to, label, end }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                onClick={() => setShowMobileMenu(false)}
-                className={({ isActive }) =>
-                  `px-5 py-3.5 text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'text-indigo-300 bg-indigo-500/10'
-                      : 'text-white/55 hover:text-white/85 hover:bg-white/[0.03]'
-                  }`
-                }
-              >
-                {label}
-              </NavLink>
-            ))}
+          className="md:hidden fixed inset-0 z-40"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowMobileMenu(false)}
+        />
+      )}
+
+      {/* Slide-out panel */}
+      <div
+        className={`md:hidden fixed top-0 left-0 bottom-0 z-50 w-72 flex flex-col transition-transform duration-300 ease-out ${
+          showMobileMenu ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        style={{
+          background: 'rgba(10,10,26,0.96)',
+          backdropFilter: 'blur(28px)',
+          WebkitBackdropFilter: 'blur(28px)',
+          borderRight: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: showMobileMenu ? '8px 0 48px rgba(0,0,0,0.5)' : 'none',
+        }}
+      >
+        {/* Panel header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07]">
+          <div className="flex items-center gap-2.5">
+            <NeuralNetIcon size={24} idPrefix="mobile-nav" />
+            <span
+              className="text-sm font-bold tracking-tight bg-clip-text text-transparent"
+              style={{ backgroundImage: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, #818cf8 100%)' }}
+            >
+              StudyNerve AI
+            </span>
+          </div>
+          <button
+            onClick={() => setShowMobileMenu(false)}
+            className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors"
+            aria-label="Close menu"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M4 4l8 8M12 4l-8 8" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Nav links */}
+        <nav className="flex flex-col py-2 flex-1 overflow-y-auto">
+          {NAV.map(({ to, label, end }) => (
             <NavLink
-              to="/settings"
+              key={to}
+              to={to}
+              end={end}
               onClick={() => setShowMobileMenu(false)}
               className={({ isActive }) =>
-                `px-5 py-3.5 text-sm font-medium transition-colors ${
+                `flex items-center px-5 py-3.5 text-sm font-medium transition-colors min-h-[52px] ${
                   isActive
                     ? 'text-indigo-300 bg-indigo-500/10'
                     : 'text-white/55 hover:text-white/85 hover:bg-white/[0.03]'
                 }`
               }
             >
-              Settings
+              {label}
             </NavLink>
+          ))}
+          <NavLink
+            to="/settings"
+            onClick={() => setShowMobileMenu(false)}
+            className={({ isActive }) =>
+              `flex items-center px-5 py-3.5 text-sm font-medium transition-colors min-h-[52px] ${
+                isActive
+                  ? 'text-indigo-300 bg-indigo-500/10'
+                  : 'text-white/55 hover:text-white/85 hover:bg-white/[0.03]'
+              }`
+            }
+          >
+            Settings
+          </NavLink>
+        </nav>
 
-            {/* User info + sign out */}
-            <div
-              className="mx-4 mt-2 mb-2 px-4 py-3 rounded-xl"
-              style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.07)',
-              }}
-            >
-              <div className="flex items-center gap-2.5 mb-2">
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0"
-                  style={{ background: 'rgba(99,102,241,0.25)' }}
-                >
-                  {user?.name?.[0]?.toUpperCase() ?? '?'}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-slate-300 truncate">{user?.name}</p>
-                  <p className="text-[10px] text-slate-600 truncate">{user?.email}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => { setShowMobileMenu(false); handleLogout() }}
-                className="text-xs text-red-400/60 hover:text-red-400 transition-colors"
+        {/* User info + sign out */}
+        <div
+          className="px-4 py-4 border-t border-white/[0.07]"
+        >
+          <div
+            className="px-4 py-3 rounded-xl"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.07)',
+            }}
+          >
+            <div className="flex items-center gap-2.5 mb-2">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0"
+                style={{ background: 'rgba(99,102,241,0.25)' }}
               >
-                Sign out
-              </button>
+                {user?.name?.[0]?.toUpperCase() ?? '?'}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-slate-300 truncate">{user?.name}</p>
+                <p className="text-[10px] text-slate-600 truncate">{user?.email}</p>
+              </div>
             </div>
-          </nav>
+            <button
+              onClick={() => { setShowMobileMenu(false); handleLogout() }}
+              className="text-xs text-red-400/60 hover:text-red-400 transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* Overlay to close menus */}
-      {(showUserMenu || showMobileMenu) && (
+      {/* Overlay to close desktop user menu */}
+      {showUserMenu && (
         <div
           className="fixed inset-0 z-30"
-          onClick={() => { setShowUserMenu(false); setShowMobileMenu(false) }}
+          onClick={() => setShowUserMenu(false)}
         />
       )}
 

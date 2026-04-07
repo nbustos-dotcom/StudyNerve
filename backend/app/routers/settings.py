@@ -7,14 +7,13 @@ Endpoints:
   POST /api/settings/canvas     — save Canvas URL + token for the current user
 """
 
-import os
+import re
 
-from dotenv import set_key
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import _ENV_FILE, settings
+from app.config import settings
 from app.database import get_db
 from app.models import User, UserSettings
 from app.routers.auth import get_current_user
@@ -46,10 +45,13 @@ async def get_user_llm_kwargs(db: AsyncSession, user_id: int) -> dict:
 
 
 async def get_user_canvas_creds(db: AsyncSession, user_id: int) -> tuple[str, str]:
-    """Return (canvas_url, canvas_token) for user, falling back to global settings."""
+    """
+    Return (canvas_base_url, canvas_token) for user, falling back to global settings.
+    The canvas service normalises the URL itself (appends /api/v1 if needed).
+    """
     row = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
-    url = (row and row.canvas_url) or settings.CANVAS_API_URL
-    token = (row and row.canvas_token) or settings.CANVAS_API_TOKEN
+    url = (row and row.canvas_url) or settings.CANVAS_API_URL or ""
+    token = (row and row.canvas_token) or settings.CANVAS_API_TOKEN or ""
     return url, token
 
 
@@ -110,7 +112,9 @@ async def save_canvas(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    url = body.canvas_url.strip().rstrip("/")
+    # Normalise URL: strip any /api/v* suffix so we always store the clean base URL.
+    # The canvas service appends /api/v1 itself.
+    url = re.sub(r"/api/v\d+/?$", "", body.canvas_url.strip()).rstrip("/")
     token = body.canvas_token.strip()
 
     if not url:
@@ -121,17 +125,16 @@ async def save_canvas(
     row.canvas_token = token or None
     await db.flush()
 
-    # Also update global settings + .env so the canvas service works immediately
-    set_key(str(_ENV_FILE), "CANVAS_API_URL", url)
-    set_key(str(_ENV_FILE), "CANVAS_API_TOKEN", token)
-    os.environ["CANVAS_API_URL"] = url
-    os.environ["CANVAS_API_TOKEN"] = token
-    settings.CANVAS_API_URL = url
-    settings.CANVAS_API_TOKEN = token
+    # Validate the token by hitting Canvas right now
+    canvas_connected = False
+    if token:
+        from app.services.canvas import validate_connection
+        canvas_connected, _msg = await validate_connection(url, token)
+        print(f"[settings] Canvas validation: {_msg}", flush=True)
 
     return UserSettingsResponse(
         llm_provider=row.llm_provider,
         llm_api_key_set=bool(row.llm_api_key),
         canvas_url=url,
-        canvas_connected=bool(token),
+        canvas_connected=canvas_connected,
     )

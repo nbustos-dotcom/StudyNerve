@@ -63,11 +63,16 @@ async def detect_learning_style(
     When user_id is provided, only considers data for that user.
     """
     # ── Load attempts ─────────────────────────────────────────────────────────
-    attempt_query = select(
-        Attempt.is_correct,
-        Attempt.time_taken_seconds,
-        Attempt.created_at,
-    ).order_by(Attempt.created_at)
+    print(f"[query] detect_learning_style: user_id={user_id}", flush=True)
+    attempt_query = (
+        select(
+            Attempt.is_correct,
+            Attempt.time_taken_seconds,
+            Attempt.created_at,
+        )
+        .select_from(Attempt)
+        .order_by(Attempt.created_at)
+    )
 
     if user_id is not None:
         attempt_query = (
@@ -79,6 +84,7 @@ async def detect_learning_style(
         )
 
     attempt_rows = (await db.execute(attempt_query)).all()
+    print(f"[query] detect_learning_style: attempt_rows={len(attempt_rows)} for user_id={user_id}", flush=True)
 
     # ── Load chat messages ────────────────────────────────────────────────────
     chat_query = (
@@ -89,6 +95,7 @@ async def detect_learning_style(
 
     if user_id is not None:
         chat_query = chat_query.where(ChatMessage.user_id == user_id)
+    print(f"[query] detect_learning_style: chat WHERE user_id={user_id}", flush=True)
 
     chat_rows = (await db.execute(chat_query)).all()
 

@@ -2,14 +2,18 @@
 Vision Board router.
 
 Endpoints:
-  POST /api/vision/create                     — create board (manual or from Canvas)
-  GET  /api/vision/boards                     — list all boards with progress
-  GET  /api/vision/boards/{id}                — board detail with nested steps
-  PUT  /api/vision/steps/{id}                 — update / complete a step
-  POST /api/vision/boards/{id}/add-step       — manually add a step
-  DELETE /api/vision/steps/{id}               — delete a step
-  POST /api/vision/steps/{id}/ask             — quick tutor Q&A about a step
-  PUT  /api/vision/boards/{id}/reorder        — reorder steps by explicit ID list
+  POST /api/vision/create                          — create board (manual or from Canvas)
+  GET  /api/vision/boards                          — list all boards with progress
+  GET  /api/vision/boards/{id}                     — board detail with nested steps
+  PUT  /api/vision/steps/{id}                      — update / complete a step
+  POST /api/vision/boards/{id}/add-step            — manually add a step
+  DELETE /api/vision/steps/{id}                    — delete a step
+  POST /api/vision/steps/{id}/ask                  — quick tutor Q&A about a step
+  PUT  /api/vision/boards/{id}/reorder             — reorder steps by explicit ID list
+  POST /api/vision/boards/{id}/update-context      — AI restructure after plan change
+  POST /api/vision/boards/{id}/undo                — restore most recent snapshot
+  GET  /api/vision/boards/{id}/history             — list snapshots
+  POST /api/vision/boards/{id}/connect-node        — create child step from a node
 """
 
 from sqlalchemy import func, select
@@ -20,16 +24,19 @@ import httpx
 
 from app.database import get_db
 from app.llm import generate_chat
-from app.models import Note, User, VisionBoard, VisionStep
+from app.models import Note, User, VisionBoard, VisionBoardSnapshot, VisionStep
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_canvas_creds, get_user_llm_kwargs
 from app.schemas import (
     AddVisionStepRequest,
     AskStepRequest,
+    ConnectNodeRequest,
     CreateVisionBoardRequest,
     ReorderStepsRequest,
+    UpdateContextRequest,
     UpdateVisionStepRequest,
     VisionBoardDetail,
+    VisionBoardSnapshotResponse,
     VisionBoardSummary,
     VisionStepResponse,
 )
@@ -275,6 +282,8 @@ async def update_step(
     board = await db.get(VisionBoard, step.board_id)
     _owned_board_or_404(board, current_user.id)
 
+    await vision_svc.save_snapshot(board.id, f"edit step: {step.title}", db)
+
     if body.title is not None:
         step.title = body.title.strip() or step.title
     if body.description is not None:
@@ -320,6 +329,8 @@ async def add_step(
         parent = await db.get(VisionStep, body.parent_step_id)
         if not parent or parent.board_id != board_id:
             raise HTTPException(status_code=404, detail="Parent step not found on this board.")
+
+    await vision_svc.save_snapshot(board_id, f"add step: {body.title}", db)
 
     if body.order_index is not None:
         order_index = body.order_index
@@ -370,7 +381,8 @@ async def delete_step(
     board = await db.get(VisionBoard, step.board_id)
     _owned_board_or_404(board, current_user.id)
 
-    board_id = step.board_id
+    await vision_svc.save_snapshot(board.id, f"delete step: {step.title}", db)
+
     await db.delete(step)
     await db.flush()
 
@@ -473,6 +485,8 @@ async def reorder_steps(
     board = await db.get(VisionBoard, board_id)
     _owned_board_or_404(board, current_user.id)
 
+    await vision_svc.save_snapshot(board_id, "reorder steps", db)
+
     result = await db.execute(
         select(VisionStep).where(
             VisionStep.id.in_(body.step_ids),
@@ -487,3 +501,175 @@ async def reorder_steps(
 
     await db.flush()
     return {"reordered": len(step_map), "board_id": board_id}
+
+
+# ── New endpoints ─────────────────────────────────────────────────────────────
+
+@router.post("/boards/{board_id}/update-context", response_model=VisionBoardDetail)
+async def update_context(
+    board_id: int,
+    body: UpdateContextRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """AI restructures the plan based on a free-text description of what changed."""
+    board = await db.get(VisionBoard, board_id)
+    _owned_board_or_404(board, current_user.id)
+
+    flat = await _load_flat_steps(board_id, db)
+
+    # Snapshot before any changes
+    await vision_svc.save_snapshot(board_id, f"update context: {body.update[:100]}", db)
+
+    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+    plan = await vision_svc.generate_context_update(flat, body.update, **llm_kwargs)
+    if plan is None:
+        raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond.")
+
+    step_map = {s.id: s for s in flat}
+
+    # Apply removals
+    for step_id in plan.get("removed_step_ids", []):
+        step = step_map.get(step_id)
+        if step:
+            await db.delete(step)
+
+    await db.flush()
+
+    # Apply modifications
+    for mod in plan.get("modified", []):
+        step = step_map.get(mod.get("id"))
+        if step:
+            if mod.get("title"):
+                step.title = mod["title"]
+            if mod.get("description") is not None:
+                step.description = mod["description"]
+
+    # Apply reorders
+    for item in plan.get("reordered", []):
+        step = step_map.get(item.get("id"))
+        if step:
+            step.order_index = item["new_order_index"]
+
+    # Apply additions
+    for addition in plan.get("added", []):
+        parent_id = addition.get("parent_step_id")
+        # Validate parent exists on this board
+        if parent_id is not None and parent_id not in step_map:
+            parent_id = None
+
+        if addition.get("order_index") is None:
+            sibling_max = await db.scalar(
+                select(func.max(VisionStep.order_index)).where(
+                    VisionStep.board_id == board_id,
+                    VisionStep.parent_step_id == parent_id,
+                )
+            )
+            order_index = (sibling_max or -1) + 1
+        else:
+            order_index = addition["order_index"]
+
+        db.add(VisionStep(
+            board_id=board_id,
+            title=addition.get("title", "New step"),
+            description=addition.get("description"),
+            order_index=order_index,
+            parent_step_id=parent_id,
+            estimated_minutes=addition.get("estimated_minutes"),
+        ))
+
+    await db.flush()
+    await _sync_progress(board, db)
+    await db.flush()
+    await db.refresh(board)
+
+    return await _board_detail(board, db)
+
+
+@router.post("/boards/{board_id}/undo", response_model=VisionBoardDetail)
+async def undo_last_change(
+    board_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Restore the board to its most recent snapshot."""
+    board = await db.get(VisionBoard, board_id)
+    _owned_board_or_404(board, current_user.id)
+
+    restored = await vision_svc.restore_snapshot(board_id, db)
+    if not restored:
+        raise HTTPException(status_code=404, detail="No snapshot to restore.")
+
+    await _sync_progress(board, db)
+    await db.flush()
+    await db.refresh(board)
+
+    return await _board_detail(board, db)
+
+
+@router.get("/boards/{board_id}/history", response_model=list[VisionBoardSnapshotResponse])
+async def get_history(
+    board_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return all snapshots for a board, newest first."""
+    board = await db.get(VisionBoard, board_id)
+    _owned_board_or_404(board, current_user.id)
+
+    result = await db.execute(
+        select(VisionBoardSnapshot)
+        .where(VisionBoardSnapshot.board_id == board_id)
+        .order_by(VisionBoardSnapshot.created_at.desc())
+    )
+    return result.scalars().all()
+
+
+@router.post("/boards/{board_id}/connect-node", response_model=VisionStepResponse, status_code=201)
+async def connect_node(
+    board_id: int,
+    body: ConnectNodeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new child step connected from an existing step."""
+    board = await db.get(VisionBoard, board_id)
+    _owned_board_or_404(board, current_user.id)
+
+    from_step = await db.get(VisionStep, body.from_step_id)
+    if not from_step or from_step.board_id != board_id:
+        raise HTTPException(status_code=404, detail="Source step not found on this board.")
+
+    await vision_svc.save_snapshot(board_id, f"connect node from: {from_step.title}", db)
+
+    sibling_max = await db.scalar(
+        select(func.max(VisionStep.order_index)).where(
+            VisionStep.board_id == board_id,
+            VisionStep.parent_step_id == body.from_step_id,
+        )
+    )
+    order_index = (sibling_max or -1) + 1
+
+    step = VisionStep(
+        board_id=board_id,
+        title=body.title.strip(),
+        description=body.description,
+        order_index=order_index,
+        parent_step_id=body.from_step_id,
+    )
+    db.add(step)
+    await db.flush()
+    await db.refresh(step)
+
+    return VisionStepResponse(
+        id=step.id,
+        board_id=step.board_id,
+        title=step.title,
+        description=step.description,
+        order_index=step.order_index,
+        parent_step_id=step.parent_step_id,
+        is_completed=step.is_completed,
+        estimated_minutes=step.estimated_minutes,
+        created_at=step.created_at,
+        updated_at=step.updated_at,
+    )

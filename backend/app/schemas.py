@@ -297,6 +297,25 @@ class VisionBoardDetail(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UpdateContextRequest(BaseModel):
+    update: str  # free-text description of what changed
+
+
+class ConnectNodeRequest(BaseModel):
+    from_step_id: int
+    title: str
+    description: Optional[str] = None
+
+
+class VisionBoardSnapshotResponse(BaseModel):
+    id: int
+    board_id: int
+    action_description: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 # ── User Settings ─────────────────────────────────────────────────────────────
 
 class ProviderSettingsRequest(BaseModel):

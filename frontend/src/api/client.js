@@ -226,4 +226,9 @@ export const api = {
 
   /** @param {number} boardId @param {number[]} stepIds */
   visionReorder: (boardId, stepIds) => req('PUT', `/vision/boards/${boardId}/reorder`, { step_ids: stepIds }),
+
+  visionUpdateContext: (boardId, update) => req('POST', `/vision/boards/${boardId}/update-context`, { update }),
+  visionUndo: (boardId) => req('POST', `/vision/boards/${boardId}/undo`),
+  visionHistory: (boardId) => req('GET', `/vision/boards/${boardId}/history`),
+  visionConnectNode: (boardId, data) => req('POST', `/vision/boards/${boardId}/connect-node`, data),
 }

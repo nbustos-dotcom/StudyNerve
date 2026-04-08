@@ -39,6 +39,7 @@ async def calculate_gap_scores(
     Returns topics sorted by gap_score descending (weakest first).
     When user_id is provided, only considers attempts for that user's notes.
     """
+    print(f"[query] calculate_gap_scores: user_id={user_id}", flush=True)
     query = (
         select(
             Attempt.is_correct,
@@ -47,6 +48,7 @@ async def calculate_gap_scores(
             Topic.name.label("topic_name"),
             Topic.note_id,
         )
+        .select_from(Attempt)
         .join(Question, Attempt.question_id == Question.id)
         .join(Topic, Question.topic_id == Topic.id)
     )

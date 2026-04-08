@@ -206,6 +206,7 @@ async def overview_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    print(f"[query] overview_stats: WHERE note.user_id = {current_user.id}", flush=True)
     total_notes = (
         await db.scalar(
             select(func.count(Note.id)).where(Note.user_id == current_user.id)
@@ -261,6 +262,7 @@ async def topic_stats(
 
 
 async def _topic_accuracies(db: AsyncSession, user_id: int) -> list[TopicAccuracy]:
+    print(f"[query] _topic_accuracies: WHERE note.user_id = {user_id}", flush=True)
     result = await db.execute(
         select(
             Topic.id,
@@ -268,6 +270,7 @@ async def _topic_accuracies(db: AsyncSession, user_id: int) -> list[TopicAccurac
             func.count(Attempt.id).label("total"),
             func.sum(func.cast(Attempt.is_correct, Integer)).label("correct"),
         )
+        .select_from(Attempt)
         .join(Question, Attempt.question_id == Question.id)
         .join(Topic, Question.topic_id == Topic.id)
         .join(Note, Question.note_id == Note.id)
@@ -295,6 +298,7 @@ async def get_gaps(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    print(f"[query] get_gaps: user_id={current_user.id}", flush=True)
     scores = await calculate_gap_scores(db, user_id=current_user.id)
     return [
         TopicGapScoreResponse(

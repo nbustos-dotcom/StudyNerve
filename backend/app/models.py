@@ -262,3 +262,19 @@ class VisionStep(Base):
         order_by="VisionStep.order_index",
         foreign_keys="[VisionStep.parent_step_id]",
     )
+
+
+class VisionBoardSnapshot(Base):
+    __tablename__ = "vision_board_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    board_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("vision_boards.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Full serialized board steps as JSON text
+    snapshot_data: Mapped[str] = mapped_column(Text, nullable=False)
+    # Human-readable description of what triggered this snapshot
+    action_description: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )

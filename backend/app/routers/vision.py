@@ -430,7 +430,7 @@ async def ask_about_step(
         lines += [
             "",
             f"STUDENT'S NOTES ON THIS MATERIAL — {linked_note.title}:",
-            linked_note.content.strip()[:2000],
+            linked_note.content.strip()[:3000],
         ]
 
     if all_steps:

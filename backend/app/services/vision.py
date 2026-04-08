@@ -112,7 +112,7 @@ async def generate_breakdown(
         parts.append(f"\nDescription:\n{description.strip()}")
 
     if note_content and note_content.strip():
-        truncated = note_content.strip()[:2000]
+        truncated = note_content.strip()[:3000]
         parts.append(f"\nAdditional context from notes:\n{truncated}")
 
     prompt = "\n".join(parts)

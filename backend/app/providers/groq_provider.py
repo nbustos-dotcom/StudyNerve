@@ -5,7 +5,7 @@ from typing import Optional
 
 import httpx
 
-from app.providers.base import LLMProvider
+from app.providers.base import LLMProvider, LLMTokenLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +67,26 @@ class GroqProvider(LLMProvider):
                             f"[groq] generate_json HTTP {response.status_code}:\n{response.text}",
                             flush=True,
                         )
+                        body_lower = response.text.lower()
+                        if response.status_code == 413 or (
+                            response.status_code in (400, 429)
+                            and any(
+                                kw in body_lower
+                                for kw in (
+                                    "rate_limit_exceeded",
+                                    "too many tokens",
+                                    "context_length_exceeded",
+                                    "tokens per",
+                                    "request too large",
+                                )
+                            )
+                        ):
+                            raise LLMTokenLimitError()
                     response.raise_for_status()
                     content = response.json()["choices"][0]["message"]["content"]
                     return json.loads(content)
+            except LLMTokenLimitError:
+                raise
             except httpx.HTTPStatusError as exc:
                 logger.error("Groq HTTP error: %s", exc)
                 return None
@@ -122,8 +139,25 @@ class GroqProvider(LLMProvider):
                         f"[groq] generate_chat HTTP {response.status_code}:\n{response.text}",
                         flush=True,
                     )
+                    body_lower = response.text.lower()
+                    if response.status_code == 413 or (
+                        response.status_code in (400, 429)
+                        and any(
+                            kw in body_lower
+                            for kw in (
+                                "rate_limit_exceeded",
+                                "too many tokens",
+                                "context_length_exceeded",
+                                "tokens per",
+                                "request too large",
+                            )
+                        )
+                    ):
+                        raise LLMTokenLimitError()
                 response.raise_for_status()
                 return response.json()["choices"][0]["message"]["content"]
+        except LLMTokenLimitError:
+            raise
         except httpx.HTTPStatusError as exc:
             logger.error("Groq HTTP error: %s", exc)
             return None

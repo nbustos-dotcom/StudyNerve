@@ -5,9 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.llm import extract_topics
 from app.models import Note, Topic, User
+from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
 from app.schemas import NoteCreate, NoteResponse
+
+_MAX_NOTE_CHARS = 3000
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -72,8 +75,16 @@ async def extract_note_topics(
     if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
+    content = note.content
+    was_truncated = len(content) > _MAX_NOTE_CHARS
+    if was_truncated:
+        content = content[:_MAX_NOTE_CHARS]
+
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
-    llm_result = await extract_topics(note.content, **llm_kwargs)
+    try:
+        llm_result = await extract_topics(content, **llm_kwargs)
+    except LLMTokenLimitError as exc:
+        raise HTTPException(status_code=422, detail=exc.message)
     if llm_result is None:
         raise HTTPException(
             status_code=502, detail="LLM unavailable or failed to extract topics"
@@ -104,4 +115,7 @@ async def extract_note_topics(
             )
             created_count += 1
 
-    return {"created": created_count}
+    result: dict = {"created": created_count}
+    if was_truncated:
+        result["warning"] = "Large note — topics extracted from the first section."
+    return result

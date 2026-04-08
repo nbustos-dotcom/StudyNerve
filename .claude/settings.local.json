@@ -15,7 +15,8 @@
       "Bash(python -m py_compile backend/app/routers/vision.py backend/app/schemas.py)",
       "Bash(venv/Scripts/pip install:*)",
       "Bash(venv/Scripts/python -c \":*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

@@ -240,6 +240,26 @@
   }
 }
 
+/* ── AI message reveal animation ─────────────────────────────────────────── */
+
+@keyframes ai-msg-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ai-message-animate > * {
+  animation: ai-msg-in 0.35s ease-out both;
+}
+.ai-message-animate > *:nth-child(1)   { animation-delay:   0ms; }
+.ai-message-animate > *:nth-child(2)   { animation-delay:  70ms; }
+.ai-message-animate > *:nth-child(3)   { animation-delay: 140ms; }
+.ai-message-animate > *:nth-child(4)   { animation-delay: 210ms; }
+.ai-message-animate > *:nth-child(5)   { animation-delay: 280ms; }
+.ai-message-animate > *:nth-child(6)   { animation-delay: 350ms; }
+.ai-message-animate > *:nth-child(7)   { animation-delay: 420ms; }
+.ai-message-animate > *:nth-child(8)   { animation-delay: 490ms; }
+.ai-message-animate > *:nth-child(n+9) { animation-delay: 560ms; }
+
 /* ── Mobile touch targets & safe padding ──────────────────────────────────── */
 
 @media (max-width: 767px) {

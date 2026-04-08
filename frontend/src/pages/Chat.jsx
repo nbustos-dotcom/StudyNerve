@@ -50,6 +50,13 @@ function TypingIndicator() {
 function MessageBubble({ message }) {
   const isUser = message.role === 'user'
   const iconIdRef = useRef(`msg-${Math.random().toString(36).slice(2)}`)
+  const [animate, setAnimate] = useState(!isUser)
+
+  useEffect(() => {
+    if (!animate) return
+    const t = setTimeout(() => setAnimate(false), 950)
+    return () => clearTimeout(t)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="border-t border-white/[0.05] py-5">
@@ -68,7 +75,9 @@ function MessageBubble({ message }) {
       ) : isUser ? (
         <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">{message.content}</p>
       ) : (
-        <MarkdownRenderer>{message.content}</MarkdownRenderer>
+        <div className={animate ? 'ai-message-animate' : ''}>
+          <MarkdownRenderer>{message.content}</MarkdownRenderer>
+        </div>
       )}
     </div>
   )

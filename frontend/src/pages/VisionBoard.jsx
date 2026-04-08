@@ -561,11 +561,6 @@ function MindMap({ board, selectedId, onSelect, onBoardUpdated }) {
   const { nodes, edges, W, H } = computeLayout(board.steps || [])
   const canvasRef = useRef(null)
 
-  // Pan state
-  const [pan, setPan] = useState({ x: 0, y: 0 })
-  const panStart = useRef(null)
-  const isPanning = useRef(false)
-
   // Drag-to-connect state
   const [dragLine, setDragLine] = useState(null) // {x1,y1,x2,y2}
   const [newNodeState, setNewNodeState] = useState(null) // {fromStepId, x, y}
@@ -574,9 +569,6 @@ function MindMap({ board, selectedId, onSelect, onBoardUpdated }) {
   const newNodeInputRef = useRef(null)
   const dragSourceRef = useRef(null) // {stepId, handleX, handleY}
 
-  // Newly created node id for fade-in animation
-  const [newNodeId, setNewNodeId] = useState(null)
-
   // Focus input when new node appears
   useEffect(() => {
     if (newNodeState && newNodeInputRef.current) {
@@ -584,43 +576,24 @@ function MindMap({ board, selectedId, onSelect, onBoardUpdated }) {
     }
   }, [newNodeState])
 
-  // ── Pan handlers ────────────────────────────────────────────────────────────
-
-  function onCanvasMouseDown(e) {
-    // Only pan on empty canvas (not on nodes/handles)
-    if (e.target !== canvasRef.current && !e.target.closest('[data-canvas-bg]')) return
-    isPanning.current = true
-    panStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }
-    e.currentTarget.style.cursor = 'grabbing'
-  }
+  // ── Drag-connect mouse handlers ─────────────────────────────────────────────
 
   function onCanvasMouseMove(e) {
-    if (dragSourceRef.current) {
-      // We're drawing a connection line
-      const rect = canvasRef.current.getBoundingClientRect()
-      const x2 = e.clientX - rect.left - pan.x
-      const y2 = e.clientY - rect.top - pan.y
-      setDragLine({ ...dragSourceRef.current, x2, y2 })
-      return
-    }
-    if (!isPanning.current || !panStart.current) return
-    setPan({ x: e.clientX - panStart.current.x, y: e.clientY - panStart.current.y })
+    if (!dragSourceRef.current) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    const x2 = e.clientX - rect.left
+    const y2 = e.clientY - rect.top
+    setDragLine({ ...dragSourceRef.current, x2, y2 })
   }
 
   function onCanvasMouseUp(e) {
-    if (dragSourceRef.current) {
-      // Drop — show new node input at drop position
-      const rect = canvasRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left - pan.x
-      const y = e.clientY - rect.top - pan.y
-      setNewNodeState({ fromStepId: dragSourceRef.current.stepId, x, y })
-      setDragLine(null)
-      dragSourceRef.current = null
-      return
-    }
-    isPanning.current = false
-    panStart.current = null
-    if (canvasRef.current) canvasRef.current.style.cursor = 'default'
+    if (!dragSourceRef.current) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    setNewNodeState({ fromStepId: dragSourceRef.current.stepId, x, y })
+    setDragLine(null)
+    dragSourceRef.current = null
   }
 
   // ── Drag handle mouse down ──────────────────────────────────────────────────
@@ -642,27 +615,13 @@ function MindMap({ board, selectedId, onSelect, onBoardUpdated }) {
     if (!newNodeTitle.trim() || !newNodeState || savingNode) return
     setSavingNode(true)
     try {
-      // API returns VisionStepResponse (a single step, not the full board)
-      const newStep = await api.visionConnectNode(board.id, {
+      await api.visionConnectNode(board.id, {
         from_step_id: newNodeState.fromStepId,
         title: newNodeTitle.trim(),
       })
-
-      // Build the updated board immutably — insert the new step in the right place
-      const stepWithSubsteps = { ...newStep, substeps: [] }
-      const updatedBoard = {
-        ...board,
-        steps: newStep.parent_step_id
-          ? (board.steps || []).map(s =>
-              s.id === newStep.parent_step_id
-                ? { ...s, substeps: [...(s.substeps || []), stepWithSubsteps] }
-                : s
-            )
-          : [...(board.steps || []), stepWithSubsteps],
-      }
-
-      setNewNodeId(`s${newStep.id}`)
-      await onBoardUpdated(updatedBoard)
+      // Re-fetch the full board so the new step appears with correct nesting
+      const freshBoard = await api.visionBoard(board.id)
+      await onBoardUpdated(freshBoard)
     } catch {}
     setSavingNode(false)
     setNewNodeState(null)
@@ -681,9 +640,8 @@ function MindMap({ board, selectedId, onSelect, onBoardUpdated }) {
   return (
     <div
       ref={canvasRef}
-      className="absolute inset-0 overflow-hidden select-none"
-      style={{ cursor: 'default' }}
-      onMouseDown={onCanvasMouseDown}
+      className="relative select-none"
+      style={{ cursor: 'default', width: W, minHeight: H }}
       onMouseMove={onCanvasMouseMove}
       onMouseUp={onCanvasMouseUp}
       onMouseLeave={onCanvasMouseUp}
@@ -698,8 +656,8 @@ function MindMap({ board, selectedId, onSelect, onBoardUpdated }) {
         <rect width="100%" height="100%" fill="url(#dot-grid)" />
       </svg>
 
-      {/* Pannable + zoomable content */}
-      <div style={{ transform: `translate(${pan.x}px,${pan.y}px)`, width: W, height: H, position: 'relative' }}>
+      {/* Content */}
+      <div style={{ width: W, height: H, position: 'relative' }}>
 
         {/* SVG layer: edges + drag line */}
         <svg className="absolute inset-0 pointer-events-none" width={W} height={H} style={{ overflow: 'visible' }}>
@@ -710,22 +668,19 @@ function MindMap({ board, selectedId, onSelect, onBoardUpdated }) {
             </linearGradient>
           </defs>
 
-          {/* Existing edges — animated dash flow */}
-          {edges.map((edge, i) => {
+          {/* Edges */}
+          {edges.map((edge) => {
             const fromNode = nodes.find(n => n.ex === edge.x1 && n.cy === edge.y1)
             const isActive = fromNode && (fromNode.id === selectedId || `s${fromNode.step?.id}` === selectedId)
-            const d = bezier(edge)
             return (
-              <g key={edge.id}>
-                {/* Static base line */}
-                <path d={d} fill="none" stroke={isActive ? 'rgba(99,102,241,0.6)' : 'url(#edge-grad)'}
-                  strokeWidth={isActive ? 2 : 1.5} strokeLinecap="round"
-                  style={{ animation: `vb-edge-in 0.5s ease-out ${0.1 + i * 0.05}s both` }} />
-                {/* Animated flow overlay */}
-                <path d={d} fill="none" stroke="rgba(99,102,241,0.35)" strokeWidth="1.5"
-                  strokeDasharray="6 18" strokeLinecap="round"
-                  style={{ animation: `vb-edge-in 0.5s ease-out ${0.1 + i * 0.05}s both, vb-flow 3s linear infinite` }} />
-              </g>
+              <path
+                key={edge.id}
+                d={bezier(edge)}
+                fill="none"
+                stroke={isActive ? 'rgba(99,102,241,0.6)' : 'url(#edge-grad)'}
+                strokeWidth={isActive ? 2 : 1.5}
+                strokeLinecap="round"
+              />
             )
           })}
 
@@ -735,7 +690,6 @@ function MindMap({ board, selectedId, onSelect, onBoardUpdated }) {
               d={bezier(dragLine)}
               fill="none" stroke="rgba(99,102,241,0.55)" strokeWidth="2"
               strokeDasharray="6 6" strokeLinecap="round"
-              style={{ animation: 'vb-flow 1.5s linear infinite' }}
             />
           )}
         </svg>
@@ -747,18 +701,16 @@ function MindMap({ board, selectedId, onSelect, onBoardUpdated }) {
           </div>
         )}
 
-        {nodes.map((node, i) => {
+        {nodes.map((node) => {
           const step = node.step
           const isRoot = node.type === 'root'
           const isSelected = !isRoot && selectedId === node.id
           const isDone = step?.is_completed
-          const isNew = node.id === newNodeId
-          const baseDelay = 0.05 + i * 0.07
 
           if (isRoot) {
             return (
               <div key={node.id} className="absolute flex items-center justify-center"
-                style={{ left: node.x, top: node.y, width: node.w, height: node.h, animation: `vb-node-in 0.45s cubic-bezier(0.34,1.56,0.64,1) ${baseDelay}s both` }}>
+                style={{ left: node.x, top: node.y, width: node.w, height: node.h, animation: 'vb-fade-in 0.3s ease both' }}>
                 <div className="w-full h-full rounded-2xl flex items-center justify-center px-4"
                   style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.22) 0%,rgba(139,92,246,0.18) 100%)', border: '1px solid rgba(99,102,241,0.35)', boxShadow: '0 0 24px rgba(99,102,241,0.18),inset 0 1px 0 rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)' }}>
                   <p className="text-sm font-bold text-white/90 text-center leading-tight" style={{ fontFamily: "'Sora',sans-serif" }}>
@@ -773,13 +725,7 @@ function MindMap({ board, selectedId, onSelect, onBoardUpdated }) {
             <div
               key={node.id}
               className="absolute group"
-              style={{
-                left: node.x, top: node.y, width: node.w, height: node.h,
-                animation: isNew
-                  ? 'vb-node-new 0.2s ease-out both'
-                  : `vb-node-in 0.45s cubic-bezier(0.34,1.56,0.64,1) ${baseDelay}s both`,
-                transition: 'left 0.3s ease, top 0.3s ease',
-              }}
+              style={{ left: node.x, top: node.y, width: node.w, height: node.h, animation: 'vb-fade-in 0.3s ease both' }}
             >
               {/* Node card */}
               <button
@@ -788,33 +734,18 @@ function MindMap({ board, selectedId, onSelect, onBoardUpdated }) {
                 style={{ display: 'block' }}
               >
                 <div
-                  className="w-full h-full rounded-2xl px-3.5 py-2.5 flex flex-col justify-center gap-1 transition-all duration-200"
+                  className="w-full h-full rounded-2xl px-3.5 py-2.5 flex flex-col justify-center gap-1"
                   style={{
                     background: isDone ? 'rgba(52,211,153,0.06)' : isSelected ? 'rgba(99,102,241,0.14)' : 'rgba(255,255,255,0.04)',
-                    border: isDone ? '2px solid rgba(52,211,153,0.35)' : isSelected ? '1px solid rgba(99,102,241,0.45)' : '1px solid rgba(255,255,255,0.07)',
-                    borderLeft: isDone ? '3px solid rgba(52,211,153,0.6)' : undefined,
+                    border: isSelected ? '1px solid rgba(99,102,241,0.45)' : '1px solid rgba(255,255,255,0.07)',
+                    borderLeft: isDone ? '3px solid rgba(52,211,153,0.6)' : isSelected ? '1px solid rgba(99,102,241,0.45)' : '1px solid rgba(255,255,255,0.07)',
                     boxShadow: isSelected ? '0 0 20px rgba(99,102,241,0.2)' : undefined,
                     backdropFilter: 'blur(20px)',
                     opacity: isDone ? 0.7 : 1,
-                    transform: 'scale(1)',
-                    transformOrigin: 'center',
+                    transition: 'border-color 200ms ease',
                   }}
-                  onMouseEnter={e => {
-                    if (!isSelected) {
-                      e.currentTarget.style.borderColor = 'rgba(99,102,241,0.35)'
-                      e.currentTarget.style.boxShadow = '0 0 18px rgba(99,102,241,0.15)'
-                      e.currentTarget.style.background = isDone ? 'rgba(52,211,153,0.09)' : 'rgba(99,102,241,0.08)'
-                      e.currentTarget.style.transform = 'scale(1.02)'
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!isSelected) {
-                      e.currentTarget.style.borderColor = isDone ? 'rgba(52,211,153,0.35)' : 'rgba(255,255,255,0.07)'
-                      e.currentTarget.style.boxShadow = ''
-                      e.currentTarget.style.background = isDone ? 'rgba(52,211,153,0.06)' : 'rgba(255,255,255,0.04)'
-                      e.currentTarget.style.transform = 'scale(1)'
-                    }
-                  }}
+                  onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = '#818cf8' }}
+                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = isDone ? 'rgba(52,211,153,0.6)' : 'rgba(255,255,255,0.07)' }}
                 >
                   <div className="flex items-start gap-2">
                     <div className="flex-shrink-0 mt-0.5 w-4 h-4 rounded flex items-center justify-center"
@@ -984,10 +915,10 @@ function BoardView({ board: initialBoard, onBack, onBoardUpdate }) {
         </button>
       </div>
 
-      {/* Body: pannable canvas + side panel */}
-      <div className="flex-1 flex overflow-hidden relative">
+      {/* Body: scrollable canvas + side panel */}
+      <div className="flex-1 flex relative">
         {/* Canvas */}
-        <div className="flex-1 relative overflow-hidden">
+        <div style={{ flex: 1, width: '100%', minHeight: 'calc(100vh - 200px)', overflowX: 'auto', overflowY: 'auto', position: 'relative' }}>
           <MindMap
             board={board}
             selectedId={selectedId}
@@ -1046,21 +977,9 @@ export default function VisionBoard() {
 
   const animStyles = (
     <style>{`
-      @keyframes vb-node-in {
-        from { opacity: 0; transform: translateX(-12px) scale(0.95); }
-        to   { opacity: 1; transform: translateX(0) scale(1); }
-      }
-      @keyframes vb-node-new {
-        from { opacity: 0; transform: scale(0.85); }
-        to   { opacity: 1; transform: scale(1); }
-      }
-      @keyframes vb-edge-in {
-        from { opacity: 0; stroke-dasharray: 1000; stroke-dashoffset: 1000; }
-        to   { opacity: 1; stroke-dasharray: 1000; stroke-dashoffset: 0; }
-      }
-      @keyframes vb-flow {
-        from { stroke-dashoffset: 0; }
-        to   { stroke-dashoffset: -48; }
+      @keyframes vb-fade-in {
+        from { opacity: 0; }
+        to   { opacity: 1; }
       }
     `}</style>
   )

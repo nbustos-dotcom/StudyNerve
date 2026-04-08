@@ -143,6 +143,18 @@ async def _build_system_prompt(
         "Keep mermaid diagrams simple — max 8-10 nodes. If a concept needs more detail, break it into multiple smaller diagrams rather than one massive one. Use short labels on nodes (2-4 words max).",
         "Always explain the diagram briefly after showing it.",
         "",
+        "MERMAID SYNTAX RULES — FOLLOW EXACTLY OR IT WILL BREAK:",
+        "- Always start flowcharts with 'flowchart TD' or 'flowchart LR' (never 'graph')",
+        "- Use simple single-letter or short node IDs: A, B, C, D",
+        "- Use square brackets for box labels: A[Label Text]",
+        "- Use parentheses for rounded boxes: A(Label Text)",
+        "- Use arrows like this: A --> B",
+        "- Arrow with label: A -->|label| B",
+        "- NEVER use quotes, colons, special characters, or parentheses inside node labels",
+        "- NEVER use spaces or hyphens in node IDs",
+        "- Keep labels short — 1 to 4 words max",
+        "- Do not use subgraphs unless absolutely necessary",
+        "",
     ]
 
     lines.append(f"## How this student is communicating right now: {style_hint}")

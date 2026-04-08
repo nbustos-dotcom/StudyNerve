@@ -24,58 +24,23 @@ function formatRelativeTime(isoString) {
 
 function TypingIndicator() {
   return (
-    <div className="flex items-end gap-2 max-w-[75%]">
-      <Avatar role="assistant" />
-      <div
-        className="px-4 py-3 rounded-2xl rounded-bl-sm border border-white/[0.07]"
-        style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)' }}
-      >
-        <div className="flex items-center gap-1 h-4">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="w-1.5 h-1.5 rounded-full bg-indigo-400/60"
-              style={{
-                animation: 'bounce 1.2s ease-in-out infinite',
-                animationDelay: `${i * 0.2}s`,
-              }}
-            />
-          ))}
-        </div>
+    <div className="border-t border-white/[0.05] py-5">
+      <div className="flex items-center gap-2 mb-3">
+        <NeuralNetIcon size={14} idPrefix="typing-indicator" />
+        <span className="text-[11px] font-medium text-indigo-300/60">StudyNerve AI</span>
       </div>
-    </div>
-  )
-}
-
-// ── Avatar ────────────────────────────────────────────────────────────────────
-
-function Avatar({ role }) {
-  if (role === 'assistant') {
-    return (
-      <div
-        className="flex-shrink-0 self-end mb-0.5 rounded-xl overflow-hidden"
-        style={{
-          width: 32,
-          height: 32,
-          background: 'rgba(99,102,241,0.10)',
-          border: '1px solid rgba(99,102,241,0.22)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          /* outer accent glow to match the app's indigo theme */
-          boxShadow: '0 0 0 1px rgba(99,102,241,0.08), 0 0 14px rgba(99,102,241,0.30)',
-          /* CSS drop-shadow adds a second halo around the SVG shapes themselves */
-          filter: 'drop-shadow(0 0 4px rgba(139,92,246,0.45))',
-        }}
-      >
-        <NeuralNetIcon size={32} idPrefix="chat-avatar" />
+      <div className="flex items-center gap-1 h-4">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="w-1.5 h-1.5 rounded-full bg-indigo-400/50"
+            style={{
+              animation: 'bounce 1.2s ease-in-out infinite',
+              animationDelay: `${i * 0.2}s`,
+            }}
+          />
+        ))}
       </div>
-    )
-  }
-  return (
-    <div className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center self-end mb-0.5 bg-white/10 border border-white/10">
-      <svg className="w-3.5 h-3.5 text-white/50" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-5 6a5 5 0 0110 0H3z" />
-      </svg>
     </div>
   )
 }
@@ -84,46 +49,27 @@ function Avatar({ role }) {
 
 function MessageBubble({ message }) {
   const isUser = message.role === 'user'
-
-  if (isUser) {
-    return (
-      <div className="flex items-end justify-end gap-2">
-        <div
-          className="max-w-[75%] px-4 py-3 rounded-2xl rounded-br-sm text-sm text-white leading-relaxed"
-          style={{
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.75) 0%, rgba(139,92,246,0.75) 100%)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(139,92,246,0.3)',
-            boxShadow: '0 4px 20px rgba(99,102,241,0.2)',
-          }}
-        >
-          {message.content}
-        </div>
-        <Avatar role="user" />
-      </div>
-    )
-  }
+  const iconIdRef = useRef(`msg-${Math.random().toString(36).slice(2)}`)
 
   return (
-    <div className="flex items-end gap-2 max-w-[75%]">
-      <Avatar role="assistant" />
-      <div
-        className={`px-4 py-3 rounded-2xl rounded-bl-sm border ${
-          message.error
-            ? 'border-red-500/20 bg-red-500/5 text-sm text-red-400'
-            : 'border-white/[0.07]'
-        }`}
-        style={
-          message.error
-            ? undefined
-            : { background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)' }
-        }
-      >
-        {message.error
-          ? message.content
-          : <MarkdownRenderer>{message.content}</MarkdownRenderer>
-        }
+    <div className="border-t border-white/[0.05] py-5">
+      <div className="flex items-center gap-2 mb-3">
+        {isUser ? (
+          <span className="text-[11px] font-medium text-white/35">You</span>
+        ) : (
+          <>
+            <NeuralNetIcon size={14} idPrefix={iconIdRef.current} />
+            <span className="text-[11px] font-medium text-indigo-300/60">StudyNerve AI</span>
+          </>
+        )}
       </div>
+      {message.error ? (
+        <p className="text-sm text-red-400">{message.content}</p>
+      ) : isUser ? (
+        <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">{message.content}</p>
+      ) : (
+        <MarkdownRenderer>{message.content}</MarkdownRenderer>
+      )}
     </div>
   )
 }
@@ -132,18 +78,16 @@ function MessageBubble({ message }) {
 
 function WelcomeMessage() {
   return (
-    <div className="flex items-end gap-2 max-w-[75%]">
-      <Avatar role="assistant" />
-      <div
-        className="px-4 py-3 rounded-2xl rounded-bl-sm text-sm text-slate-200 leading-relaxed border border-white/[0.07]"
-        style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)' }}
-      >
-        <p>
-          I&apos;m <span className="text-indigo-300 font-semibold">StudyNerve AI</span>, your personal AI tutor.
-          I know what you&apos;re studying and where you need help.
-        </p>
-        <p className="mt-1.5 text-slate-400">Ask me anything.</p>
+    <div className="py-5">
+      <div className="flex items-center gap-2 mb-3">
+        <NeuralNetIcon size={14} idPrefix="welcome-msg" />
+        <span className="text-[11px] font-medium text-indigo-300/60">StudyNerve AI</span>
       </div>
+      <p className="text-sm text-white/80 leading-relaxed">
+        I&apos;m <span className="text-indigo-300 font-semibold">StudyNerve AI</span>, your personal AI tutor.
+        I know what you&apos;re studying and where you need help.
+      </p>
+      <p className="text-sm text-white/40 mt-1.5">Ask me anything.</p>
     </div>
   )
 }
@@ -441,7 +385,7 @@ export default function Chat() {
 
           {/* Messages area */}
           <div className="flex-1 overflow-y-auto px-4 py-6">
-            <div className="max-w-2xl mx-auto space-y-4">
+            <div className="max-w-2xl mx-auto">
               {showWelcome && <WelcomeMessage />}
 
               {messages.map((msg, i) => (

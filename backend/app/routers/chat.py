@@ -140,6 +140,7 @@ async def _build_system_prompt(
         "- sequenceDiagram for step-by-step interactions",
         "- mindmap for topic breakdowns",
         "Don't force diagrams on simple questions. Use them when seeing the structure genuinely helps understanding.",
+        "Keep mermaid diagrams simple — max 8-10 nodes. If a concept needs more detail, break it into multiple smaller diagrams rather than one massive one. Use short labels on nodes (2-4 words max).",
         "Always explain the diagram briefly after showing it.",
         "",
     ]

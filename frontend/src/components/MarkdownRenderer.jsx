@@ -27,20 +27,27 @@ mermaid.initialize({
   startOnLoad: false,
   theme: 'base',
   themeVariables: {
-    background: 'transparent',
-    primaryColor: '#6366f1',
+    // Backgrounds
+    background: '#1a1a2e',
+    primaryColor: '#2a2a4a',
+    secondaryColor: '#252540',
+    tertiaryColor: '#20203a',
+    // Node borders & text
+    primaryBorderColor: 'rgba(99,102,241,0.6)',
     primaryTextColor: '#ffffff',
-    primaryBorderColor: '#818cf8',
-    lineColor: 'rgba(255,255,255,0.45)',
-    secondaryColor: '#1e1e2e',
-    tertiaryColor: 'rgba(255,255,255,0.04)',
-    nodeBorder: '#818cf8',
-    clusterBkg: 'rgba(99,102,241,0.08)',
-    titleColor: '#a5b4fc',
-    edgeLabelBackground: 'rgba(10,10,26,0.85)',
     nodeTextColor: '#ffffff',
     labelTextColor: '#ffffff',
+    // Edges
+    lineColor: '#9ca3af',
+    edgeLabelBackground: '#1a1a2e',
+    // Clusters / subgraphs
+    clusterBkg: '#1f1f38',
+    clusterBorder: 'rgba(99,102,241,0.3)',
+    // Misc
+    titleColor: '#c7d2fe',
+    nodeBorder: 'rgba(99,102,241,0.6)',
     fontFamily: 'system-ui, -apple-system, sans-serif',
+    fontSize: '14px',
   },
   securityLevel: 'loose',
 })
@@ -59,33 +66,65 @@ const CODE_CONTAINER = {
 
 // ── Mermaid diagram block ─────────────────────────────────────────────────────
 
+function applySvgStyles(svgEl) {
+  if (!svgEl) return
+  svgEl.style.minWidth = '100%'
+  svgEl.style.width = '100%'
+  svgEl.style.height = 'auto'
+  svgEl.style.fontSize = '14px'
+  svgEl.removeAttribute('width')
+  svgEl.removeAttribute('height')
+}
+
 function MermaidBlock({ code }) {
   const containerRef = useRef(null)
-  // Stable per-instance ID — mermaid requires unique IDs, no colons or special chars
-  const idRef = useRef(`md${Math.random().toString(36).slice(2)}`)
+  const modalContainerRef = useRef(null)
+  // Stable per-instance IDs — mermaid requires unique IDs with no colons
+  const inlineIdRef = useRef(`md${Math.random().toString(36).slice(2)}`)
+  const modalIdRef = useRef(`mdm${Math.random().toString(36).slice(2)}`)
   const [error, setError] = useState(false)
+  const [svgContent, setSvgContent] = useState(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
   useEffect(() => {
-    if (!containerRef.current) return
     setError(false)
-
-    mermaid.render(idRef.current, code.trim())
+    mermaid.render(inlineIdRef.current, code.trim())
       .then(({ svg }) => {
-        if (!containerRef.current) return
-        containerRef.current.innerHTML = svg
-        const svgEl = containerRef.current.querySelector('svg')
-        if (svgEl) {
-          svgEl.style.maxWidth = '100%'
-          svgEl.style.height = 'auto'
-          svgEl.removeAttribute('width')
-          svgEl.removeAttribute('height')
-        }
+        setSvgContent(svg)
       })
       .catch(() => setError(true))
   }, [code])
 
+  // Inject SVG into the inline container and size it
+  useEffect(() => {
+    if (!svgContent || !containerRef.current) return
+    containerRef.current.innerHTML = svgContent
+    applySvgStyles(containerRef.current.querySelector('svg'))
+  }, [svgContent])
+
+  // Inject a fresh SVG into the modal container when it opens
+  useEffect(() => {
+    if (!modalOpen || !svgContent) return
+    // Re-render with a different ID so mermaid doesn't deduplicate
+    mermaid.render(modalIdRef.current, code.trim())
+      .then(({ svg }) => {
+        if (modalContainerRef.current) {
+          modalContainerRef.current.innerHTML = svg
+          const svgEl = modalContainerRef.current.querySelector('svg')
+          if (svgEl) {
+            svgEl.style.width = '100%'
+            svgEl.style.height = 'auto'
+            svgEl.style.maxWidth = '900px'
+            svgEl.style.fontSize = '16px'
+            svgEl.removeAttribute('width')
+            svgEl.removeAttribute('height')
+          }
+        }
+      })
+      .catch(() => {})
+  }, [modalOpen, svgContent, code])
+
   if (error) {
-    // Graceful fallback: render raw mermaid source as a plain code block
     return (
       <div style={CODE_CONTAINER}>
         <code
@@ -99,20 +138,161 @@ function MermaidBlock({ code }) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(99,102,241,0.22)',
-        borderRadius: '10px',
-        padding: '16px',
-        margin: '8px 0',
-        overflowX: 'auto',
-        display: 'flex',
-        justifyContent: 'center',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 0 24px rgba(99,102,241,0.06)',
-      }}
-    />
+    <>
+      {/* ── Inline diagram container ──────────────────────────────────────── */}
+      <div
+        style={{
+          background: '#1a1a2e',
+          border: '1px solid rgba(99,102,241,0.25)',
+          borderRadius: '10px',
+          margin: '8px 0',
+          overflow: 'hidden',
+          boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
+        }}
+      >
+        {/* Diagram scroll area */}
+        <div
+          ref={containerRef}
+          style={{
+            padding: '16px',
+            minHeight: '200px',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        />
+
+        {/* Toolbar */}
+        {svgContent && (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              padding: '6px 10px',
+              borderTop: '1px solid rgba(255,255,255,0.05)',
+              background: 'rgba(0,0,0,0.2)',
+            }}
+          >
+            <button
+              onClick={() => setModalOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                color: 'rgba(165,180,252,0.8)',
+                background: 'rgba(99,102,241,0.1)',
+                border: '1px solid rgba(99,102,241,0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(99,102,241,0.2)'
+                e.currentTarget.style.color = '#a5b4fc'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(99,102,241,0.1)'
+                e.currentTarget.style.color = 'rgba(165,180,252,0.8)'
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M5 1H1v4M11 1h4v4M5 15H1v-4M11 15h4v-4" />
+              </svg>
+              Expand
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Full-screen modal ─────────────────────────────────────────────── */}
+      {modalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(8px)',
+            padding: '24px',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false) }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '960px',
+              maxHeight: '85vh',
+              borderRadius: '16px',
+              background: '#1a1a2e',
+              border: '1px solid rgba(99,102,241,0.3)',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* Modal header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 16px',
+                borderBottom: '1px solid rgba(255,255,255,0.07)',
+                flexShrink: 0,
+              }}
+            >
+              <span style={{ fontSize: '12px', color: 'rgba(165,180,252,0.6)', letterSpacing: '0.05em' }}>
+                DIAGRAM
+              </span>
+              <button
+                onClick={() => setModalOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  color: 'rgba(255,255,255,0.5)',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  lineHeight: 1,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                aria-label="Close diagram"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal diagram area */}
+            <div
+              ref={modalContainerRef}
+              style={{
+                flex: 1,
+                padding: '24px',
+                overflowX: 'auto',
+                overflowY: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

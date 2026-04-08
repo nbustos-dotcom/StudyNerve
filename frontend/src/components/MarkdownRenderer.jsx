@@ -3,6 +3,7 @@
  *
  * Features:
  *  - KaTeX math: inline ($...$) and block ($$...$$)
+ *  - Mermaid diagrams (```mermaid blocks) with dark glass theme
  *  - Syntax-highlighted fenced code blocks (dark theme, glass style)
  *  - Bold, italic, lists, headings — all tuned for the glass-morphism dark UI
  *
@@ -11,12 +12,38 @@
  *  size      — "sm" | "md" (default "md")  controls base text size
  */
 
+import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import mermaid from 'mermaid'
 import 'katex/dist/katex.min.css'
+
+// ── Mermaid — initialize once with app dark theme ─────────────────────────────
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  themeVariables: {
+    background: 'transparent',
+    primaryColor: '#6366f1',
+    primaryTextColor: '#ffffff',
+    primaryBorderColor: '#818cf8',
+    lineColor: 'rgba(255,255,255,0.45)',
+    secondaryColor: '#1e1e2e',
+    tertiaryColor: 'rgba(255,255,255,0.04)',
+    nodeBorder: '#818cf8',
+    clusterBkg: 'rgba(99,102,241,0.08)',
+    titleColor: '#a5b4fc',
+    edgeLabelBackground: 'rgba(10,10,26,0.85)',
+    nodeTextColor: '#ffffff',
+    labelTextColor: '#ffffff',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+  },
+  securityLevel: 'loose',
+})
 
 // ── Code block glass theme ─────────────────────────────────────────────────────
 
@@ -28,6 +55,65 @@ const CODE_CONTAINER = {
   margin: '6px 0',
   fontSize: '0.79em',
   lineHeight: '1.6',
+}
+
+// ── Mermaid diagram block ─────────────────────────────────────────────────────
+
+function MermaidBlock({ code }) {
+  const containerRef = useRef(null)
+  // Stable per-instance ID — mermaid requires unique IDs, no colons or special chars
+  const idRef = useRef(`md${Math.random().toString(36).slice(2)}`)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    setError(false)
+
+    mermaid.render(idRef.current, code.trim())
+      .then(({ svg }) => {
+        if (!containerRef.current) return
+        containerRef.current.innerHTML = svg
+        const svgEl = containerRef.current.querySelector('svg')
+        if (svgEl) {
+          svgEl.style.maxWidth = '100%'
+          svgEl.style.height = 'auto'
+          svgEl.removeAttribute('width')
+          svgEl.removeAttribute('height')
+        }
+      })
+      .catch(() => setError(true))
+  }, [code])
+
+  if (error) {
+    // Graceful fallback: render raw mermaid source as a plain code block
+    return (
+      <div style={CODE_CONTAINER}>
+        <code
+          className="font-mono text-slate-300"
+          style={{ fontSize: '0.79em', lineHeight: '1.6', whiteSpace: 'pre', display: 'block' }}
+        >
+          {code}
+        </code>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(99,102,241,0.22)',
+        borderRadius: '10px',
+        padding: '16px',
+        margin: '8px 0',
+        overflowX: 'auto',
+        display: 'flex',
+        justifyContent: 'center',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 0 24px rgba(99,102,241,0.06)',
+      }}
+    />
+  )
 }
 
 // ── Component map factory ─────────────────────────────────────────────────────
@@ -55,6 +141,12 @@ function makeComponents(size) {
     pre: ({ children }) => <>{children}</>,
     code({ className, children }) {
       const lang = /language-(\w+)/.exec(className || '')?.[1]
+
+      // Mermaid diagrams get their own renderer
+      if (lang === 'mermaid') {
+        return <MermaidBlock code={String(children).replace(/\n$/, '')} />
+      }
+
       if (lang) {
         return (
           <SyntaxHighlighter

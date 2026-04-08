@@ -131,6 +131,19 @@ async def _build_system_prompt(
         "",
     ]
 
+    lines += [
+        "VISUAL EXPLANATIONS:",
+        "When a concept involves a process, flow, hierarchy, comparison, or relationship between ideas — draw it.",
+        "Use mermaid diagrams inside ```mermaid code blocks. Types you can use:",
+        "- flowchart TD or LR for processes and decision trees",
+        "- graph for concept relationships",
+        "- sequenceDiagram for step-by-step interactions",
+        "- mindmap for topic breakdowns",
+        "Don't force diagrams on simple questions. Use them when seeing the structure genuinely helps understanding.",
+        "Always explain the diagram briefly after showing it.",
+        "",
+    ]
+
     lines.append(f"## How this student is communicating right now: {style_hint}")
     lines.append("")
 

@@ -232,6 +232,18 @@ export const api = {
    */
   visionConnect: (boardId, fromId, toId) => req('POST', `/vision/boards/${boardId}/connect`, { from_id: fromId, to_id: toId }),
 
+  /**
+   * Remove a connection between two nodes.
+   * @param {number} boardId @param {number} fromId @param {number} toId
+   */
+  visionDisconnect: (boardId, fromId, toId) => req('DELETE', `/vision/boards/${boardId}/disconnect`, { from_id: fromId, to_id: toId }),
+
+  /**
+   * Generate a full visual mind map from a project description.
+   * @param {number} boardId @param {string} description @returns {Promise<AiVisionResponse>}
+   */
+  visionAiVision: (boardId, description) => req('POST', `/vision/boards/${boardId}/ai-vision`, { description }),
+
   /** AI: suggest ordering/grouping. @returns {Promise<AiOrganizeResponse>} */
   visionAiOrganize: (boardId) => req('POST', `/vision/boards/${boardId}/ai-organize`),
 

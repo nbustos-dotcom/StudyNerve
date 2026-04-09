@@ -36,14 +36,18 @@ from app.schemas import (
     AskNodeRequest,
     BoardDetail,
     BoardSummary,
+    AiVisionRequest,
+    AiVisionResponse,
+    AiVisionConnectionResult,
     ConnectNodesRequest,
+    DisconnectNodesRequest,
     CreateBoardRequest,
     CreateNodeRequest,
     NodeResponse,
     UpdateNodePositionRequest,
     UpdateNodeRequest,
 )
-from app.services.vision import ai_ask, ai_breakdown, ai_organize
+from app.services.vision import ai_ask, ai_breakdown, ai_organize, ai_vision
 
 router = APIRouter(prefix="/vision", tags=["vision"])
 
@@ -307,7 +311,110 @@ async def connect_nodes(
     return _node_resp(to_node)
 
 
+@router.delete("/boards/{board_id}/disconnect", status_code=204)
+async def disconnect_nodes(
+    board_id: int,
+    body: DisconnectNodesRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove the connection between two nodes by clearing parent_step_id on to_id."""
+    board = await db.get(VisionBoard, board_id)
+    _owned_board_or_404(board, current_user.id)
+
+    to_node = await db.get(VisionStep, body.to_id)
+    if not to_node or to_node.board_id != board_id:
+        raise HTTPException(status_code=404, detail="to_id not found on this board.")
+    if to_node.parent_step_id != body.from_id:
+        raise HTTPException(status_code=422, detail="No connection exists between these nodes.")
+
+    to_node.parent_step_id = None
+    await db.flush()
+
+
 # ── AI endpoints ──────────────────────────────────────────────────────────────
+
+@router.post("/boards/{board_id}/ai-vision", response_model=AiVisionResponse, status_code=201)
+async def ai_vision_board(
+    board_id: int,
+    body: AiVisionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Generate a full visual mind map from a free-form project description.
+    Creates all nodes and connections in the DB, returns them.
+    """
+    if not body.description.strip():
+        raise HTTPException(status_code=422, detail="description must not be empty.")
+
+    board = await db.get(VisionBoard, board_id)
+    _owned_board_or_404(board, current_user.id)
+
+    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+    try:
+        result = await ai_vision(body.description, **llm_kwargs)
+    except LLMTokenLimitError as exc:
+        raise HTTPException(status_code=422, detail=exc.message)
+
+    if result is None or not result.get("nodes"):
+        raise HTTPException(status_code=502, detail="LLM unavailable or returned no nodes.")
+
+    raw_nodes = result.get("nodes", [])[:12]  # cap at 12
+    raw_conns = result.get("connections", [])
+
+    # Create all nodes first (no parent yet — avoids forward-reference issues)
+    existing_count = await db.scalar(
+        select(func.count(VisionStep.id)).where(VisionStep.board_id == board_id)
+    )
+    created: list[VisionStep] = []
+    for i, item in enumerate(raw_nodes):
+        node = VisionStep(
+            board_id=board_id,
+            title=str(item.get("title", f"Node {i+1}")).strip()[:120],
+            description=str(item["description"]).strip()[:400] if item.get("description") else None,
+            x_position=float(item.get("x", 100 + i * 220)),
+            y_position=float(item.get("y", 250)),
+            order_index=(existing_count or 0) + i,
+        )
+        db.add(node)
+        created.append(node)
+
+    await db.flush()
+    for n in created:
+        await db.refresh(n)
+
+    # Apply connections — each child node can have at most one parent
+    applied_conns: list[AiVisionConnectionResult] = []
+    child_has_parent: set[int] = set()
+    for conn in raw_conns:
+        fi = conn.get("from_index")
+        ti = conn.get("to_index")
+        if fi is None or ti is None:
+            continue
+        if not (0 <= fi < len(created) and 0 <= ti < len(created)):
+            continue
+        if fi == ti:
+            continue
+        if ti in child_has_parent:
+            continue  # skip duplicate parents
+        created[ti].parent_step_id = created[fi].id
+        child_has_parent.add(ti)
+        applied_conns.append(AiVisionConnectionResult(
+            from_id=created[fi].id,
+            to_id=created[ti].id,
+        ))
+
+    board.is_ai_generated = True
+    await db.flush()
+    for n in created:
+        await db.refresh(n)
+
+    return AiVisionResponse(
+        nodes=[_node_resp(n) for n in created],
+        connections=applied_conns,
+    )
+
 
 @router.post("/boards/{board_id}/ai-organize", response_model=AiOrganizeResponse)
 async def ai_organize_board(

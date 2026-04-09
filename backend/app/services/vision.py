@@ -37,6 +37,37 @@ Rules:
 - Be specific to the student's actual content — no generic advice"""
 
 
+_VISION_SYSTEM = """You are an expert visual thinking assistant. A student described a project or assignment. Create a spatial mind map layout for it.
+
+Break it into 6 to 12 main nodes with clear, short titles. For each node include a brief 1-sentence description.
+
+Arrange them so the flow reads left to right:
+- Starting steps get LOW x values (100-300)
+- Middle steps get MID x values (400-800)
+- Final steps get HIGH x values (900-1200)
+- Group related nodes vertically with similar y values
+- Spread nodes out so they do not overlap (each node is ~180px wide, ~52px tall — keep at least 200px horizontal gap and 100px vertical gap)
+
+Return ONLY valid JSON with no commentary:
+{
+  "nodes": [
+    {"title": "Short title", "description": "One sentence about what this involves.", "x": 100, "y": 250}
+  ],
+  "connections": [
+    {"from_index": 0, "to_index": 1}
+  ]
+}
+
+Rules:
+- 6 to 12 nodes exactly
+- x ranges 100 to 1200, y ranges 80 to 580
+- connections show logical flow or dependency (from_index → to_index)
+- from_index and to_index are 0-based indices into the nodes array
+- A node may have at most one parent connection (one connection pointing to it)
+- titles must be 2 to 5 words — concise
+- descriptions must be a single sentence — specific to the student's content"""
+
+
 _BREAKDOWN_SYSTEM = """You are a study planner. Break one task into 2-4 concrete, actionable sub-tasks.
 
 Return ONLY valid JSON in this exact structure:
@@ -54,6 +85,23 @@ Rules:
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
+
+async def ai_vision(
+    description: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[dict]:
+    """
+    Given a free-form project description, return a spatial mind map layout.
+    Returns {nodes: [{title, description, x, y}], connections: [{from_index, to_index}]}.
+    """
+    prompt = (
+        f"The student described their project or assignment:\n\n"
+        f"{description[:2000].strip()}\n\n"
+        "Create a visual mind map layout for this. "
+        "Think carefully about the logical flow and what steps depend on each other."
+    )
+    return await generate_json(prompt, _VISION_SYSTEM, provider_name, api_key)
 
 async def ai_organize(
     nodes: list[dict],

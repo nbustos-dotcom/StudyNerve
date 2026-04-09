@@ -277,6 +277,11 @@ class ConnectNodesRequest(BaseModel):
     to_id: int
 
 
+class DisconnectNodesRequest(BaseModel):
+    from_id: int
+    to_id: int
+
+
 class AskNodeRequest(BaseModel):
     question: str
 
@@ -305,6 +310,20 @@ class AiSubtask(BaseModel):
 
 class AiBreakdownResponse(BaseModel):
     created_nodes: list[NodeResponse]
+
+
+class AiVisionRequest(BaseModel):
+    description: str
+
+
+class AiVisionConnectionResult(BaseModel):
+    from_id: int
+    to_id: int
+
+
+class AiVisionResponse(BaseModel):
+    nodes: list[NodeResponse]
+    connections: list[AiVisionConnectionResult]
 
 
 # ── User Settings ─────────────────────────────────────────────────────────────

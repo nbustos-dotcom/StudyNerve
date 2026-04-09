@@ -1,16 +1,99 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { api } from '../api/client'
+
+// ── CSS Animations ────────────────────────────────────────────────────────────
+
+const VB_STYLES = `
+  @keyframes vb-float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-3px); }
+  }
+  @keyframes vb-float-slow {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-1.5px); }
+  }
+  @keyframes vb-border-glow {
+    0%   { box-shadow: 0 0 0 1px rgba(99,102,241,.28),  0 2px 12px rgba(0,0,0,.3); }
+    33%  { box-shadow: 0 0 0 1px rgba(139,92,246,.34),  0 2px 12px rgba(0,0,0,.3); }
+    66%  { box-shadow: 0 0 0 1px rgba(59,130,246,.28),  0 2px 12px rgba(0,0,0,.3); }
+    100% { box-shadow: 0 0 0 1px rgba(99,102,241,.28),  0 2px 12px rgba(0,0,0,.3); }
+  }
+  @keyframes vb-border-glow-done {
+    0%   { box-shadow: 0 0 0 1px rgba(16,185,129,.35), 0 2px 12px rgba(0,0,0,.3); }
+    50%  { box-shadow: 0 0 0 1.5px rgba(16,185,129,.55), 0 4px 18px rgba(16,185,129,.12); }
+    100% { box-shadow: 0 0 0 1px rgba(16,185,129,.35), 0 2px 12px rgba(0,0,0,.3); }
+  }
+  @keyframes vb-burst {
+    0%   { opacity: .65; transform: scale(.3); }
+    100% { opacity: 0;   transform: scale(3.8); }
+  }
+  @keyframes vb-note-in {
+    0%   { opacity: 0; transform: translateY(-8px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes vb-star-drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%       { transform: translate(1px, -3px) scale(1.15); }
+    66%       { transform: translate(-1px, -1px) scale(0.88); }
+  }
+  @keyframes vb-pop-in {
+    0%   { opacity: 0; transform: scale(0.45) translateY(12px); }
+    70%  { transform: scale(1.06) translateY(-2px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes vb-conn-draw {
+    0%   { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  @keyframes vb-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+`
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const NODE_W = 180   // card width
-const NODE_H = 52    // assumed card height for SVG connection math
+const NODE_W = 180
+const NODE_H = 52
 
 // ── Bezier path ───────────────────────────────────────────────────────────────
 
 function bezier(x1, y1, x2, y2) {
   const cx = Math.max(Math.abs(x2 - x1) * 0.5, 50)
   return `M ${x1} ${y1} C ${x1 + cx} ${y1}, ${x2 - cx} ${y2}, ${x2} ${y2}`
+}
+
+// ── Star Field ────────────────────────────────────────────────────────────────
+
+function StarField() {
+  const stars = useMemo(() =>
+    Array.from({ length: 38 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 1.2 + 0.8,
+      opacity: Math.random() * 0.2 + 0.08,
+      dur: (Math.random() * 30 + 60).toFixed(1),
+      delay: -(Math.random() * 90).toFixed(1),
+    }))
+  , [])
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+      {stars.map(s => (
+        <div key={s.id} style={{
+          position: 'absolute',
+          left: `${s.x}%`, top: `${s.y}%`,
+          width: s.size, height: s.size,
+          borderRadius: '50%',
+          background: 'white',
+          opacity: s.opacity,
+          animation: `vb-star-drift ${s.dur}s ${s.delay}s ease-in-out infinite`,
+          willChange: 'transform',
+        }} />
+      ))}
+    </div>
+  )
 }
 
 // ── Tutor Modal ───────────────────────────────────────────────────────────────
@@ -125,6 +208,107 @@ function CtxMenu({ x, y, onEdit, onDelete, onTutor, onClose }) {
   )
 }
 
+// ── AI Vision Modal ───────────────────────────────────────────────────────────
+
+function AiVisionModal({ onSubmit, onClose, busy }) {
+  const [desc, setDesc] = useState('')
+
+  function handleKey(e) {
+    if (e.key === 'Escape') onClose()
+    // Ctrl/Cmd+Enter submits
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault()
+      if (desc.trim() && !busy) onSubmit(desc.trim())
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 600,
+        background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      onMouseDown={e => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{
+        width: 560, maxWidth: '92vw',
+        background: 'rgba(8,8,22,.96)',
+        border: '1px solid rgba(99,102,241,.35)',
+        borderRadius: 20,
+        padding: '28px 28px 24px',
+        backdropFilter: 'blur(24px)',
+        boxShadow: '0 32px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(99,102,241,.1)',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 18 }}>🪐</span>
+              <span style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,.92)' }}>AI Vision</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,.38)', lineHeight: 1.5 }}>
+              Describe your project, assignment, or idea. The AI will map it out for you.
+            </p>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', color: 'rgba(255,255,255,.3)',
+            cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: '0 2px', marginTop: -2,
+          }}>×</button>
+        </div>
+
+        {/* Text area */}
+        <textarea
+          autoFocus
+          value={desc}
+          onChange={e => setDesc(e.target.value)}
+          onKeyDown={handleKey}
+          placeholder={'Example:\n"I need to write a research paper on climate change impacts on Great Lakes ecosystems. It\'s due in 2 weeks and needs 8 sources, an abstract, introduction, literature review, methodology, results, discussion, and conclusion."'}
+          rows={7}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            padding: '12px 14px', borderRadius: 12, fontSize: 13, lineHeight: 1.6,
+            background: 'rgba(255,255,255,.05)', border: '1px solid rgba(99,102,241,.3)',
+            color: 'rgba(255,255,255,.88)', outline: 'none', resize: 'vertical',
+            fontFamily: 'inherit',
+          }}
+          onFocus={e => e.currentTarget.style.borderColor = 'rgba(99,102,241,.6)'}
+          onBlur={e => e.currentTarget.style.borderColor = 'rgba(99,102,241,.3)'}
+        />
+
+        {/* Footer */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>
+            {busy ? 'Mapping your project…' : 'Ctrl+Enter to generate'}
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onClose} style={{
+              padding: '8px 16px', borderRadius: 9, fontSize: 13, cursor: 'pointer',
+              background: 'none', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.45)',
+            }}>Cancel</button>
+            <button
+              onClick={() => desc.trim() && !busy && onSubmit(desc.trim())}
+              disabled={!desc.trim() || busy}
+              style={{
+                padding: '8px 20px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: desc.trim() && !busy ? 'pointer' : 'default',
+                background: desc.trim() && !busy ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(99,102,241,.25)',
+                border: 'none', color: 'white', opacity: desc.trim() && !busy ? 1 : 0.6,
+                transition: 'opacity 150ms',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              {busy
+                ? <><span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid rgba(255,255,255,.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'vb-spin 0.7s linear infinite' }} /> Mapping…</>
+                : '🪐 Generate Map'
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Board List ────────────────────────────────────────────────────────────────
 
 function BoardList({ onOpen }) {
@@ -156,7 +340,7 @@ function BoardList({ onOpen }) {
   }
 
   return (
-    <div style={{ padding: '40px 32px', maxWidth: 860, margin: '0 auto' }}>
+    <div style={{ padding: '40px 32px', maxWidth: 860, margin: '0 auto', position: 'relative', zIndex: 1 }}>
       <h1 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,.9)' }}>
         Vision Boards
       </h1>
@@ -213,41 +397,73 @@ function BoardList({ onOpen }) {
   )
 }
 
+// ── Note Icon SVG ─────────────────────────────────────────────────────────────
+
+function NoteIcon({ filled }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="1" width="10" height="10" rx="2"
+        fill={filled ? 'rgba(99,102,241,.3)' : 'none'}
+        stroke={filled ? 'rgba(165,180,252,.7)' : 'rgba(255,255,255,.25)'}
+        strokeWidth="1.2"
+      />
+      <line x1="3" y1="4" x2="9" y2="4" stroke={filled ? 'rgba(165,180,252,.8)' : 'rgba(255,255,255,.25)'} strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="3" y1="6.5" x2="7.5" y2="6.5" stroke={filled ? 'rgba(165,180,252,.8)' : 'rgba(255,255,255,.25)'} strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="3" y1="9" x2="6" y2="9" stroke={filled ? 'rgba(165,180,252,.8)' : 'rgba(255,255,255,.25)'} strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
 // ── Board Canvas ──────────────────────────────────────────────────────────────
 
 function BoardCanvas({ boardId, onBack }) {
-  const [board, setBoard] = useState(null)
-  const [nodes, setNodes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [board, setBoard]         = useState(null)
+  const [nodes, setNodes]         = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState(null)
 
-  // New-node input
-  const [pending, setPending] = useState(null)   // { x, y, value, fromId } | null
-  const confirmingRef = useRef(false)            // guard against double-save (Enter + blur)
+  const [pending, setPending]     = useState(null)
+  const confirmingRef             = useRef(false)
 
-  // Inline editing
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
-
-  // Hover / selection
   const [hoveredId, setHoveredId] = useState(null)
-
-  // Live connection line while dragging a handle
-  const [liveConn, setLiveConn] = useState(null)  // { x1, y1, x2, y2 }
-
-  // AI organize
+  const [liveConn, setLiveConn]   = useState(null)
   const [aiOrganizing, setAiOrganizing] = useState(false)
-
-  // Context menu + tutor
-  const [ctxMenu, setCtxMenu] = useState(null)    // { x, y, nodeId }
+  const [ctxMenu, setCtxMenu]     = useState(null)
   const [tutorNodeId, setTutorNodeId] = useState(null)
 
-  // Refs — used inside window event listeners to avoid stale closures
-  const innerRef    = useRef(null)   // the 4000×3000 canvas div
-  const nodesRef    = useRef([])     // mirror of nodes state
+  // Physics / drag
+  const [draggingId, setDraggingId] = useState(null)
+  const velocityRef     = useRef({ vx: 0, vy: 0 })
+  const lastDragPosRef  = useRef(null)
+  const physicsRafRef   = useRef(null)
+
+  // Note panels: { [nodeId]: boolean }
+  const [openNotes, setOpenNotes]   = useState({})
+  // Note drafts: { [nodeId]: string } — local edits before save
+  const [noteDrafts, setNoteDrafts] = useState({})
+
+  // Burst effect on create: nodeId of last-created node
+  const [burstId, setBurstId] = useState(null)
+
+  // Connection hover/disconnect
+  const [hoveredConnId, setHoveredConnId] = useState(null)   // "fromId-toId"
+  const [fadingConns, setFadingConns]     = useState(new Set()) // keys fading out
+
+  // AI Vision modal + stagger animation
+  const [aiVisionOpen, setAiVisionOpen]   = useState(false)
+  const [aiVisionBusy, setAiVisionBusy]   = useState(false)
+  // revealDelays: { [nodeId]: delayMs } — nodes in this map play vb-pop-in
+  const [revealDelays, setRevealDelays]   = useState({})
+  // connsVisible: false while nodes are staggering in, then fades in
+  const [connsVisible, setConnsVisible]   = useState(true)
+
+  const innerRef    = useRef(null)
+  const nodesRef    = useRef([])
   const boardIdRef  = useRef(boardId)
-  const dragRef     = useRef(null)   // { nodeId, startMX, startMY, startNX, startNY }
-  const connectRef  = useRef(null)   // { fromNodeId, x1, y1 }
+  const dragRef     = useRef(null)
+  const connectRef  = useRef(null)
 
   nodesRef.current   = nodes
   boardIdRef.current = boardId
@@ -256,47 +472,107 @@ function BoardCanvas({ boardId, onBack }) {
 
   useEffect(() => {
     api.visionBoard(boardId)
-      .then(b => { setBoard(b); setNodes(b.nodes || []) })
+      .then(b => {
+        setBoard(b)
+        const ns = b.nodes || []
+        setNodes(ns)
+        // Seed note drafts from existing descriptions
+        const drafts = {}
+        ns.forEach(n => { if (n.description) drafts[n.id] = n.description })
+        setNoteDrafts(drafts)
+      })
       .catch(err => setError(err.message || 'Failed to load'))
       .finally(() => setLoading(false))
   }, [boardId])
 
   // ── Coordinate helper ─────────────────────────────────────────────────────
-  // Convert browser client coords → canvas (inner div) coords.
-  // innerRef.getBoundingClientRect() already accounts for scroll offset
-  // because the inner div's visual position shifts as the outer container scrolls.
 
   function clientToCanvas(clientX, clientY) {
     const r = innerRef.current.getBoundingClientRect()
     return { x: clientX - r.left, y: clientY - r.top }
   }
 
-  // ── Hit-test: node at canvas position ─────────────────────────────────────
+  // ── Hit-test ──────────────────────────────────────────────────────────────
 
   function hitNode(cx, cy, excludeId = null) {
+    // Use a generous height (NODE_H * 2) so notes + padding don't break drop targeting
     return nodesRef.current.find(n =>
       n.id !== excludeId &&
-      cx >= n.x_position && cx <= n.x_position + NODE_W &&
-      cy >= n.y_position && cy <= n.y_position + NODE_H
+      cx >= n.x_position - 8 && cx <= n.x_position + NODE_W + 8 &&
+      cy >= n.y_position - 8 && cy <= n.y_position + NODE_H * 2 + 8
     )
   }
 
-  // ── Global mouse handlers (mounted once) ──────────────────────────────────
+  // ── Physics: apply momentum after drag release ────────────────────────────
+
+  function launchPhysics(nodeId, vx, vy, startX, startY) {
+    if (physicsRafRef.current) cancelAnimationFrame(physicsRafRef.current)
+
+    let cvx = vx, cvy = vy
+    let cx = startX, cy = startY
+
+    function tick() {
+      cvx *= 0.92
+      cvy *= 0.92
+      cx = Math.max(0, Math.min(3820, cx + cvx))
+      cy = Math.max(0, Math.min(2948, cy + cvy))
+
+      // Gentle collision repulsion
+      const others = nodesRef.current.filter(n => n.id !== nodeId)
+      for (const other of others) {
+        const ox = other.x_position + NODE_W / 2
+        const oy = other.y_position + NODE_H / 2
+        const mx = cx + NODE_W / 2
+        const my = cy + NODE_H / 2
+        const dx = mx - ox, dy = my - oy
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        const minDist = NODE_W * 0.68
+        if (dist < minDist && dist > 0) {
+          const push = ((minDist - dist) / minDist) * 2.5
+          cx += (dx / dist) * push
+          cy += (dy / dist) * push
+        }
+      }
+
+      setNodes(prev => prev.map(n =>
+        n.id === nodeId ? { ...n, x_position: cx, y_position: cy } : n
+      ))
+
+      if (Math.abs(cvx) > 0.5 || Math.abs(cvy) > 0.5) {
+        physicsRafRef.current = requestAnimationFrame(tick)
+      } else {
+        api.visionMoveNode(nodeId, Math.round(cx), Math.round(cy)).catch(() => {})
+      }
+    }
+    physicsRafRef.current = requestAnimationFrame(tick)
+  }
+
+  // ── Global mouse handlers ─────────────────────────────────────────────────
 
   useEffect(() => {
     function onMove(e) {
-      // Drag node
       if (dragRef.current) {
         const d = dragRef.current
         const dx = e.clientX - d.startMX
         const dy = e.clientY - d.startMY
+
+        // Track velocity
+        const now = performance.now()
+        if (lastDragPosRef.current) {
+          const dt = Math.max(now - lastDragPosRef.current.t, 1)
+          velocityRef.current = {
+            vx: (e.clientX - lastDragPosRef.current.x) / dt * 16,
+            vy: (e.clientY - lastDragPosRef.current.y) / dt * 16,
+          }
+        }
+        lastDragPosRef.current = { x: e.clientX, y: e.clientY, t: now }
+
         setNodes(prev => prev.map(n =>
           n.id === d.nodeId
             ? { ...n, x_position: d.startNX + dx, y_position: d.startNY + dy }
             : n
         ))
       }
-      // Draw connection line
       if (connectRef.current && innerRef.current) {
         const pos = clientToCanvas(e.clientX, e.clientY)
         setLiveConn(prev => prev ? { ...prev, x2: pos.x, y2: pos.y } : null)
@@ -304,35 +580,37 @@ function BoardCanvas({ boardId, onBack }) {
     }
 
     async function onUp(e) {
-      // Finish drag — save new position
       if (dragRef.current) {
         const { nodeId } = dragRef.current
+        const { vx, vy } = velocityRef.current
         dragRef.current = null
+        lastDragPosRef.current = null
+        setDraggingId(null)
+
         const n = nodesRef.current.find(n => n.id === nodeId)
-        if (n) {
+        if (!n) return
+
+        if (Math.abs(vx) > 0.5 || Math.abs(vy) > 0.5) {
+          launchPhysics(nodeId, vx, vy, n.x_position, n.y_position)
+        } else {
           api.visionMoveNode(nodeId, Math.round(n.x_position), Math.round(n.y_position)).catch(() => {})
         }
         return
       }
 
-      // Finish connection drag
       if (connectRef.current) {
         const { fromNodeId } = connectRef.current
         connectRef.current = null
         setLiveConn(null)
-
         if (!innerRef.current) return
         const pos = clientToCanvas(e.clientX, e.clientY)
         const hit = hitNode(pos.x, pos.y, fromNodeId)
-
         if (hit) {
-          // Drop on existing node → connect them
           try {
             const updated = await api.visionConnect(boardIdRef.current, fromNodeId, hit.id)
             setNodes(prev => prev.map(n => n.id === hit.id ? updated : n))
           } catch {}
         } else {
-          // Drop on empty space → create a new node connected from source
           confirmingRef.current = false
           setPending({ x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2, value: '', fromId: fromNodeId })
         }
@@ -344,17 +622,15 @@ function BoardCanvas({ boardId, onBack }) {
     return () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      if (physicsRafRef.current) cancelAnimationFrame(physicsRafRef.current)
     }
-  }, [])  // mount-only — accesses all mutable state via refs or stable setters
+  }, [])
 
-  // ── Create node (pending input) ───────────────────────────────────────────
-  // Called by both Enter (onKeyDown) and blur (onBlur).
-  // confirmingRef prevents the double-save that would otherwise happen when
-  // Enter fires first → setPending(null) → input unmounts → blur fires again.
+  // ── Create node ───────────────────────────────────────────────────────────
 
   async function confirmNode() {
     if (confirmingRef.current) return
-    const snap = pending        // capture from closure before any state change
+    const snap = pending
     if (!snap?.value?.trim()) { setPending(null); return }
     confirmingRef.current = true
     setPending(null)
@@ -366,15 +642,23 @@ function BoardCanvas({ boardId, onBack }) {
         parent_step_id: snap.fromId ?? undefined,
       })
       setNodes(prev => [...prev, node])
+      // Trigger burst animation
+      setBurstId(node.id)
+      setTimeout(() => setBurstId(null), 450)
     } catch (err) {
       console.error('[VisionBoard] create node error:', err)
     }
     confirmingRef.current = false
   }
 
-  // Double-click on empty canvas → open a pending node input at that position
   function handleCanvasDblClick(e) {
-    if (e.target !== e.currentTarget) return  // clicked on a child (node, input)
+    // Block if double-clicking on a node, button, input, or SVG interactive element
+    if (
+      e.target.closest('[data-node]') ||
+      e.target.closest('button') ||
+      e.target.tagName === 'INPUT' ||
+      e.target.tagName === 'TEXTAREA'
+    ) return
     const pos = clientToCanvas(e.clientX, e.clientY)
     confirmingRef.current = false
     setPending({ x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2, value: '', fromId: null })
@@ -394,7 +678,6 @@ function BoardCanvas({ boardId, onBack }) {
   async function deleteNode(nodeId) {
     try {
       await api.visionDeleteNode(nodeId)
-      // Remove node and orphan its children (clear their parent_step_id in local state)
       setNodes(prev => prev
         .filter(n => n.id !== nodeId)
         .map(n => n.parent_step_id === nodeId ? { ...n, parent_step_id: null } : n)
@@ -413,9 +696,68 @@ function BoardCanvas({ boardId, onBack }) {
     } catch {}
   }
 
-  // ── AI Organize ──────────────────────────────────────────────────────────
-  // Asks the AI for a suggested ordering, then snaps all nodes into a clean
-  // left-to-right grid sorted by suggested_order and saves all new positions.
+  async function saveNote(nodeId, text) {
+    try {
+      const updated = await api.visionUpdateNode(nodeId, { description: text })
+      setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, description: updated.description ?? text } : n))
+    } catch {}
+  }
+
+  async function disconnectConn(fromId, toId) {
+    const key = `${fromId}-${toId}`
+    setFadingConns(prev => new Set(prev).add(key))
+    setHoveredConnId(null)
+    try {
+      await api.visionDisconnect(boardIdRef.current, fromId, toId)
+      // Give fade animation time to finish before removing from state
+      setTimeout(() => {
+        setNodes(prev => prev.map(n =>
+          n.id === toId ? { ...n, parent_step_id: null } : n
+        ))
+        setFadingConns(prev => { const s = new Set(prev); s.delete(key); return s })
+      }, 300)
+    } catch {
+      setFadingConns(prev => { const s = new Set(prev); s.delete(key); return s })
+    }
+  }
+
+  // ── AI Vision ────────────────────────────────────────────────────────────
+
+  async function handleAiVision(description) {
+    setAiVisionBusy(true)
+    try {
+      const res = await api.visionAiVision(boardIdRef.current, description)
+      // Sort nodes left-to-right for stagger order
+      const sorted = [...res.nodes].sort((a, b) => a.x_position - b.x_position)
+
+      // Hide connections while nodes stagger in
+      setConnsVisible(false)
+
+      // Build reveal delay map: each node gets index * 150ms delay
+      const delays = {}
+      sorted.forEach((n, i) => { delays[n.id] = i * 150 })
+      setRevealDelays(delays)
+
+      // Add all nodes to state at once — CSS animation-delay handles the visual stagger
+      setNodes(prev => [...prev, ...sorted])
+
+      // Close modal immediately so user sees the canvas
+      setAiVisionOpen(false)
+
+      // After last node's pop-in finishes, show connections with a fade
+      const totalMs = sorted.length * 150 + 550
+      setTimeout(() => {
+        setConnsVisible(true)
+        // Clear reveal delays after animations complete
+        setTimeout(() => setRevealDelays({}), 700)
+      }, totalMs)
+    } catch (err) {
+      console.error('[VisionBoard] ai vision error:', err)
+    }
+    setAiVisionBusy(false)
+  }
+
+  // ── AI Organize ───────────────────────────────────────────────────────────
 
   async function handleAiOrganize() {
     if (!nodes.length || aiOrganizing) return
@@ -432,7 +774,6 @@ function BoardCanvas({ boardId, onBack }) {
         if (n) moves[item.id] = { ...n, x_position: SX + col * GX, y_position: SY + row * GY }
       })
       setNodes(prev => prev.map(n => moves[n.id] ? moves[n.id] : n))
-      // Persist all new positions
       for (const [idStr, n] of Object.entries(moves)) {
         api.visionMoveNode(Number(idStr), Math.round(n.x_position), Math.round(n.y_position)).catch(() => {})
       }
@@ -444,8 +785,8 @@ function BoardCanvas({ boardId, onBack }) {
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
-  const total = nodes.length
-  const done  = nodes.filter(n => n.is_completed).length
+  const total       = nodes.length
+  const done        = nodes.filter(n => n.is_completed).length
   const connections = nodes.filter(n =>
     n.parent_step_id != null && nodes.some(p => p.id === n.parent_step_id)
   )
@@ -466,13 +807,20 @@ function BoardCanvas({ boardId, onBack }) {
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', position: 'relative' }}>
+
+      {/* ── CSS Animations ── */}
+      <style>{VB_STYLES}</style>
+
+      {/* ── Stars (fixed, behind everything) ── */}
+      <StarField />
 
       {/* ── Toolbar ── */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 14, padding: '0 16px',
-        height: 52, flexShrink: 0,
-        background: 'rgba(0,0,0,.3)', borderBottom: '1px solid rgba(255,255,255,.06)',
+        height: 52, flexShrink: 0, position: 'relative', zIndex: 10,
+        background: 'rgba(5,5,16,.8)', borderBottom: '1px solid rgba(255,255,255,.06)',
+        backdropFilter: 'blur(12px)',
       }}>
         <button onClick={onBack} style={{
           padding: '5px 11px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
@@ -503,6 +851,20 @@ function BoardCanvas({ boardId, onBack }) {
         )}
 
         <button
+          onClick={() => setAiVisionOpen(true)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+            background: 'linear-gradient(135deg, rgba(99,102,241,.22), rgba(139,92,246,.22))',
+            border: '1px solid rgba(139,92,246,.4)',
+            color: 'rgba(196,181,253,.9)', cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          🪐 AI Vision
+        </button>
+
+        <button
           onClick={handleAiOrganize}
           disabled={aiOrganizing || nodes.length === 0}
           style={{
@@ -522,11 +884,18 @@ function BoardCanvas({ boardId, onBack }) {
         </span>
       </div>
 
-      {/* ── Scroll wrapper — transparent so the fixed NeuralBackground shows through ── */}
+      {/* ── Scroll wrapper ── */}
       <div style={{
-        flex: 1, overflow: 'auto', minHeight: 0,
-        backgroundImage: 'radial-gradient(circle, rgba(255,255,255,.06) 1px, transparent 1px)',
-        backgroundSize: '30px 30px',
+        flex: 1, overflow: 'auto', minHeight: 0, position: 'relative', zIndex: 1,
+        background: '#050510',
+        backgroundImage: [
+          'radial-gradient(ellipse 600px 400px at 18% 28%, rgba(99,102,241,0.045) 0%, transparent 70%)',
+          'radial-gradient(ellipse 500px 620px at 82% 72%, rgba(139,92,246,0.035) 0%, transparent 70%)',
+          'radial-gradient(ellipse 420px 360px at 62% 18%, rgba(59,130,246,0.03) 0%, transparent 70%)',
+          'radial-gradient(ellipse 380px 500px at 35% 80%, rgba(168,85,247,0.025) 0%, transparent 70%)',
+          'radial-gradient(circle, rgba(255,255,255,.045) 1px, transparent 1px)',
+        ].join(', '),
+        backgroundSize: '100% 100%, 100% 100%, 100% 100%, 100% 100%, 28px 28px',
       }}>
 
         {/* ── Inner canvas (4000×3000) ── */}
@@ -537,29 +906,99 @@ function BoardCanvas({ boardId, onBack }) {
           onMouseDown={e => { if (e.button === 0) setCtxMenu(null) }}
         >
 
-          {/* ── SVG: connections + live line ── */}
+          {/* ── SVG: connections + glow + pulse + disconnect ── */}
           <svg style={{
             position: 'absolute', inset: 0, width: 4000, height: 3000,
-            pointerEvents: 'none', overflow: 'visible',
+            overflow: 'visible', pointerEvents: 'none',
           }}>
+            <defs>
+              <filter id="vb-conn-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="vb-conn-glow-bright" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <g style={{ opacity: connsVisible ? 1 : 0, transition: 'opacity 400ms ease' }}>
             {connections.map(child => {
               const parent = nodes.find(n => n.id === child.parent_step_id)
               const x1 = parent.x_position + NODE_W
               const y1 = parent.y_position + NODE_H / 2
               const x2 = child.x_position
               const y2 = child.y_position + NODE_H / 2
+              const connKey = `${parent.id}-${child.id}`
+              const pathId  = `conn-${connKey}`
+              const d = bezier(x1, y1, x2, y2)
+              const isHoveredConn = hoveredConnId === connKey
+              const isFading      = fadingConns.has(connKey)
+              const mx = (x1 + x2) / 2
+              const my = (y1 + y2) / 2
+
               return (
-                <path
-                  key={`${parent.id}-${child.id}`}
-                  d={bezier(x1, y1, x2, y2)}
-                  fill="none"
-                  stroke="#6366f1"
-                  strokeWidth="2"
-                  strokeOpacity="0.4"
-                  strokeLinecap="round"
-                />
+                <g
+                  key={connKey}
+                  style={{ opacity: isFading ? 0 : 1, transition: 'opacity 300ms ease' }}
+                  filter={isHoveredConn ? 'url(#vb-conn-glow-bright)' : 'url(#vb-conn-glow)'}
+                >
+                  {/* Visible path */}
+                  <path
+                    id={pathId}
+                    d={d}
+                    fill="none"
+                    stroke={isHoveredConn ? '#a5b4fc' : '#6366f1'}
+                    strokeWidth={isHoveredConn ? 2.5 : 2}
+                    strokeOpacity={isHoveredConn ? 0.8 : 0.45}
+                    strokeLinecap="round"
+                    style={{ pointerEvents: 'none', transition: 'stroke-opacity 150ms, stroke-width 150ms' }}
+                  />
+                  {/* Wide invisible overlay for easy hover detection */}
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth="18"
+                    style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                    onMouseEnter={() => setHoveredConnId(connKey)}
+                    onMouseLeave={() => setHoveredConnId(null)}
+                  />
+                  {/* Energy pulse dot */}
+                  <circle r="3" fill="rgba(165,180,252,.85)" style={{ pointerEvents: 'none' }}>
+                    <animateMotion dur="3s" repeatCount="indefinite" begin={`${(parent.id % 30) * 0.1}s`}>
+                      <mpath href={`#${pathId}`} />
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.1;0.85;1" dur="3s" repeatCount="indefinite" begin={`${(parent.id % 30) * 0.1}s`} />
+                  </circle>
+                  {/* Disconnect X — shown on hover at midpoint */}
+                  {isHoveredConn && !isFading && (
+                    <g
+                      transform={`translate(${mx}, ${my})`}
+                      style={{ cursor: 'pointer', pointerEvents: 'all' }}
+                      onMouseEnter={() => setHoveredConnId(connKey)}
+                      onMouseLeave={() => setHoveredConnId(null)}
+                      onClick={e => { e.stopPropagation(); disconnectConn(parent.id, child.id) }}
+                    >
+                      <circle r="9" fill="#1a1a2e" stroke="rgba(248,113,113,.6)" strokeWidth="1.5" />
+                      <text
+                        textAnchor="middle" dominantBaseline="central"
+                        fontSize="11" fontWeight="600" fill="#f87171"
+                        style={{ userSelect: 'none' }}
+                      >×</text>
+                    </g>
+                  )}
+                </g>
               )
             })}
+            </g>
+
             {liveConn && (
               <path
                 d={bezier(liveConn.x1, liveConn.y1, liveConn.x2, liveConn.y2)}
@@ -569,56 +1008,95 @@ function BoardCanvas({ boardId, onBack }) {
                 strokeOpacity="0.65"
                 strokeDasharray="6 4"
                 strokeLinecap="round"
+                style={{ pointerEvents: 'none' }}
               />
             )}
           </svg>
 
           {/* ── Nodes ── */}
-          {nodes.map(node => {
-            const isEditing = editingId === node.id
-            const isHovered = hoveredId === node.id
-            const done      = node.is_completed
-            // Handle anchor point in canvas space (right-center of node)
+          {nodes.map((node, idx) => {
+            const isEditing   = editingId === node.id
+            const isHovered   = hoveredId === node.id
+            const isDragging  = draggingId === node.id
+            const isCompleted = node.is_completed
+            const isBursting  = burstId === node.id
+            const noteOpen    = openNotes[node.id] ?? false
+            const noteDraft   = noteDrafts[node.id] ?? node.description ?? ''
+            const hasNote     = !!(node.description || noteDraft)
             const hx = node.x_position + NODE_W
             const hy = node.y_position + NODE_H / 2
+
+            // Float animation: each node has unique duration + delay offset
+            const floatDur   = isCompleted ? `${6 + (idx % 4)}s` : `${4 + (idx % 3)}s`
+            const floatDelay = `${-(idx * 0.7)}s`
+            const floatAnim  = isCompleted ? 'vb-float-slow' : 'vb-float'
+            const borderAnim = isCompleted ? 'vb-border-glow-done' : 'vb-border-glow'
+
+            // AI Vision stagger: if this node has a reveal delay, use vb-pop-in
+            const popDelay = revealDelays[node.id]
+            const isPopping = popDelay !== undefined
 
             return (
               <div
                 key={node.id}
+                data-node="true"
                 style={{
                   position: 'absolute',
                   left: node.x_position,
                   top: node.y_position,
                   width: NODE_W,
-                  zIndex: 2,
+                  zIndex: isDragging ? 20 : 2,
                   userSelect: 'none',
+                  willChange: 'transform',
+                  // Pop-in takes precedence; float resumes after
+                  animation: isPopping
+                    ? `vb-pop-in 500ms ${popDelay}ms cubic-bezier(0.34,1.56,0.64,1) both`
+                    : isDragging || isEditing
+                      ? 'none'
+                      : `${floatAnim} ${floatDur} ${floatDelay} ease-in-out infinite`,
                 }}
                 onMouseEnter={() => setHoveredId(node.id)}
                 onMouseLeave={() => setHoveredId(null)}
               >
+                {/* Light burst on create */}
+                {isBursting && (
+                  <div style={{
+                    position: 'absolute',
+                    inset: -40,
+                    borderRadius: '50%',
+                    background: 'radial-gradient(circle, rgba(165,180,252,.4) 0%, transparent 70%)',
+                    animation: 'vb-burst 400ms ease-out forwards',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                  }} />
+                )}
+
                 {/* Card */}
                 <div
                   style={{
                     padding: '10px 14px',
                     minHeight: NODE_H,
-                    background: done ? 'rgba(16,185,129,.07)' : 'rgba(255,255,255,.05)',
-                    border: `1px solid ${done ? 'rgba(16,185,129,.3)' : 'rgba(255,255,255,.11)'}`,
-                    borderLeft: done ? '3px solid rgba(16,185,129,.6)' : undefined,
+                    background: isCompleted ? 'rgba(16,185,129,.07)' : 'rgba(255,255,255,.055)',
+                    borderLeft: isCompleted ? '3px solid rgba(16,185,129,.55)' : undefined,
                     borderRadius: 12,
                     backdropFilter: 'blur(14px)',
-                    boxShadow: '0 2px 10px rgba(0,0,0,.28)',
+                    animation: `${borderAnim} 8s ease-in-out infinite`,
                     display: 'flex', alignItems: 'flex-start', gap: 8,
-                    cursor: isEditing ? 'default' : 'grab',
+                    cursor: isDragging ? 'grabbing' : isEditing ? 'default' : 'grab',
                     boxSizing: 'border-box',
+                    willChange: 'box-shadow',
                   }}
                   onMouseDown={e => {
                     if (e.button !== 0 || isEditing) return
                     e.stopPropagation()
+                    velocityRef.current = { vx: 0, vy: 0 }
+                    lastDragPosRef.current = null
                     dragRef.current = {
                       nodeId: node.id,
                       startMX: e.clientX, startMY: e.clientY,
                       startNX: node.x_position, startNY: node.y_position,
                     }
+                    setDraggingId(node.id)
                   }}
                   onDoubleClick={e => {
                     e.stopPropagation()
@@ -637,12 +1115,12 @@ function BoardCanvas({ boardId, onBack }) {
                     style={{
                       flexShrink: 0, marginTop: 2,
                       width: 14, height: 14, borderRadius: 3, cursor: 'pointer',
-                      background: done ? 'rgba(16,185,129,.25)' : 'rgba(255,255,255,.07)',
-                      border: `1px solid ${done ? 'rgba(16,185,129,.5)' : 'rgba(255,255,255,.15)'}`,
+                      background: isCompleted ? 'rgba(16,185,129,.25)' : 'rgba(255,255,255,.07)',
+                      border: `1px solid ${isCompleted ? 'rgba(16,185,129,.5)' : 'rgba(255,255,255,.15)'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
                   >
-                    {done && (
+                    {isCompleted && (
                       <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
                         <path d="M1 4.5l2.5 2.5 4-5" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
@@ -670,8 +1148,8 @@ function BoardCanvas({ boardId, onBack }) {
                   ) : (
                     <p style={{
                       margin: 0, flex: 1, fontSize: 13, fontWeight: 500, lineHeight: 1.45,
-                      color: done ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.88)',
-                      textDecoration: done ? 'line-through' : undefined,
+                      color: isCompleted ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.88)',
+                      textDecoration: isCompleted ? 'line-through' : undefined,
                       wordBreak: 'break-word',
                     }}>
                       {node.title}
@@ -679,17 +1157,71 @@ function BoardCanvas({ boardId, onBack }) {
                   )}
                 </div>
 
-                {/* Connection handle — right edge, visible on hover */}
+                {/* Note icon + toggle */}
+                <div
+                  onClick={e => {
+                    e.stopPropagation()
+                    setOpenNotes(prev => ({ ...prev, [node.id]: !prev[node.id] }))
+                    if (!noteDrafts[node.id] && node.description) {
+                      setNoteDrafts(prev => ({ ...prev, [node.id]: node.description }))
+                    }
+                  }}
+                  onMouseDown={e => e.stopPropagation()}
+                  title={hasNote ? 'Show note' : 'Add note'}
+                  style={{
+                    marginTop: 4,
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    cursor: 'pointer', opacity: noteOpen ? 1 : isHovered ? 0.7 : hasNote ? 0.5 : 0.25,
+                    transition: 'opacity 150ms',
+                    userSelect: 'none',
+                  }}
+                >
+                  <NoteIcon filled={hasNote} />
+                </div>
+
+                {/* Note panel */}
+                {noteOpen && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      padding: '8px 10px',
+                      borderRadius: 10,
+                      background: 'rgba(5,5,20,.82)',
+                      border: '1px solid rgba(99,102,241,.22)',
+                      backdropFilter: 'blur(16px)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,.4)',
+                      animation: 'vb-note-in 160ms ease-out',
+                    }}
+                    onMouseDown={e => e.stopPropagation()}
+                  >
+                    <textarea
+                      autoFocus={!noteDraft}
+                      value={noteDraft}
+                      onChange={e => setNoteDrafts(prev => ({ ...prev, [node.id]: e.target.value }))}
+                      onBlur={() => saveNote(node.id, noteDraft)}
+                      placeholder="Add notes…"
+                      rows={3}
+                      style={{
+                        width: '100%', resize: 'vertical',
+                        background: 'none', border: 'none', outline: 'none',
+                        color: 'rgba(255,255,255,.78)', fontSize: 12, lineHeight: 1.55,
+                        fontFamily: 'inherit', boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Connection handle — right edge */}
                 <div
                   style={{
                     position: 'absolute',
-                    right: -5, top: '50%', transform: 'translateY(-50%)',
+                    right: -5, top: NODE_H / 2, transform: 'translateY(-50%)',
                     width: 10, height: 10, borderRadius: '50%',
                     background: '#6366f1', border: '2px solid rgba(165,180,252,.55)',
                     cursor: 'crosshair', zIndex: 3,
                     opacity: isHovered ? 1 : 0,
                     transition: 'opacity 150ms',
-                    boxShadow: '0 0 8px rgba(99,102,241,.5)',
+                    boxShadow: '0 0 8px rgba(99,102,241,.6)',
                   }}
                   onMouseDown={e => {
                     e.stopPropagation(); e.preventDefault()
@@ -698,7 +1230,7 @@ function BoardCanvas({ boardId, onBack }) {
                   }}
                 />
 
-                {/* Delete button — top-right corner, visible on hover */}
+                {/* Delete button */}
                 {isHovered && (
                   <button
                     onClick={e => { e.stopPropagation(); deleteNode(node.id) }}
@@ -737,7 +1269,7 @@ function BoardCanvas({ boardId, onBack }) {
                   width: '100%', padding: '10px 14px', borderRadius: 12, fontSize: 13, fontWeight: 500,
                   background: 'rgba(10,10,26,.92)', border: '1px solid rgba(99,102,241,.55)',
                   color: 'white', outline: 'none', boxSizing: 'border-box',
-                  boxShadow: '0 0 18px rgba(99,102,241,.2)',
+                  boxShadow: '0 0 18px rgba(99,102,241,.25)',
                 }}
               />
               <p style={{ margin: '4px 0 0 2px', fontSize: 11, color: 'rgba(255,255,255,.25)', pointerEvents: 'none' }}>
@@ -746,15 +1278,18 @@ function BoardCanvas({ boardId, onBack }) {
             </div>
           )}
 
-          {/* ── Empty state hint ── */}
+          {/* ── Empty state ── */}
           {nodes.length === 0 && !pending && (
             <div style={{
               position: 'absolute', left: '50%', top: '40%',
               transform: 'translate(-50%, -50%)',
               textAlign: 'center', pointerEvents: 'none',
             }}>
-              <p style={{ margin: 0, fontSize: 15, color: 'rgba(255,255,255,.14)' }}>
+              <p style={{ margin: '0 0 8px', fontSize: 15, color: 'rgba(255,255,255,.12)' }}>
                 Double-click anywhere to add your first node
+              </p>
+              <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,.07)' }}>
+                or use 🪐 AI Vision to map a project instantly
               </p>
             </div>
           )}
@@ -779,6 +1314,15 @@ function BoardCanvas({ boardId, onBack }) {
       {/* ── Tutor modal ── */}
       {tutorNodeId && (
         <TutorModal nodeId={tutorNodeId} onClose={() => setTutorNodeId(null)} />
+      )}
+
+      {/* ── AI Vision modal ── */}
+      {aiVisionOpen && (
+        <AiVisionModal
+          busy={aiVisionBusy}
+          onSubmit={handleAiVision}
+          onClose={() => { if (!aiVisionBusy) setAiVisionOpen(false) }}
+        />
       )}
     </div>
   )

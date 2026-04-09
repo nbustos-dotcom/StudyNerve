@@ -2,120 +2,53 @@
 Vision Board router.
 
 Endpoints:
-  POST /api/vision/create                          — create board (manual or from Canvas)
-  GET  /api/vision/boards                          — list all boards with progress
-  GET  /api/vision/boards/{id}                     — board detail with nested steps
-  PUT  /api/vision/steps/{id}                      — update / complete a step
-  POST /api/vision/boards/{id}/add-step            — manually add a step
-  DELETE /api/vision/steps/{id}                    — delete a step
-  POST /api/vision/steps/{id}/ask                  — quick tutor Q&A about a step
-  PUT  /api/vision/boards/{id}/reorder             — reorder steps by explicit ID list
-  POST /api/vision/boards/{id}/update-context      — AI restructure after plan change
-  POST /api/vision/boards/{id}/undo                — restore most recent snapshot
-  GET  /api/vision/boards/{id}/history             — list snapshots
-  POST /api/vision/boards/{id}/connect-node        — create child step from a node
+  POST   /api/vision/boards                       — create empty board
+  GET    /api/vision/boards                       — list all boards for current user
+  GET    /api/vision/boards/{id}                  — get board with all nodes
+  DELETE /api/vision/boards/{id}                  — delete board and all nodes
+
+  POST   /api/vision/boards/{id}/nodes            — create a node
+  PUT    /api/vision/nodes/{id}                   — update node (title, desc, x, y, is_completed)
+  DELETE /api/vision/nodes/{id}                   — delete a node
+  PUT    /api/vision/nodes/{id}/position          — update x,y only (drag moves)
+
+  POST   /api/vision/boards/{id}/connect          — connect two nodes (sets parent_step_id)
+
+  POST   /api/vision/boards/{id}/ai-organize      — LLM suggests ordering/grouping
+  POST   /api/vision/boards/{id}/ai-breakdown     — LLM breaks one node into sub-tasks
+  POST   /api/vision/nodes/{id}/ask               — tutor Q&A about a node
 """
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException
 
-import httpx
-
 from app.database import get_db
-from app.llm import generate_chat
-from app.models import Note, User, VisionBoard, VisionBoardSnapshot, VisionStep
+from app.models import User, VisionBoard, VisionStep
+from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
-from app.routers.settings import get_user_canvas_creds, get_user_llm_kwargs
+from app.routers.settings import get_user_llm_kwargs
 from app.schemas import (
-    AddVisionStepRequest,
-    AskStepRequest,
-    ConnectNodeRequest,
-    CreateVisionBoardRequest,
-    ReorderStepsRequest,
-    UpdateContextRequest,
-    UpdateVisionStepRequest,
-    VisionBoardDetail,
-    VisionBoardSnapshotResponse,
-    VisionBoardSummary,
-    VisionStepResponse,
+    AiBreakdownResponse,
+    AiMissingStep,
+    AiOrganizeResponse,
+    AiOrganizeSuggestion,
+    AskNodeRequest,
+    BoardDetail,
+    BoardSummary,
+    ConnectNodesRequest,
+    CreateBoardRequest,
+    CreateNodeRequest,
+    NodeResponse,
+    UpdateNodePositionRequest,
+    UpdateNodeRequest,
 )
-from app.services import canvas as canvas_svc
-from app.services import vision as vision_svc
+from app.services.vision import ai_ask, ai_breakdown, ai_organize
 
 router = APIRouter(prefix="/vision", tags=["vision"])
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _step_to_dict(step: VisionStep) -> dict:
-    return {
-        "id": step.id,
-        "board_id": step.board_id,
-        "title": step.title,
-        "description": step.description,
-        "order_index": step.order_index,
-        "parent_step_id": step.parent_step_id,
-        "is_completed": step.is_completed,
-        "estimated_minutes": step.estimated_minutes,
-        "created_at": step.created_at,
-        "updated_at": step.updated_at,
-        "substeps": [],
-    }
-
-
-def _nest_steps(flat: list[VisionStep]) -> list[VisionStepResponse]:
-    by_id: dict[int, dict] = {s.id: _step_to_dict(s) for s in flat}
-    roots: list[dict] = []
-
-    for s in flat:
-        d = by_id[s.id]
-        if s.parent_step_id is None:
-            roots.append(d)
-        elif s.parent_step_id in by_id:
-            by_id[s.parent_step_id]["substeps"].append(d)
-
-    def _build(d: dict) -> VisionStepResponse:
-        substeps = [_build(sub) for sub in d.pop("substeps")]
-        return VisionStepResponse(**d, substeps=substeps)
-
-    return [_build(r) for r in roots]
-
-
-async def _load_flat_steps(board_id: int, db: AsyncSession) -> list[VisionStep]:
-    result = await db.execute(
-        select(VisionStep)
-        .where(VisionStep.board_id == board_id)
-        .order_by(VisionStep.order_index)
-    )
-    return list(result.scalars().all())
-
-
-async def _board_detail(board: VisionBoard, db: AsyncSession) -> VisionBoardDetail:
-    flat = await _load_flat_steps(board.id, db)
-    return VisionBoardDetail(
-        id=board.id,
-        title=board.title,
-        description=board.description,
-        source_type=board.source_type,
-        source_id=board.source_id,
-        note_id=board.note_id,
-        status=board.status,
-        progress=board.progress,
-        created_at=board.created_at,
-        updated_at=board.updated_at,
-        steps=_nest_steps(flat),
-    )
-
-
-async def _sync_progress(board: VisionBoard, db: AsyncSession) -> None:
-    pct = await vision_svc.calculate_progress(board.id, db)
-    board.progress = pct
-    if pct == 100:
-        board.status = "completed"
-    elif board.status == "completed" and pct < 100:
-        board.status = "active"
-
 
 def _owned_board_or_404(board: VisionBoard | None, user_id: int) -> VisionBoard:
     if not board or board.user_id != user_id:
@@ -123,95 +56,69 @@ def _owned_board_or_404(board: VisionBoard | None, user_id: int) -> VisionBoard:
     return board
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+def _owned_node_or_404(node: VisionStep | None, board: VisionBoard | None, user_id: int) -> tuple[VisionStep, VisionBoard]:
+    if not node or not board or board.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Node not found.")
+    return node, board
 
-@router.post("/create", response_model=VisionBoardDetail, status_code=201)
+
+def _node_resp(step: VisionStep) -> NodeResponse:
+    return NodeResponse(
+        id=step.id,
+        board_id=step.board_id,
+        title=step.title,
+        description=step.description,
+        x_position=step.x_position or 0.0,
+        y_position=step.y_position or 0.0,
+        is_completed=step.is_completed,
+        parent_step_id=step.parent_step_id,
+        created_at=step.created_at,
+        updated_at=step.updated_at,
+    )
+
+
+async def _load_nodes(board_id: int, db: AsyncSession) -> list[VisionStep]:
+    result = await db.execute(
+        select(VisionStep)
+        .where(VisionStep.board_id == board_id)
+        .order_by(VisionStep.order_index, VisionStep.id)
+    )
+    return list(result.scalars().all())
+
+
+async def _board_detail(board: VisionBoard, db: AsyncSession) -> BoardDetail:
+    nodes = await _load_nodes(board.id, db)
+    return BoardDetail(
+        id=board.id,
+        title=board.title,
+        is_ai_generated=board.is_ai_generated,
+        created_at=board.created_at,
+        updated_at=board.updated_at,
+        nodes=[_node_resp(n) for n in nodes],
+    )
+
+
+# ── Board CRUD ────────────────────────────────────────────────────────────────
+
+@router.post("/boards", response_model=BoardDetail, status_code=201)
 async def create_board(
-    body: CreateVisionBoardRequest,
+    body: CreateBoardRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if body.canvas_assignment_id is not None:
-        if body.canvas_course_id is None:
-            raise HTTPException(
-                status_code=422,
-                detail="canvas_course_id is required when canvas_assignment_id is provided.",
-            )
-        canvas_url, canvas_token = await get_user_canvas_creds(db, current_user.id)
-        try:
-            assignment = await canvas_svc.get_single_assignment(
-                body.canvas_course_id, body.canvas_assignment_id, canvas_url, canvas_token
-            )
-        except httpx.HTTPStatusError as exc:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Could not fetch Canvas assignment: {exc.response.status_code}",
-            )
-        except httpx.RequestError:
-            raise HTTPException(status_code=502, detail="Could not reach Canvas.")
-
-        title = assignment["name"]
-        description = assignment.get("description") or ""
-        source_type = "canvas_assignment"
-        source_id = body.canvas_assignment_id
-    else:
-        if not body.title or not body.title.strip():
-            raise HTTPException(status_code=422, detail="title is required for manual boards.")
-        title = body.title.strip()
-        description = (body.description or "").strip()
-        source_type = "manual"
-        source_id = None
-
-    linked_note_id: int | None = None
-    linked_note_content: str | None = None
-    if source_type == "manual" and body.note_id:
-        note_row = await db.get(Note, body.note_id)
-        if note_row and note_row.user_id == current_user.id:
-            linked_note_id = note_row.id
-            linked_note_content = note_row.content
-
+    if not body.title.strip():
+        raise HTTPException(status_code=422, detail="title must not be empty.")
     board = VisionBoard(
-        title=title,
-        description=description,
-        source_type=source_type,
-        source_id=source_id,
-        note_id=linked_note_id,
+        title=body.title.strip(),
         user_id=current_user.id,
     )
     db.add(board)
-    await db.flush()
-
-    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
-    breakdown = await vision_svc.generate_breakdown(title, description, linked_note_content, **llm_kwargs)
-    steps_data: list[dict] = (breakdown or {}).get("steps", [])
-
-    for order, step_data in enumerate(steps_data):
-        parent = VisionStep(
-            board_id=board.id,
-            title=step_data.get("title", f"Step {order + 1}"),
-            description=step_data.get("description"),
-            order_index=order,
-            estimated_minutes=step_data.get("estimated_minutes"),
-        )
-        db.add(parent)
-        await db.flush()
-
-        for sub_order, sub in enumerate(step_data.get("substeps", [])):
-            db.add(VisionStep(
-                board_id=board.id,
-                title=sub.get("title", f"Sub-step {sub_order + 1}"),
-                description=sub.get("description"),
-                order_index=sub_order,
-                parent_step_id=parent.id,
-                estimated_minutes=sub.get("estimated_minutes"),
-            ))
-
     await db.flush()
     await db.refresh(board)
     return await _board_detail(board, db)
 
 
-@router.get("/boards", response_model=list[VisionBoardSummary])
+@router.get("/boards", response_model=list[BoardSummary])
 async def list_boards(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -221,44 +128,32 @@ async def list_boards(
         .where(VisionBoard.user_id == current_user.id)
         .order_by(VisionBoard.updated_at.desc())
     )
-    boards = boards_result.scalars().all()
+    boards = list(boards_result.scalars().all())
 
     board_ids = [b.id for b in boards]
+    counts: dict[int, int] = {}
     if board_ids:
         counts_result = await db.execute(
-            select(
-                VisionStep.board_id,
-                func.count(VisionStep.id).label("total"),
-                func.count(VisionStep.id).filter(VisionStep.is_completed == True).label("done"),  # noqa: E712
-            )
+            select(VisionStep.board_id, func.count(VisionStep.id).label("cnt"))
             .where(VisionStep.board_id.in_(board_ids))
             .group_by(VisionStep.board_id)
         )
-        counts = {row.board_id: (int(row.total), int(row.done or 0)) for row in counts_result}
-    else:
-        counts = {}
+        counts = {row.board_id: row.cnt for row in counts_result}
 
-    summaries = []
-    for b in boards:
-        total, done = counts.get(b.id, (0, 0))
-        summaries.append(VisionBoardSummary(
+    return [
+        BoardSummary(
             id=b.id,
             title=b.title,
-            description=b.description,
-            source_type=b.source_type,
-            source_id=b.source_id,
-            note_id=b.note_id,
-            status=b.status,
-            progress=b.progress,
-            step_count=total,
-            completed_steps=done,
+            is_ai_generated=b.is_ai_generated,
+            node_count=counts.get(b.id, 0),
             created_at=b.created_at,
             updated_at=b.updated_at,
-        ))
-    return summaries
+        )
+        for b in boards
+    ]
 
 
-@router.get("/boards/{board_id}", response_model=VisionBoardDetail)
+@router.get("/boards/{board_id}", response_model=BoardDetail)
 async def get_board(
     board_id: int,
     current_user: User = Depends(get_current_user),
@@ -269,56 +164,23 @@ async def get_board(
     return await _board_detail(board, db)
 
 
-@router.put("/steps/{step_id}", response_model=VisionStepResponse)
-async def update_step(
-    step_id: int,
-    body: UpdateVisionStepRequest,
+@router.delete("/boards/{board_id}", status_code=204)
+async def delete_board(
+    board_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    step = await db.get(VisionStep, step_id)
-    if not step:
-        raise HTTPException(status_code=404, detail="Step not found.")
-    board = await db.get(VisionBoard, step.board_id)
+    board = await db.get(VisionBoard, board_id)
     _owned_board_or_404(board, current_user.id)
-
-    await vision_svc.save_snapshot(board.id, f"edit step: {step.title}", db)
-
-    if body.title is not None:
-        step.title = body.title.strip() or step.title
-    if body.description is not None:
-        step.description = body.description
-    if body.is_completed is not None:
-        step.is_completed = body.is_completed
-    if body.estimated_minutes is not None:
-        step.estimated_minutes = body.estimated_minutes
-
-    await db.flush()
-
-    if board:
-        await _sync_progress(board, db)
-        await db.flush()
-
-    await db.refresh(step)
-
-    return VisionStepResponse(
-        id=step.id,
-        board_id=step.board_id,
-        title=step.title,
-        description=step.description,
-        order_index=step.order_index,
-        parent_step_id=step.parent_step_id,
-        is_completed=step.is_completed,
-        estimated_minutes=step.estimated_minutes,
-        created_at=step.created_at,
-        updated_at=step.updated_at,
-    )
+    await db.delete(board)
 
 
-@router.post("/boards/{board_id}/add-step", response_model=VisionStepResponse, status_code=201)
-async def add_step(
+# ── Node CRUD ─────────────────────────────────────────────────────────────────
+
+@router.post("/boards/{board_id}/nodes", response_model=NodeResponse, status_code=201)
+async def create_node(
     board_id: int,
-    body: AddVisionStepRequest,
+    body: CreateNodeRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -328,348 +190,266 @@ async def add_step(
     if body.parent_step_id is not None:
         parent = await db.get(VisionStep, body.parent_step_id)
         if not parent or parent.board_id != board_id:
-            raise HTTPException(status_code=404, detail="Parent step not found on this board.")
+            raise HTTPException(status_code=404, detail="Parent node not found on this board.")
 
-    await vision_svc.save_snapshot(board_id, f"add step: {body.title}", db)
-
-    if body.order_index is not None:
-        order_index = body.order_index
-    else:
-        sibling_max = await db.scalar(
-            select(func.max(VisionStep.order_index)).where(
-                VisionStep.board_id == board_id,
-                VisionStep.parent_step_id == body.parent_step_id,
-            )
+    # order_index = count of existing root nodes (or siblings)
+    sibling_count = await db.scalar(
+        select(func.count(VisionStep.id)).where(
+            VisionStep.board_id == board_id,
+            VisionStep.parent_step_id == body.parent_step_id,
         )
-        order_index = (sibling_max or -1) + 1
+    )
 
-    step = VisionStep(
+    node = VisionStep(
         board_id=board_id,
         title=body.title.strip(),
         description=body.description,
-        order_index=order_index,
+        x_position=body.x,
+        y_position=body.y,
         parent_step_id=body.parent_step_id,
-        estimated_minutes=body.estimated_minutes,
+        order_index=sibling_count or 0,
     )
-    db.add(step)
+    db.add(node)
     await db.flush()
-    await db.refresh(step)
-
-    return VisionStepResponse(
-        id=step.id,
-        board_id=step.board_id,
-        title=step.title,
-        description=step.description,
-        order_index=step.order_index,
-        parent_step_id=step.parent_step_id,
-        is_completed=step.is_completed,
-        estimated_minutes=step.estimated_minutes,
-        created_at=step.created_at,
-        updated_at=step.updated_at,
-    )
+    await db.refresh(node)
+    return _node_resp(node)
 
 
-@router.delete("/steps/{step_id}", status_code=204)
-async def delete_step(
-    step_id: int,
+@router.put("/nodes/{node_id}", response_model=NodeResponse)
+async def update_node(
+    node_id: int,
+    body: UpdateNodeRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    step = await db.get(VisionStep, step_id)
-    if not step:
-        raise HTTPException(status_code=404, detail="Step not found.")
-    board = await db.get(VisionBoard, step.board_id)
-    _owned_board_or_404(board, current_user.id)
+    node = await db.get(VisionStep, node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found.")
+    board = await db.get(VisionBoard, node.board_id)
+    _owned_node_or_404(node, board, current_user.id)
 
-    await vision_svc.save_snapshot(board.id, f"delete step: {step.title}", db)
+    if body.title is not None:
+        node.title = body.title.strip() or node.title
+    if body.description is not None:
+        node.description = body.description or None
+    if body.x is not None:
+        node.x_position = body.x
+    if body.y is not None:
+        node.y_position = body.y
+    if body.is_completed is not None:
+        node.is_completed = body.is_completed
 
-    await db.delete(step)
     await db.flush()
-
-    if board:
-        await _sync_progress(board, db)
-        await db.flush()
+    await db.refresh(node)
+    return _node_resp(node)
 
 
-@router.post("/steps/{step_id}/ask")
-async def ask_about_step(
-    step_id: int,
-    body: AskStepRequest,
+@router.delete("/nodes/{node_id}", status_code=204)
+async def delete_node(
+    node_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    step = await db.get(VisionStep, step_id)
-    if not step:
-        raise HTTPException(status_code=404, detail="Step not found.")
-    board = await db.get(VisionBoard, step.board_id)
+    node = await db.get(VisionStep, node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found.")
+    board = await db.get(VisionBoard, node.board_id)
+    _owned_node_or_404(node, board, current_user.id)
+    await db.delete(node)
+
+
+@router.put("/nodes/{node_id}/position", response_model=NodeResponse)
+async def update_node_position(
+    node_id: int,
+    body: UpdateNodePositionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    node = await db.get(VisionStep, node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found.")
+    board = await db.get(VisionBoard, node.board_id)
+    _owned_node_or_404(node, board, current_user.id)
+
+    node.x_position = body.x
+    node.y_position = body.y
+    await db.flush()
+    await db.refresh(node)
+    return _node_resp(node)
+
+
+# ── Connections ───────────────────────────────────────────────────────────────
+
+@router.post("/boards/{board_id}/connect", response_model=NodeResponse)
+async def connect_nodes(
+    board_id: int,
+    body: ConnectNodesRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set parent_step_id of to_id to from_id, creating a directional connection."""
+    board = await db.get(VisionBoard, board_id)
     _owned_board_or_404(board, current_user.id)
 
-    all_steps = await _load_flat_steps(board.id, db)
+    from_node = await db.get(VisionStep, body.from_id)
+    to_node = await db.get(VisionStep, body.to_id)
 
-    linked_note: Note | None = None
-    if board.note_id:
-        linked_note = await db.get(Note, board.note_id)
+    if not from_node or from_node.board_id != board_id:
+        raise HTTPException(status_code=404, detail="from_id not found on this board.")
+    if not to_node or to_node.board_id != board_id:
+        raise HTTPException(status_code=404, detail="to_id not found on this board.")
+    if body.from_id == body.to_id:
+        raise HTTPException(status_code=422, detail="Cannot connect a node to itself.")
 
-    lines: list[str] = [
-        "You are StudyNerve AI. Direct, sharp, human — no corporate tone, no filler.",
-        "A student is asking about a specific step in their assignment plan.",
-        "You have the full assignment text — use it. Don't give generic advice.",
-        "",
-        f"ASSIGNMENT: {board.title}",
+    to_node.parent_step_id = body.from_id
+    await db.flush()
+    await db.refresh(to_node)
+    return _node_resp(to_node)
+
+
+# ── AI endpoints ──────────────────────────────────────────────────────────────
+
+@router.post("/boards/{board_id}/ai-organize", response_model=AiOrganizeResponse)
+async def ai_organize_board(
+    board_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Send all nodes to the LLM. Returns suggested ordering and grouping.
+    Does not automatically apply the suggestion — the frontend decides.
+    """
+    board = await db.get(VisionBoard, board_id)
+    _owned_board_or_404(board, current_user.id)
+
+    nodes = await _load_nodes(board_id, db)
+    if not nodes:
+        raise HTTPException(status_code=422, detail="Board has no nodes to organize.")
+
+    node_dicts = [
+        {"id": n.id, "title": n.title, "description": n.description}
+        for n in nodes
     ]
-
-    if board.description and board.description.strip():
-        lines += [
-            "",
-            "FULL ASSIGNMENT DESCRIPTION (this is the actual assignment text — "
-            "read it carefully to answer questions about requirements, format, etc.):",
-            board.description.strip()[:4000],
-        ]
-
-    if linked_note:
-        lines += [
-            "",
-            f"STUDENT'S NOTES ON THIS MATERIAL — {linked_note.title}:",
-            linked_note.content.strip()[:3000],
-        ]
-
-    if all_steps:
-        lines += ["", "FULL STEP BREAKDOWN FOR THIS ASSIGNMENT:"]
-        for s in all_steps:
-            prefix = "    └─ " if s.parent_step_id else "  "
-            done = "[✓]" if s.is_completed else "[ ]"
-            mins = f" ({s.estimated_minutes} min)" if s.estimated_minutes else ""
-            marker = " ← CURRENT STEP" if s.id == step.id else ""
-            lines.append(f"{prefix}{done} {s.title}{mins}{marker}")
-
-    lines += [
-        "",
-        f"CURRENT STEP THE STUDENT IS ASKING ABOUT: {step.title}",
-    ]
-    if step.description:
-        lines.append(step.description)
-
-    lines += [
-        "",
-        "RULES:",
-        "- If they ask about requirements or format, pull them directly from the assignment description above",
-        "- Be specific to THIS assignment — not generic advice",
-        "- If they ask what the assignment is about, summarize from the description",
-        "- Keep answers concise but complete — list all requirements if they ask for them",
-        "- End with one targeted follow-up question tied to what they asked",
-        "- If the assignment description doesn't have the info, say so honestly",
-        "- Use markdown for lists and formatting when it helps clarity",
-    ]
-
-    system = "\n".join(lines)
 
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
-    answer = await generate_chat(
-        [{"role": "user", "content": body.question}],
-        system,
-        **llm_kwargs,
+    try:
+        result = await ai_organize(node_dicts, **llm_kwargs)
+    except LLMTokenLimitError as exc:
+        raise HTTPException(status_code=422, detail=exc.message)
+
+    if result is None:
+        raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond.")
+
+    reordered = [
+        AiOrganizeSuggestion(
+            id=item["id"],
+            suggested_order=item["suggested_order"],
+            group_name=item.get("group_name"),
+        )
+        for item in result.get("reordered", [])
+    ]
+    missing = [
+        AiMissingStep(
+            title=item["title"],
+            description=item.get("description"),
+            connect_after_id=item.get("connect_after_id"),
+        )
+        for item in result.get("missing_steps", [])
+    ]
+    return AiOrganizeResponse(reordered=reordered, missing_steps=missing)
+
+
+@router.post("/boards/{board_id}/ai-breakdown", response_model=AiBreakdownResponse)
+async def ai_breakdown_node(
+    board_id: int,
+    body: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Break a single node into 2-4 sub-tasks.
+    Body: {node_id: int}
+    Creates new nodes connected to the parent and returns them.
+    """
+    board = await db.get(VisionBoard, board_id)
+    _owned_board_or_404(board, current_user.id)
+
+    node_id = body.get("node_id")
+    if not node_id:
+        raise HTTPException(status_code=422, detail="node_id is required.")
+
+    parent = await db.get(VisionStep, node_id)
+    if not parent or parent.board_id != board_id:
+        raise HTTPException(status_code=404, detail="Node not found on this board.")
+
+    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+    try:
+        result = await ai_breakdown(parent.title, parent.description, **llm_kwargs)
+    except LLMTokenLimitError as exc:
+        raise HTTPException(status_code=422, detail=exc.message)
+
+    if result is None:
+        raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond.")
+
+    subtasks = result.get("subtasks", [])
+    if not subtasks:
+        raise HTTPException(status_code=502, detail="LLM returned no subtasks.")
+
+    # Space new nodes in a column below the parent
+    start_x = (parent.x_position or 0.0) + 220
+    start_y = (parent.y_position or 0.0) - ((len(subtasks) - 1) * 90 / 2)
+
+    created: list[VisionStep] = []
+    existing_children = await db.scalar(
+        select(func.count(VisionStep.id)).where(VisionStep.parent_step_id == parent.id)
     )
+    for i, sub in enumerate(subtasks):
+        node = VisionStep(
+            board_id=board_id,
+            title=sub.get("title", f"Sub-task {i + 1}"),
+            description=sub.get("description"),
+            parent_step_id=parent.id,
+            order_index=(existing_children or 0) + i,
+            x_position=start_x,
+            y_position=start_y + i * 90,
+        )
+        db.add(node)
+        created.append(node)
+
+    board.is_ai_generated = True
+    await db.flush()
+    for n in created:
+        await db.refresh(n)
+
+    return AiBreakdownResponse(created_nodes=[_node_resp(n) for n in created])
+
+
+@router.post("/nodes/{node_id}/ask")
+async def ask_about_node(
+    node_id: int,
+    body: AskNodeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    node = await db.get(VisionStep, node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found.")
+    board = await db.get(VisionBoard, node.board_id)
+    _owned_node_or_404(node, board, current_user.id)
+
+    all_nodes = await _load_nodes(board.id, db)
+    node_dicts = [
+        {"title": n.title, "is_completed": n.is_completed}
+        for n in all_nodes
+    ]
+
+    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+    try:
+        answer = await ai_ask(body.question, board.title, node_dicts, **llm_kwargs)
+    except LLMTokenLimitError as exc:
+        raise HTTPException(status_code=422, detail=exc.message)
+
     if answer is None:
         raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond.")
 
-    return {"step_id": step_id, "question": body.question, "answer": answer}
-
-
-@router.put("/boards/{board_id}/reorder")
-async def reorder_steps(
-    board_id: int,
-    body: ReorderStepsRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    board = await db.get(VisionBoard, board_id)
-    _owned_board_or_404(board, current_user.id)
-
-    await vision_svc.save_snapshot(board_id, "reorder steps", db)
-
-    result = await db.execute(
-        select(VisionStep).where(
-            VisionStep.id.in_(body.step_ids),
-            VisionStep.board_id == board_id,
-        )
-    )
-    step_map = {s.id: s for s in result.scalars().all()}
-
-    for new_index, step_id in enumerate(body.step_ids):
-        if step_id in step_map:
-            step_map[step_id].order_index = new_index
-
-    await db.flush()
-    return {"reordered": len(step_map), "board_id": board_id}
-
-
-# ── New endpoints ─────────────────────────────────────────────────────────────
-
-@router.post("/boards/{board_id}/update-context", response_model=VisionBoardDetail)
-async def update_context(
-    board_id: int,
-    body: UpdateContextRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """AI restructures the plan based on a free-text description of what changed."""
-    board = await db.get(VisionBoard, board_id)
-    _owned_board_or_404(board, current_user.id)
-
-    flat = await _load_flat_steps(board_id, db)
-
-    # Snapshot before any changes
-    await vision_svc.save_snapshot(board_id, f"update context: {body.update[:100]}", db)
-
-    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
-    plan = await vision_svc.generate_context_update(flat, body.update, **llm_kwargs)
-    if plan is None:
-        raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond.")
-
-    step_map = {s.id: s for s in flat}
-
-    # Apply removals
-    for step_id in plan.get("removed_step_ids", []):
-        step = step_map.get(step_id)
-        if step:
-            await db.delete(step)
-
-    await db.flush()
-
-    # Apply modifications
-    for mod in plan.get("modified", []):
-        step = step_map.get(mod.get("id"))
-        if step:
-            if mod.get("title"):
-                step.title = mod["title"]
-            if mod.get("description") is not None:
-                step.description = mod["description"]
-
-    # Apply reorders
-    for item in plan.get("reordered", []):
-        step = step_map.get(item.get("id"))
-        if step:
-            step.order_index = item["new_order_index"]
-
-    # Apply additions
-    for addition in plan.get("added", []):
-        parent_id = addition.get("parent_step_id")
-        # Validate parent exists on this board
-        if parent_id is not None and parent_id not in step_map:
-            parent_id = None
-
-        if addition.get("order_index") is None:
-            sibling_max = await db.scalar(
-                select(func.max(VisionStep.order_index)).where(
-                    VisionStep.board_id == board_id,
-                    VisionStep.parent_step_id == parent_id,
-                )
-            )
-            order_index = (sibling_max or -1) + 1
-        else:
-            order_index = addition["order_index"]
-
-        db.add(VisionStep(
-            board_id=board_id,
-            title=addition.get("title", "New step"),
-            description=addition.get("description"),
-            order_index=order_index,
-            parent_step_id=parent_id,
-            estimated_minutes=addition.get("estimated_minutes"),
-        ))
-
-    await db.flush()
-    await _sync_progress(board, db)
-    await db.flush()
-    await db.refresh(board)
-
-    return await _board_detail(board, db)
-
-
-@router.post("/boards/{board_id}/undo", response_model=VisionBoardDetail)
-async def undo_last_change(
-    board_id: int,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Restore the board to its most recent snapshot."""
-    board = await db.get(VisionBoard, board_id)
-    _owned_board_or_404(board, current_user.id)
-
-    restored = await vision_svc.restore_snapshot(board_id, db)
-    if not restored:
-        raise HTTPException(status_code=404, detail="No snapshot to restore.")
-
-    await _sync_progress(board, db)
-    await db.flush()
-    await db.refresh(board)
-
-    return await _board_detail(board, db)
-
-
-@router.get("/boards/{board_id}/history", response_model=list[VisionBoardSnapshotResponse])
-async def get_history(
-    board_id: int,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Return all snapshots for a board, newest first."""
-    board = await db.get(VisionBoard, board_id)
-    _owned_board_or_404(board, current_user.id)
-
-    result = await db.execute(
-        select(VisionBoardSnapshot)
-        .where(VisionBoardSnapshot.board_id == board_id)
-        .order_by(VisionBoardSnapshot.created_at.desc())
-    )
-    return result.scalars().all()
-
-
-@router.post("/boards/{board_id}/connect-node", response_model=VisionStepResponse, status_code=201)
-async def connect_node(
-    board_id: int,
-    body: ConnectNodeRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Create a new child step connected from an existing step."""
-    board = await db.get(VisionBoard, board_id)
-    _owned_board_or_404(board, current_user.id)
-
-    from_step = await db.get(VisionStep, body.from_step_id)
-    if not from_step or from_step.board_id != board_id:
-        raise HTTPException(status_code=404, detail="Source step not found on this board.")
-
-    await vision_svc.save_snapshot(board_id, f"connect node from: {from_step.title}", db)
-
-    sibling_max = await db.scalar(
-        select(func.max(VisionStep.order_index)).where(
-            VisionStep.board_id == board_id,
-            VisionStep.parent_step_id == body.from_step_id,
-        )
-    )
-    order_index = (sibling_max or -1) + 1
-
-    step = VisionStep(
-        board_id=board_id,
-        title=body.title.strip(),
-        description=body.description,
-        order_index=order_index,
-        parent_step_id=body.from_step_id,
-    )
-    db.add(step)
-    await db.flush()
-    await db.refresh(step)
-
-    return VisionStepResponse(
-        id=step.id,
-        board_id=step.board_id,
-        title=step.title,
-        description=step.description,
-        order_index=step.order_index,
-        parent_step_id=step.parent_step_id,
-        is_completed=step.is_completed,
-        estimated_minutes=step.estimated_minutes,
-        created_at=step.created_at,
-        updated_at=step.updated_at,
-    )
+    return {"node_id": node_id, "question": body.question, "answer": answer}

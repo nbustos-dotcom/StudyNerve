@@ -210,110 +210,101 @@ class StudentInsightResponse(BaseModel):
 
 # ── Vision Board ─────────────────────────────────────────────────────────────
 
-class CreateVisionBoardRequest(BaseModel):
-    # Manual creation
-    title: Optional[str] = None
-    description: Optional[str] = None
-    # Optional note to link (manual boards) — its content seeds the LLM breakdown
-    note_id: Optional[int] = None
-    # Canvas import — both required when used
-    canvas_assignment_id: Optional[int] = None
-    canvas_course_id: Optional[int] = None
-
-
-class UpdateVisionStepRequest(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    is_completed: Optional[bool] = None
-    estimated_minutes: Optional[int] = None
-
-
-class AddVisionStepRequest(BaseModel):
+class CreateBoardRequest(BaseModel):
     title: str
-    description: Optional[str] = None
+
+
+class NodeResponse(BaseModel):
+    id: int
+    board_id: int
+    title: str
+    description: Optional[str]
+    x_position: float
+    y_position: float
+    is_completed: bool
+    parent_step_id: Optional[int]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BoardSummary(BaseModel):
+    id: int
+    title: str
+    is_ai_generated: bool
+    node_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BoardDetail(BaseModel):
+    id: int
+    title: str
+    is_ai_generated: bool
+    created_at: datetime
+    updated_at: datetime
+    nodes: list[NodeResponse] = []
+
+    model_config = {"from_attributes": True}
+
+
+class CreateNodeRequest(BaseModel):
+    title: str
+    x: float = 0.0
+    y: float = 0.0
     parent_step_id: Optional[int] = None
-    order_index: Optional[int] = None
-    estimated_minutes: Optional[int] = None
+    description: Optional[str] = None
 
 
-class ReorderStepsRequest(BaseModel):
-    step_ids: list[int]  # ordered list — position in list = new order_index
+class UpdateNodeRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    x: Optional[float] = None
+    y: Optional[float] = None
+    is_completed: Optional[bool] = None
 
 
-class AskStepRequest(BaseModel):
+class UpdateNodePositionRequest(BaseModel):
+    x: float
+    y: float
+
+
+class ConnectNodesRequest(BaseModel):
+    from_id: int
+    to_id: int
+
+
+class AskNodeRequest(BaseModel):
     question: str
 
 
-class VisionStepResponse(BaseModel):
+class AiOrganizeSuggestion(BaseModel):
     id: int
-    board_id: int
+    suggested_order: int
+    group_name: Optional[str] = None
+
+
+class AiMissingStep(BaseModel):
     title: str
-    description: Optional[str]
-    order_index: int
-    parent_step_id: Optional[int]
-    is_completed: bool
-    estimated_minutes: Optional[int]
-    created_at: datetime
-    updated_at: datetime
-    substeps: list["VisionStepResponse"] = []
-
-    model_config = {"from_attributes": True}
+    description: Optional[str] = None
+    connect_after_id: Optional[int] = None
 
 
-# Pydantic v2 requires an explicit rebuild for self-referential models
-VisionStepResponse.model_rebuild()
+class AiOrganizeResponse(BaseModel):
+    reordered: list[AiOrganizeSuggestion]
+    missing_steps: list[AiMissingStep]
 
 
-class VisionBoardSummary(BaseModel):
-    id: int
-    title: str
-    description: Optional[str]
-    source_type: str
-    source_id: Optional[int]
-    note_id: Optional[int]
-    status: str
-    progress: int
-    step_count: int = 0
-    completed_steps: int = 0
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-class VisionBoardDetail(BaseModel):
-    id: int
-    title: str
-    description: Optional[str]
-    source_type: str
-    source_id: Optional[int]
-    note_id: Optional[int]
-    status: str
-    progress: int
-    created_at: datetime
-    updated_at: datetime
-    steps: list[VisionStepResponse] = []
-
-    model_config = {"from_attributes": True}
-
-
-class UpdateContextRequest(BaseModel):
-    update: str  # free-text description of what changed
-
-
-class ConnectNodeRequest(BaseModel):
-    from_step_id: int
+class AiSubtask(BaseModel):
     title: str
     description: Optional[str] = None
 
 
-class VisionBoardSnapshotResponse(BaseModel):
-    id: int
-    board_id: int
-    action_description: str
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
+class AiBreakdownResponse(BaseModel):
+    created_nodes: list[NodeResponse]
 
 
 # ── User Settings ─────────────────────────────────────────────────────────────

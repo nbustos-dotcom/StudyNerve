@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -192,6 +192,7 @@ class VisionBoard(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     # Cached progress 0–100, updated whenever steps are toggled
     progress: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_ai_generated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
@@ -239,6 +240,8 @@ class VisionStep(Base):
     )
     is_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     estimated_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    x_position: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0.0)
+    y_position: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0.0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )

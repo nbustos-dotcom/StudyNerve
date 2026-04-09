@@ -190,45 +190,60 @@ export const api = {
   canvasSaveSettings: (data) => req('POST', '/canvas/settings', data),
 
   // ── Vision Board ─────────────────────────────────────────────────────────────
-  /** @returns {Promise<Array>} list of VisionBoardSummary */
+
+  /** @returns {Promise<Array>} list of BoardSummary */
   visionBoards: () => req('GET', '/vision/boards'),
 
-  /** @param {number} id @returns {Promise} VisionBoardDetail with nested steps */
+  /** @param {{ title: string }} data @returns {Promise} BoardDetail */
+  visionCreate: (data) => req('POST', '/vision/boards', data),
+
+  /** @param {number} id @returns {Promise} BoardDetail with all nodes */
   visionBoard: (id) => req('GET', `/vision/boards/${id}`),
 
-  /**
-   * @param {{ title?: string, description?: string, canvas_assignment_id?: number, canvas_course_id?: number }} data
-   * @returns {Promise} VisionBoardDetail
-   */
-  visionCreate: (data) => req('POST', '/vision/create', data),
-
-  /**
-   * @param {number} stepId
-   * @param {{ title?: string, description?: string, is_completed?: boolean, estimated_minutes?: number }} data
-   */
-  visionUpdateStep: (stepId, data) => req('PUT', `/vision/steps/${stepId}`, data),
+  /** @param {number} id */
+  visionDeleteBoard: (id) => req('DELETE', `/vision/boards/${id}`),
 
   /**
    * @param {number} boardId
-   * @param {{ title: string, description?: string, parent_step_id?: number, order_index?: number, estimated_minutes?: number }} data
+   * @param {{ title: string, x?: number, y?: number, parent_step_id?: number, description?: string }} data
+   * @returns {Promise} NodeResponse
    */
-  visionAddStep: (boardId, data) => req('POST', `/vision/boards/${boardId}/add-step`, data),
-
-  /** @param {number} stepId */
-  visionDeleteStep: (stepId) => req('DELETE', `/vision/steps/${stepId}`),
+  visionCreateNode: (boardId, data) => req('POST', `/vision/boards/${boardId}/nodes`, data),
 
   /**
-   * @param {number} stepId
-   * @param {string} question
-   * @returns {Promise<{ step_id: number, question: string, answer: string }>}
+   * @param {number} nodeId
+   * @param {{ title?: string, description?: string, x?: number, y?: number, is_completed?: boolean }} data
+   * @returns {Promise} NodeResponse
    */
-  visionAskStep: (stepId, question) => req('POST', `/vision/steps/${stepId}/ask`, { question }),
+  visionUpdateNode: (nodeId, data) => req('PUT', `/vision/nodes/${nodeId}`, data),
 
-  /** @param {number} boardId @param {number[]} stepIds */
-  visionReorder: (boardId, stepIds) => req('PUT', `/vision/boards/${boardId}/reorder`, { step_ids: stepIds }),
+  /** @param {number} nodeId */
+  visionDeleteNode: (nodeId) => req('DELETE', `/vision/nodes/${nodeId}`),
 
-  visionUpdateContext: (boardId, update) => req('POST', `/vision/boards/${boardId}/update-context`, { update }),
-  visionUndo: (boardId) => req('POST', `/vision/boards/${boardId}/undo`),
-  visionHistory: (boardId) => req('GET', `/vision/boards/${boardId}/history`),
-  visionConnectNode: (boardId, data) => req('POST', `/vision/boards/${boardId}/connect-node`, data),
+  /**
+   * Update just x,y — used for drag moves.
+   * @param {number} nodeId @param {number} x @param {number} y
+   */
+  visionMoveNode: (nodeId, x, y) => req('PUT', `/vision/nodes/${nodeId}/position`, { x, y }),
+
+  /**
+   * Connect two nodes (sets parent).
+   * @param {number} boardId @param {number} fromId @param {number} toId
+   */
+  visionConnect: (boardId, fromId, toId) => req('POST', `/vision/boards/${boardId}/connect`, { from_id: fromId, to_id: toId }),
+
+  /** AI: suggest ordering/grouping. @returns {Promise<AiOrganizeResponse>} */
+  visionAiOrganize: (boardId) => req('POST', `/vision/boards/${boardId}/ai-organize`),
+
+  /**
+   * AI: break a node into sub-tasks.
+   * @param {number} boardId @param {number} nodeId @returns {Promise<AiBreakdownResponse>}
+   */
+  visionAiBreakdown: (boardId, nodeId) => req('POST', `/vision/boards/${boardId}/ai-breakdown`, { node_id: nodeId }),
+
+  /**
+   * Tutor Q&A about a node.
+   * @param {number} nodeId @param {string} question
+   */
+  visionAskNode: (nodeId, question) => req('POST', `/vision/nodes/${nodeId}/ask`, { question }),
 }

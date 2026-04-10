@@ -345,6 +345,36 @@ class UserSettingsResponse(BaseModel):
     canvas_connected: bool
 
 
+# ── Flashcards ───────────────────────────────────────────────────────────────
+
+class FlashcardGenerateRequest(BaseModel):
+    note_id: int
+    count: int = 10
+
+
+class FlashcardReviewRequest(BaseModel):
+    difficulty: str  # "easy" | "medium" | "hard"
+
+
+class FlashcardResponse(BaseModel):
+    id: int
+    note_id: Optional[int]
+    front: str
+    back: str
+    difficulty: str
+    times_reviewed: int
+    last_reviewed: Optional[datetime]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FlashcardGroupResponse(BaseModel):
+    note_id: Optional[int]
+    note_title: str
+    flashcards: list[FlashcardResponse]
+
+
 # ── Teach Back ────────────────────────────────────────────────────────────────
 
 class TeachBackRequest(BaseModel):

@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
 from app.llm import check_health
 
-from app.routers import canvas, chat, notes, profile, quiz, topics, vision
+from app.routers import canvas, chat, flashcards, notes, profile, quiz, topics, vision
 from app.routers.auth import router as auth_router
 from app.routers.settings import router as settings_router
 
@@ -46,6 +46,7 @@ app.include_router(chat.router, prefix="/api")
 app.include_router(profile.router, prefix="/api")
 app.include_router(canvas.router, prefix="/api")
 app.include_router(vision.router, prefix="/api")
+app.include_router(flashcards.router, prefix="/api")
 
 
 @app.get("/api/health")

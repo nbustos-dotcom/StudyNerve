@@ -126,6 +126,24 @@ export const api = {
   /** @returns {Promise<{ created: number }>} */
   extractTopics: (id) => req('POST', `/notes/${id}/extract-topics`),
 
+  /** @returns {Promise<{ summary: string }>} */
+  summarizeNote: (id) => req('POST', `/notes/${id}/summarize`),
+
+  // ── Flashcards ───────────────────────────────────────────────────────────────
+  /** @param {{ note_id: number, count?: number }} data @returns {Promise<Array>} */
+  generateFlashcards: (data) => req('POST', '/flashcards/generate', data),
+
+  /** @returns {Promise<Array>} grouped by note */
+  getFlashcards: () => req('GET', '/flashcards'),
+
+  /** @returns {Promise<Array>} ordered for study (least reviewed + hardest first) */
+  studyFlashcards: () => req('GET', '/flashcards/study'),
+
+  /** @param {number} id @param {{ difficulty: string }} data */
+  reviewFlashcard: (id, data) => req('PUT', `/flashcards/${id}/review`, data),
+
+  deleteFlashcard: (id) => req('DELETE', `/flashcards/${id}`),
+
   // ── Topics ──────────────────────────────────────────────────────────────────
   /** @param {number|null} noteId */
   getTopics: (noteId = null) =>

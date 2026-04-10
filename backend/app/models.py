@@ -171,6 +171,28 @@ class StudentInsight(Base):
     )
 
 
+class Flashcard(Base):
+    __tablename__ = "flashcards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    note_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("notes.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    front: Mapped[str] = mapped_column(Text, nullable=False)
+    back: Mapped[str] = mapped_column(Text, nullable=False)
+    difficulty: Mapped[str] = mapped_column(String(10), nullable=False, default="medium")  # easy/medium/hard
+    times_reviewed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_reviewed: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
 class VisionBoard(Base):
     __tablename__ = "vision_boards"
 

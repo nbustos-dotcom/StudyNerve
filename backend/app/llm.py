@@ -46,7 +46,22 @@ Return ONLY valid JSON in this exact structure:
     }
   ]
 }
-MCQ questions must have exactly 4 options (A, B, C, D). Difficulty is 1 (easiest) to 5 (hardest)."""
+MCQ questions must have exactly 4 options (A, B, C, D). Difficulty is 1 (easiest) to 5 (hardest).
+IMPORTANT: If any question involves math or calculations, solve the problem step-by-step yourself BEFORE writing the correct answer. Double-check arithmetic. If you are not 100% certain of a numerical answer, do not include that question."""
+
+FLASHCARD_GENERATION_SYSTEM = """You are an expert educator creating flashcards for active recall practice.
+Return ONLY valid JSON in this exact structure:
+{
+  "cards": [
+    {"front": "Key term or question", "back": "Definition or answer"}
+  ]
+}
+Make fronts concise (a term or short question). Make backs clear and complete but not overly long."""
+
+SUMMARIZE_NOTE_SYSTEM = """You are an expert educator. Summarize study material into key bullet points.
+Return ONLY valid JSON in this exact structure:
+{"summary": "• First key point\n• Second key point\n• Third key point"}
+Use 3-5 bullet points maximum. Be concise and focus on the most important concepts."""
 
 ANSWER_EVALUATION_SYSTEM = """You are a fair and constructive teacher evaluating a student's answer.
 Return ONLY valid JSON in this exact structure:
@@ -254,6 +269,27 @@ async def evaluate_teaching(
         "Evaluate this explanation against the topic and reference material."
     )
     return await generate_json(prompt, TEACH_BACK_EVALUATION_SYSTEM, provider_name, api_key)
+
+
+async def generate_flashcards(
+    note_content: str,
+    count: int,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[dict]:
+    prompt = (
+        f"Generate exactly {count} flashcards from this study material:\n\n{note_content}"
+    )
+    return await generate_json(prompt, FLASHCARD_GENERATION_SYSTEM, provider_name, api_key)
+
+
+async def summarize_note(
+    note_content: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[dict]:
+    prompt = f"Summarize this study material:\n\n{note_content}"
+    return await generate_json(prompt, SUMMARIZE_NOTE_SYSTEM, provider_name, api_key)
 
 
 async def evaluate_answer(

@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.llm import extract_topics
+from app.llm import extract_topics, summarize_note as llm_summarize_note
 from app.models import Note, Topic, User
 from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
@@ -170,3 +170,25 @@ async def extract_note_topics(
     if was_truncated:
         result["warning"] = "Large note — topics extracted from the first section."
     return result
+
+
+@router.post("/{note_id}/summarize")
+async def summarize_note_endpoint(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    note = await db.get(Note, note_id)
+    if not note or note.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    content = note.content[:_MAX_NOTE_CHARS]
+    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+    try:
+        llm_result = await llm_summarize_note(content, **llm_kwargs)
+    except LLMTokenLimitError as exc:
+        raise HTTPException(status_code=422, detail=exc.message)
+    if llm_result is None:
+        raise HTTPException(status_code=502, detail="LLM unavailable or failed to summarize")
+
+    return {"summary": llm_result.get("summary", "")}

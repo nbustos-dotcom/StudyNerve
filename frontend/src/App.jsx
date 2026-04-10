@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import OnboardingWizard from './components/OnboardingWizard'
 import Canvas from './pages/Canvas'
+import Flashcards from './pages/Flashcards'
 import Chat from './pages/Chat'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="quiz" element={<Quiz />} />
           <Route path="chat" element={<Chat />} />
           <Route path="results" element={<Results />} />
+          <Route path="flashcards" element={<Flashcards />} />
           <Route path="canvas" element={<Canvas />} />
           <Route path="vision" element={<VisionBoard />} />
           <Route path="settings" element={<Settings />} />

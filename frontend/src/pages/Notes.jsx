@@ -27,6 +27,8 @@ export default function Notes() {
 
   // Per-note topic state: noteId → { loading, topics, error, count }
   const [topicState, setTopicState] = useState({})
+  // Per-note summary state: noteId → { loading, summary, error }
+  const [summaryState, setSummaryState] = useState({})
 
   const [deletingId, setDeletingId] = useState(null)
 
@@ -120,6 +122,17 @@ export default function Notes() {
         ...prev,
         [note.id]: { loading: false, topics: null, error: e.message, count: null },
       }))
+    }
+  }
+
+  async function handleSummarize(noteId) {
+    if (summaryState[noteId]?.summary) return // already loaded
+    setSummaryState((prev) => ({ ...prev, [noteId]: { loading: true, summary: null, error: null } }))
+    try {
+      const result = await api.summarizeNote(noteId)
+      setSummaryState((prev) => ({ ...prev, [noteId]: { loading: false, summary: result.summary, error: null } }))
+    } catch (e) {
+      setSummaryState((prev) => ({ ...prev, [noteId]: { loading: false, summary: null, error: e.message } }))
     }
   }
 
@@ -306,6 +319,7 @@ export default function Notes() {
         <div className="space-y-4">
           {notes.map((note) => {
             const ts = topicState[note.id]
+            const ss = summaryState[note.id]
             return (
               <div key={note.id} className="card p-6">
                 <div className="flex items-start justify-between gap-4 mb-3">
@@ -351,6 +365,18 @@ export default function Notes() {
                     )}
                   </button>
 
+                  <button
+                    className="btn-secondary text-xs"
+                    onClick={() => handleSummarize(note.id)}
+                    disabled={ss?.loading}
+                  >
+                    {ss?.loading ? (
+                      <span className="flex items-center gap-1.5"><Spinner /> Summarizing…</span>
+                    ) : (
+                      'Summarize'
+                    )}
+                  </button>
+
                   {ts?.topics && ts.topics.length > 0 && (
                     <span className="text-xs text-slate-500">
                       {ts.count != null ? `${ts.count} topics created` : `${ts.topics.length} topics`}
@@ -359,6 +385,10 @@ export default function Notes() {
 
                   {ts?.error && (
                     <span className="text-xs text-red-400">{ts.error}</span>
+                  )}
+
+                  {ss?.error && (
+                    <span className="text-xs text-red-400">{ss.error}</span>
                   )}
                 </div>
 
@@ -388,6 +418,28 @@ export default function Notes() {
                             </div>
                           </div>
                         ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Summary */}
+                {ss?.summary && (
+                  <div
+                    className="mt-4 pt-4 border-t border-[#1e1e2e]"
+                  >
+                    <p className="text-xs font-medium text-slate-500 mb-2">Summary</p>
+                    <div
+                      className="rounded-xl p-4"
+                      style={{
+                        background: 'rgba(99,102,241,0.06)',
+                        border: '1px solid rgba(99,102,241,0.15)',
+                      }}
+                    >
+                      {ss.summary.split('\n').filter(Boolean).map((line, i) => (
+                        <p key={i} className="text-xs text-slate-300 leading-relaxed">
+                          {line}
+                        </p>
+                      ))}
                     </div>
                   </div>
                 )}

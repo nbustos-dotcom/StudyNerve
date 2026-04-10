@@ -2,9 +2,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +16,9 @@ from app.models import User
 from app.schemas import Token, UserCreate, UserLogin, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# Rate limiter for auth endpoints — 5 attempts per minute per IP
+_limiter = Limiter(key_func=get_remote_address)
 
 _bearer = HTTPBearer()
 
@@ -66,7 +71,8 @@ async def get_current_user(
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/register", response_model=Token, status_code=201)
-async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
+@_limiter.limit("5/minute")
+async def register(request: Request, body: UserCreate, db: AsyncSession = Depends(get_db)):
     existing = await db.scalar(
         select(User).where(User.email == body.email.lower().strip())
     )
@@ -89,7 +95,8 @@ async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-async def login(body: UserLogin, db: AsyncSession = Depends(get_db)):
+@_limiter.limit("5/minute")
+async def login(request: Request, body: UserLogin, db: AsyncSession = Depends(get_db)):
     user = await db.scalar(
         select(User).where(User.email == body.email.lower().strip())
     )

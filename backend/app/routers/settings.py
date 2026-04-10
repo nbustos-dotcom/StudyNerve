@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.crypto import decrypt_secret, encrypt_secret
 from app.database import get_db
 from app.models import User, UserSettings
 from app.routers.auth import get_current_user
@@ -53,9 +54,10 @@ async def get_user_llm_kwargs(db: AsyncSession, user_id: int) -> dict:
             f"[settings] user={user_id} provider={row.llm_provider} key_set={bool(row.llm_api_key)}",
             flush=True,
         )
+        api_key = decrypt_secret(row.llm_api_key) if row.llm_api_key else None
         return {
             "provider_name": row.llm_provider,
-            "api_key": row.llm_api_key or None,
+            "api_key": api_key,
         }
     import logging as _logging
     _logging.getLogger(__name__).info(
@@ -72,7 +74,8 @@ async def get_user_canvas_creds(db: AsyncSession, user_id: int) -> tuple[str, st
     """
     row = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
     url = (row and row.canvas_url) or settings.CANVAS_API_URL or ""
-    token = (row and row.canvas_token) or settings.CANVAS_API_TOKEN or ""
+    raw_token = (row and row.canvas_token) or settings.CANVAS_API_TOKEN or ""
+    token = decrypt_secret(raw_token) if raw_token else ""
     return url, token
 
 
@@ -112,7 +115,8 @@ async def save_provider(
     row = await _get_or_create_settings(db, current_user.id)
     row.llm_provider = body.provider
     if body.api_key is not None:
-        row.llm_api_key = body.api_key.strip() or None
+        stripped = body.api_key.strip()
+        row.llm_api_key = encrypt_secret(stripped) if stripped else None
 
     await db.flush()
 
@@ -143,7 +147,7 @@ async def save_canvas(
 
     row = await _get_or_create_settings(db, current_user.id)
     row.canvas_url = url
-    row.canvas_token = token or None
+    row.canvas_token = encrypt_secret(token) if token else None
     await db.flush()
 
     # Validate the token by hitting Canvas right now

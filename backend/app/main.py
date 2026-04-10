@@ -4,14 +4,18 @@ from contextlib import asynccontextmanager
 
 print("Starting StudyNerve AI API...", flush=True)
 
-from fastapi import FastAPI, Header
+from fastapi import Depends, FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from app.database import init_db
 from app.llm import check_health
-
+from app.models import User
 from app.routers import canvas, chat, flashcards, notes, profile, quiz, topics, vision
-from app.routers.auth import router as auth_router
+from app.routers.auth import get_current_user, router as auth_router
 from app.routers.settings import router as settings_router
 
 
@@ -21,7 +25,10 @@ async def lifespan(app: FastAPI):
     yield
 
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="AI Teacher", version="0.1.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 _allow_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 _frontend_url = os.getenv("FRONTEND_URL", "")
@@ -55,7 +62,10 @@ async def health():
 
 
 @app.get("/api/test-providers")
-async def test_providers(authorization: str | None = Header(default=None)):
+async def test_providers(
+    current_user: User = Depends(get_current_user),
+    authorization: str | None = Header(default=None),
+):
     """
     Smoke-test every configured LLM provider.
 
@@ -297,7 +307,7 @@ async def test_providers(authorization: str | None = Header(default=None)):
 
 
 @app.get("/api/test-gemini")
-async def test_gemini():
+async def test_gemini(current_user: User = Depends(get_current_user)):
     import asyncio
     from app.config import settings
 

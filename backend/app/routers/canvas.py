@@ -174,8 +174,8 @@ async def save_settings(
     so per-user DB row is always updated.
     """
     import re
+    from app.crypto import encrypt_secret as _encrypt
     from app.routers.settings import _get_or_create_settings
-    from app.config import settings as _cfg
 
     url = re.sub(r"/api/v\d+/?$", "", body.canvas_url.strip()).rstrip("/")
     token = body.canvas_token.strip()
@@ -185,7 +185,7 @@ async def save_settings(
 
     row = await _get_or_create_settings(db, current_user.id)
     row.canvas_url = url
-    row.canvas_token = token or None
+    row.canvas_token = _encrypt(token) if token else None
     await db.flush()
 
     ok, msg = await svc.validate_connection(url, token) if token else (False, "no token")

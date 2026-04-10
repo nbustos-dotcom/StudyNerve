@@ -18,7 +18,11 @@
       "Bash(node:*)",
       "Bash(npm uninstall:*)",
       "Bash(python -c ':*)",
-      "Bash(venv/Scripts/python -c ':*)"
+      "Bash(venv/Scripts/python -c ':*)",
+      "Bash(pip show:*)",
+      "Bash(ls *.txt)",
+      "Bash(cat requirements*.txt)",
+      "Bash(venv/Scripts/python.exe:*)"
     ]
   }
 }

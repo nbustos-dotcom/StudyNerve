@@ -195,12 +195,15 @@ async def _build_system_prompt(
     if question_id is not None:
         question = await db.get(Question, question_id)
         if question:
-            lines.append("## Quiz question they got wrong — help them understand why, don't just give the answer:")
-            lines.append(f"Question: {question.content}")
-            lines.append(f"Correct answer: {question.correct_answer}")
-            if question.explanation:
-                lines.append(f"Explanation: {question.explanation}")
-            lines.append("")
+            # Verify ownership via the question's note before including content
+            _q_note = await db.get(Note, question.note_id)
+            if _q_note and _q_note.user_id == user_id:
+                lines.append("## Quiz question they got wrong — help them understand why, don't just give the answer:")
+                lines.append(f"Question: {question.content}")
+                lines.append(f"Correct answer: {question.correct_answer}")
+                if question.explanation:
+                    lines.append(f"Explanation: {question.explanation}")
+                lines.append("")
 
     return "\n".join(lines)
 

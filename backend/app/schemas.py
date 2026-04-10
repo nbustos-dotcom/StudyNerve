@@ -68,7 +68,7 @@ class TopicResponse(BaseModel):
 
 class QuizGenerateRequest(BaseModel):
     note_id: int
-    num_questions: int = 5
+    num_questions: int = 10
     difficulty: Optional[int] = None  # 1-5; None means mixed
     question_types: list[str] = ["mcq", "short_answer"]
 

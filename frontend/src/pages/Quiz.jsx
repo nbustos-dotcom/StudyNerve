@@ -49,7 +49,7 @@ export default function Quiz() {
   const [mode, setMode] = useState('standard') // 'standard' | 'adaptive'
   const [config, setConfig] = useState({
     note_id: '',
-    num_questions: 5,
+    num_questions: 10,
     question_types: ['mcq', 'short_answer'],
   })
   const [generateError, setGenerateError] = useState(null)
@@ -433,7 +433,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
         <div>
           <label className="label">Number of questions</label>
           <div className="flex gap-2">
-            {[5, 10, 15].map((n) => (
+            {[5, 10, 15, 20].map((n) => (
               <button
                 key={n}
                 onClick={() => setConfig((c) => ({ ...c, num_questions: n }))}

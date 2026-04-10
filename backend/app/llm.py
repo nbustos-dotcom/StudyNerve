@@ -234,7 +234,13 @@ async def generate_questions(
     prompt = (
         f"Topic: {topic_name}\n\n"
         f"Source content:\n{note_content}\n\n"
-        f"Generate exactly {count} questions about this topic. {type_instruction}"
+        f"Generate exactly {count} questions about this topic. {type_instruction} "
+        f"Mix difficulty levels: 30% easy (recall/definition), 40% medium (application/comparison), "
+        f"30% hard (analysis/problem-solving). For math or science topics, include calculation "
+        f"problems with step-by-step solutions.\n\n"
+        f"For any question involving math or calculations: solve it step-by-step yourself before "
+        f"writing the answer. Show your work in the explanation. If you cannot verify the answer "
+        f"is correct, skip that question and generate a different one. Never guess at numerical answers."
     )
     return await generate_json(prompt, QUESTION_GENERATION_SYSTEM, provider_name, api_key)
 

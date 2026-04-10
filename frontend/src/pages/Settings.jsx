@@ -7,7 +7,7 @@ const PROVIDERS = [
   { value: 'gemini',   label: 'Google Gemini',      needsKey: true,  hint: 'Uses gemini-2.0-flash.',            apiKeyUrl: 'https://aistudio.google.com/apikey',              apiKeyLabel: 'Get free key →' },
   { value: 'openai',   label: 'OpenAI',             needsKey: true,  hint: 'Uses gpt-4o-mini by default.',      apiKeyUrl: 'https://platform.openai.com/api-keys',            apiKeyLabel: 'Get key →' },
   { value: 'anthropic',label: 'Claude (Anthropic)', needsKey: true,  hint: 'Uses claude-sonnet-4.',             apiKeyUrl: 'https://console.anthropic.com/settings/keys',     apiKeyLabel: 'Get key →' },
-  { value: 'groq',     label: 'Groq',               needsKey: true,  hint: 'Uses llama-3.1-8b-instant. Free tier available.', apiKeyUrl: 'https://console.groq.com/keys', apiKeyLabel: 'Get free key →' },
+  { value: 'groq',     label: 'Groq',               needsKey: true,  hint: 'Uses llama-3.3-70b-versatile. Free tier available.', apiKeyUrl: 'https://console.groq.com/keys', apiKeyLabel: 'Get free key → (recommended - best free option)' },
 ]
 
 function Spinner() {

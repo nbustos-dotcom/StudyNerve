@@ -125,6 +125,11 @@ async def _build_system_prompt(
         "- If they're wrong, say so directly but show them where the thinking broke",
         "- Every response moves the conversation forward with that follow-up",
         "",
+        "MATH AND CALCULATIONS:",
+        "When asked about math: show every step. Write equations clearly. Check your arithmetic "
+        "before responding. If a problem requires calculation, work through it systematically — "
+        "do not skip steps or estimate.",
+        "",
     ]
 
     lines.append(f"## How this student is communicating right now: {style_hint}")

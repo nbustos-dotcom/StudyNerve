@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 
 function Spinner() {
@@ -11,12 +11,19 @@ function Spinner() {
 }
 
 const EMPTY_FORM = { title: '', content: '', subject: '' }
+const EMPTY_UPLOAD = { title: '', subject: '', file: null }
 
 export default function Notes() {
   const [notes, setNotes] = useState([])
   const [form, setForm] = useState(EMPTY_FORM)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState(null)
+  const [addTab, setAddTab] = useState('paste') // 'paste' | 'upload'
+  const [uploadForm, setUploadForm] = useState(EMPTY_UPLOAD)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef(null)
 
   // Per-note topic state: noteId → { loading, topics, error, count }
   const [topicState, setTopicState] = useState({})
@@ -53,6 +60,33 @@ export default function Notes() {
       setCreateError(err.message)
     } finally {
       setCreating(false)
+    }
+  }
+
+  function handleFileDrop(e) {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer?.files?.[0]
+    if (file) setUploadForm((f) => ({ ...f, file }))
+  }
+
+  async function handleUpload(e) {
+    e.preventDefault()
+    if (!uploadForm.file) return
+    setUploading(true)
+    setUploadError(null)
+    try {
+      await api.uploadNote(uploadForm.file, {
+        title: uploadForm.title.trim() || undefined,
+        subject: uploadForm.subject.trim() || undefined,
+      })
+      setUploadForm(EMPTY_UPLOAD)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      await fetchNotes()
+    } catch (err) {
+      setUploadError(err.message)
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -114,52 +148,153 @@ export default function Notes() {
       {/* Create form */}
       <div className="card p-6 mb-8">
         <h2 className="text-sm font-medium text-slate-300 mb-4">Add Note</h2>
-        <form onSubmit={handleCreate} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="col-span-2">
-              <label className="label">Title *</label>
-              <input
-                className="input"
-                placeholder="e.g. Chapter 3 — Cell Biology"
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+
+        {/* Tabs */}
+        <div className="flex gap-1 mb-5 p-1 rounded-lg bg-[#13131a] border border-[#1e1e2e] w-fit">
+          {['paste', 'upload'].map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setAddTab(tab)}
+              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                addTab === tab
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {tab === 'paste' ? 'Paste Text' : 'Upload File'}
+            </button>
+          ))}
+        </div>
+
+        {addTab === 'paste' ? (
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className="label">Title *</label>
+                <input
+                  className="input"
+                  placeholder="e.g. Chapter 3 — Cell Biology"
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Subject</label>
+                <input
+                  className="input"
+                  placeholder="e.g. Biology"
+                  value={form.subject}
+                  onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="label">Content *</label>
+              <textarea
+                className="input resize-none"
+                rows={6}
+                placeholder="Paste your notes, textbook excerpt, or study material here…"
+                value={form.content}
+                onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
                 required
               />
             </div>
-            <div>
-              <label className="label">Subject</label>
+            {createError && (
+              <p className="text-sm text-red-400">{createError}</p>
+            )}
+            <div className="flex justify-end">
+              <button type="submit" className="btn-primary" disabled={creating}>
+                {creating ? (
+                  <span className="flex items-center gap-2"><Spinner /> Saving…</span>
+                ) : (
+                  'Save Note'
+                )}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleUpload} className="space-y-4">
+            {/* Drop zone */}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleFileDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed cursor-pointer transition-colors px-6 py-10
+                ${dragOver
+                  ? 'border-indigo-400 bg-indigo-500/10'
+                  : 'border-[#2a2a3e] bg-[#13131a] hover:border-indigo-500/50 hover:bg-indigo-500/5'
+                }`}
+            >
+              <svg className="w-8 h-8 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 3v13M8 7l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {uploadForm.file ? (
+                <div className="text-center">
+                  <p className="text-sm font-medium text-indigo-300">{uploadForm.file.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{(uploadForm.file.size / 1024).toFixed(0)} KB</p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-sm text-slate-400">Drop your PDF or text file here, or click to browse</p>
+                  <p className="text-xs text-slate-600 mt-1">Accepted: .pdf, .txt &nbsp;·&nbsp; Max 5 MB</p>
+                </div>
+              )}
               <input
-                className="input"
-                placeholder="e.g. Biology"
-                value={form.subject}
-                onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.txt"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) setUploadForm((f) => ({ ...f, file }))
+                }}
               />
             </div>
-          </div>
-          <div>
-            <label className="label">Content *</label>
-            <textarea
-              className="input resize-none"
-              rows={6}
-              placeholder="Paste your notes, textbook excerpt, or study material here…"
-              value={form.content}
-              onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-              required
-            />
-          </div>
-          {createError && (
-            <p className="text-sm text-red-400">{createError}</p>
-          )}
-          <div className="flex justify-end">
-            <button type="submit" className="btn-primary" disabled={creating}>
-              {creating ? (
-                <span className="flex items-center gap-2"><Spinner /> Saving…</span>
-              ) : (
-                'Save Note'
-              )}
-            </button>
-          </div>
-        </form>
+
+            {/* Optional metadata */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className="label">Title <span className="text-slate-600">(optional — defaults to filename)</span></label>
+                <input
+                  className="input"
+                  placeholder="e.g. Chapter 3 — Cell Biology"
+                  value={uploadForm.title}
+                  onChange={(e) => setUploadForm((f) => ({ ...f, title: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="label">Subject</label>
+                <input
+                  className="input"
+                  placeholder="e.g. Biology"
+                  value={uploadForm.subject}
+                  onChange={(e) => setUploadForm((f) => ({ ...f, subject: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {uploadError && (
+              <p className="text-sm text-red-400">{uploadError}</p>
+            )}
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={uploading || !uploadForm.file}
+              >
+                {uploading ? (
+                  <span className="flex items-center gap-2"><Spinner /> Extracting text…</span>
+                ) : (
+                  'Upload'
+                )}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Notes list */}

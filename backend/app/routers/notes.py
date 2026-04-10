@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+import io
+import os
+
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +12,8 @@ from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
 from app.schemas import NoteCreate, NoteResponse
+
+_MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
 
 _MAX_NOTE_CHARS = 3000
 
@@ -22,6 +27,52 @@ async def create_note(
     db: AsyncSession = Depends(get_db),
 ):
     note = Note(**body.model_dump(), user_id=current_user.id)
+    db.add(note)
+    await db.flush()
+    await db.refresh(note)
+    return note
+
+
+@router.post("/upload", response_model=NoteResponse, status_code=201)
+async def upload_note(
+    file: UploadFile,
+    title: str | None = Form(default=None),
+    subject: str | None = Form(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    filename = file.filename or ""
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in (".txt", ".pdf"):
+        raise HTTPException(status_code=400, detail="Only .txt and .pdf files are supported.")
+
+    raw = await file.read()
+    if len(raw) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds 5 MB limit.")
+
+    if ext == ".txt":
+        try:
+            content = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            content = raw.decode("latin-1")
+    else:
+        try:
+            import PyPDF2  # noqa: PLC0415
+        except ImportError:
+            raise HTTPException(status_code=500, detail="PyPDF2 is not installed on the server.")
+        reader = PyPDF2.PdfReader(io.BytesIO(raw))
+        pages = [page.extract_text() or "" for page in reader.pages]
+        content = "\n\n".join(pages).strip()
+        if not content:
+            raise HTTPException(status_code=422, detail="Could not extract text from PDF.")
+
+    note_title = (title.strip() if title and title.strip() else None) or os.path.splitext(filename)[0]
+    note = Note(
+        title=note_title,
+        content=content,
+        subject=subject.strip() if subject and subject.strip() else None,
+        user_id=current_user.id,
+    )
     db.add(note)
     await db.flush()
     await db.refresh(note)

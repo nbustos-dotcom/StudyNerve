@@ -90,6 +90,37 @@ export const api = {
   /** @param {{ title: string, content: string, subject?: string }} data */
   createNote: (data) => req('POST', '/notes', data),
 
+  /**
+   * Upload a .txt or .pdf file and create a note from its extracted text.
+   * @param {File} file
+   * @param {{ title?: string, subject?: string }} opts
+   */
+  uploadNote: (file, { title, subject } = {}) => {
+    const token = localStorage.getItem('mt_token')
+    const fd = new FormData()
+    fd.append('file', file)
+    if (title) fd.append('title', title)
+    if (subject) fd.append('subject', subject)
+    return fetch(`${BASE}/notes/upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    }).then(async (res) => {
+      if (res.status === 401) {
+        localStorage.removeItem('mt_token')
+        localStorage.removeItem('mt_user')
+        window.location.href = '/login'
+        throw new Error('Session expired.')
+      }
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        const detail = data?.detail || `HTTP ${res.status}`
+        throw new Error(Array.isArray(detail) ? detail[0]?.msg ?? String(detail) : String(detail))
+      }
+      return data
+    })
+  },
+
   deleteNote: (id) => req('DELETE', `/notes/${id}`),
 
   /** @returns {Promise<{ created: number }>} */

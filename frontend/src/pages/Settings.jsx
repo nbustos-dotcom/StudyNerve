@@ -2,6 +2,18 @@ import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 
+function EyeIcon({ open }) {
+  return open ? (
+    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/>
+    </svg>
+  ) : (
+    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13.4 13.4L2.6 2.6M6.6 6.7A2 2 0 0010 9.4M5.1 5.1C3.1 6.2 1.4 8 1.4 8s2.3 4.6 6.6 4.6c1.4 0 2.5-.4 3.5-1M9 2.5C8.7 2.5 8.4 2.4 8 2.4c-4.3 0-6.6 4.6-6.6 4.6s.5 1 1.6 2.1"/>
+    </svg>
+  )
+}
+
 const PROVIDERS = [
   { value: 'ollama',    label: 'Local Ollama',      needsKey: false, hint: 'Runs on your machine — no API key required.' },
   { value: 'gemini',   label: 'Google Gemini',      needsKey: true,  hint: 'Uses gemini-2.0-flash.',            apiKeyUrl: 'https://aistudio.google.com/apikey',              apiKeyLabel: 'Get free key →' },
@@ -22,15 +34,17 @@ function Spinner() {
 function SectionCard({ title, children }) {
   return (
     <div
-      className="rounded-2xl p-6 mb-6"
+      className="rounded-2xl mb-6 overflow-hidden"
       style={{
         background: 'rgba(15,15,35,0.45)',
         border: '1px solid rgba(255,255,255,0.07)',
         backdropFilter: 'blur(12px)',
       }}
     >
-      <h2 className="text-sm font-semibold text-slate-200 mb-5">{title}</h2>
-      {children}
+      <div className="px-6 py-4 border-b border-white/[0.05]" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <h2 className="text-sm font-semibold text-slate-200 tracking-wide">{title}</h2>
+      </div>
+      <div className="p-6">{children}</div>
     </div>
   )
 }
@@ -110,6 +124,8 @@ export default function Settings() {
   const [canvasToken, setCanvasToken] = useState('')
   const [canvasSaving, setCanvasSaving] = useState(false)
   const [canvasMsg, setCanvasMsg] = useState(null)
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [showCanvasToken, setShowCanvasToken] = useState(false)
 
   // ── Delete account state ─────────────────────────────────────────────────────
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -207,7 +223,7 @@ export default function Settings() {
   const selectedMeta = PROVIDERS.find((p) => p.value === provider)
 
   return (
-    <div className="p-4 sm:p-8 max-w-2xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Settings</h1>
@@ -296,18 +312,28 @@ export default function Settings() {
                   <span className="text-slate-600 font-normal ml-1.5">— leave blank to keep existing key</span>
                 )}
               </label>
-              <input
-                className="input font-mono text-xs tracking-wider"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={
-                  currentSettings?.llm_api_key_set && currentSettings.llm_provider === provider
-                    ? '••••••••••••••••'
-                    : 'Paste your API key'
-                }
-                autoComplete="off"
-              />
+              <div className="relative">
+                <input
+                  className="input font-mono text-xs tracking-wider pr-10"
+                  type={showApiKey ? 'text' : 'password'}
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={
+                    currentSettings?.llm_api_key_set && currentSettings.llm_provider === provider
+                      ? '••••••••••••••••'
+                      : 'Paste your API key'
+                  }
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                  tabIndex={-1}
+                >
+                  <EyeIcon open={showApiKey} />
+                </button>
+              </div>
             </div>
           )}
 
@@ -382,15 +408,25 @@ export default function Settings() {
           </div>
           <div>
             <label className="label">API Token</label>
-            <input
-              className="input font-mono text-xs tracking-wide"
-              type="password"
-              value={canvasToken}
-              onChange={(e) => setCanvasToken(e.target.value)}
-              placeholder={currentSettings?.canvas_connected ? '••••••••' : 'Paste your Canvas access token'}
-              autoComplete="off"
-              required={!currentSettings?.canvas_connected}
-            />
+            <div className="relative">
+              <input
+                className="input font-mono text-xs tracking-wide pr-10"
+                type={showCanvasToken ? 'text' : 'password'}
+                value={canvasToken}
+                onChange={(e) => setCanvasToken(e.target.value)}
+                placeholder={currentSettings?.canvas_connected ? '••••••••' : 'Paste your Canvas access token'}
+                autoComplete="off"
+                required={!currentSettings?.canvas_connected}
+              />
+              <button
+                type="button"
+                onClick={() => setShowCanvasToken((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                tabIndex={-1}
+              >
+                <EyeIcon open={showCanvasToken} />
+              </button>
+            </div>
             <p className="text-[11px] text-slate-600 mt-1.5 leading-relaxed">
               Canvas → Account → Settings → Approved Integrations → New Access Token
             </p>

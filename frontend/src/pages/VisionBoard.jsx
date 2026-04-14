@@ -340,53 +340,59 @@ function BoardList({ onOpen }) {
   }
 
   return (
-    <div style={{ padding: '40px 32px', maxWidth: 860, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-      <h1 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 700, color: 'rgba(255,255,255,.9)' }}>
-        Vision Boards
-      </h1>
-      <p style={{ margin: '0 0 32px', fontSize: 13, color: 'rgba(255,255,255,.32)' }}>
-        Plan goals visually. Double-click the canvas to add nodes.
-      </p>
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto fade-in-up">
+      <div className="mb-8">
+        <h1 className="text-xl font-semibold text-slate-100">Vision Boards</h1>
+        <p className="text-sm text-slate-500 mt-1">Plan goals visually. Double-click the canvas to add nodes.</p>
+      </div>
 
-      <form onSubmit={handleCreate} style={{ display: 'flex', gap: 8, marginBottom: 36 }}>
+      <form onSubmit={handleCreate} className="flex gap-3 mb-8">
         <input
           value={title} onChange={e => setTitle(e.target.value)}
           placeholder="New board title…"
-          style={{
-            flex: 1, padding: '10px 14px', borderRadius: 10, fontSize: 14,
-            background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)',
-            color: 'white', outline: 'none',
-          }}
+          className="input flex-1"
         />
-        <button type="submit" disabled={!title.trim() || saving} style={{
-          padding: '10px 20px', borderRadius: 10, fontSize: 14, fontWeight: 500,
-          background: 'rgba(99,102,241,.72)', border: '1px solid rgba(99,102,241,.4)',
-          color: 'white', cursor: title.trim() && !saving ? 'pointer' : 'default',
-          opacity: title.trim() && !saving ? 1 : 0.5,
-        }}>
+        <button type="submit" disabled={!title.trim() || saving} className="btn-primary flex-shrink-0">
           {saving ? '…' : '+ New Board'}
         </button>
       </form>
 
-      {error && <p style={{ marginBottom: 16, fontSize: 13, color: '#f87171' }}>{error}</p>}
+      {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
 
       {loading ? (
-        <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14 }}>Loading…</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="card p-5">
+              <div className="skeleton h-4 w-32 mb-3 rounded" />
+              <div className="skeleton h-3 w-16 rounded" />
+            </div>
+          ))}
+        </div>
       ) : boards.length === 0 ? (
-        <p style={{ color: 'rgba(255,255,255,.25)', fontSize: 14 }}>No boards yet. Create one above.</p>
+        <div className="card p-10 flex flex-col items-center gap-4 text-center">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
+            <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h6M3 15h6"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-slate-300 font-medium mb-1">No boards yet</p>
+            <p className="text-sm text-slate-500">Create your first vision board above.</p>
+          </div>
+        </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
-          {boards.map(b => (
-            <div key={b.id} onClick={() => onOpen(b.id)} style={{
-              padding: '20px 22px', borderRadius: 14, cursor: 'pointer',
-              background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.09)',
-              backdropFilter: 'blur(12px)', transition: 'background 140ms, border-color 140ms',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,.09)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,.28)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.09)' }}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {boards.map((b, i) => (
+            <div
+              key={b.id}
+              onClick={() => onOpen(b.id)}
+              className="card p-5 cursor-pointer card-lift transition-all duration-200"
+              style={{ animationDelay: `${i * 50}ms`, animation: 'fade-in-up 0.4s ease-out both' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,.28)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '' }}
             >
-              <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.88)' }}>{b.title}</p>
-              <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,.3)' }}>
+              <p className="text-sm font-semibold text-white/88 mb-2 truncate">{b.title}</p>
+              <p className="text-xs text-white/30">
                 {b.node_count ?? 0} node{b.node_count !== 1 ? 's' : ''}
               </p>
             </div>
@@ -817,34 +823,42 @@ function BoardCanvas({ boardId, onBack }) {
 
       {/* ── Toolbar ── */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 14, padding: '0 16px',
+        display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px',
         height: 52, flexShrink: 0, position: 'relative', zIndex: 10,
-        background: 'rgba(5,5,16,.8)', borderBottom: '1px solid rgba(255,255,255,.06)',
-        backdropFilter: 'blur(12px)',
+        background: 'rgba(5,5,16,.85)', borderBottom: '1px solid rgba(255,255,255,.06)',
+        backdropFilter: 'blur(16px)',
       }}>
-        <button onClick={onBack} style={{
-          padding: '5px 11px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
-          background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)',
-          color: 'rgba(255,255,255,.65)',
-        }}>← Back</button>
+        <button
+          onClick={onBack}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+            background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.09)',
+            color: 'rgba(255,255,255,.55)', transition: 'all 150ms',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,.85)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.18)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,.55)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.09)' }}
+        >
+          ← Back
+        </button>
 
-        <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.82)' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.82)', marginLeft: 4 }}>
           {board?.title}
         </span>
 
         <div style={{ flex: 1 }} />
 
         {total > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,.38)', whiteSpace: 'nowrap' }}>
-              {done} / {total} done
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', whiteSpace: 'nowrap' }}>
+              {done}/{total}
             </span>
-            <div style={{ width: 80, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
+            <div style={{ width: 72, height: 3, borderRadius: 2, background: 'rgba(255,255,255,.07)', overflow: 'hidden' }}>
               <div style={{
                 height: '100%', borderRadius: 2,
                 width: `${Math.round((done / total) * 100)}%`,
                 background: done === total ? '#10b981' : '#6366f1',
-                transition: 'width 300ms ease',
+                transition: 'width 400ms ease',
               }} />
             </div>
           </div>
@@ -853,13 +867,15 @@ function BoardCanvas({ boardId, onBack }) {
         <button
           onClick={() => setAiVisionOpen(true)}
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-            background: 'linear-gradient(135deg, rgba(99,102,241,.22), rgba(139,92,246,.22))',
-            border: '1px solid rgba(139,92,246,.4)',
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+            background: 'linear-gradient(135deg, rgba(99,102,241,.2), rgba(139,92,246,.2))',
+            border: '1px solid rgba(139,92,246,.35)',
             color: 'rgba(196,181,253,.9)', cursor: 'pointer',
-            whiteSpace: 'nowrap',
+            whiteSpace: 'nowrap', transition: 'all 150ms',
           }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,.32), rgba(139,92,246,.32))' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,.2), rgba(139,92,246,.2))' }}
         >
           🪐 AI Vision
         </button>
@@ -868,19 +884,21 @@ function BoardCanvas({ boardId, onBack }) {
           onClick={handleAiOrganize}
           disabled={aiOrganizing || nodes.length === 0}
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-            background: 'rgba(99,102,241,.13)', border: '1px solid rgba(99,102,241,.28)',
-            color: 'rgba(165,180,252,.85)', cursor: nodes.length && !aiOrganizing ? 'pointer' : 'default',
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+            background: 'rgba(99,102,241,.1)', border: '1px solid rgba(99,102,241,.25)',
+            color: 'rgba(165,180,252,.8)', cursor: nodes.length && !aiOrganizing ? 'pointer' : 'default',
             opacity: nodes.length && !aiOrganizing ? 1 : 0.4,
-            whiteSpace: 'nowrap',
+            whiteSpace: 'nowrap', transition: 'all 150ms',
           }}
+          onMouseEnter={e => { if (!aiOrganizing && nodes.length) e.currentTarget.style.background = 'rgba(99,102,241,.18)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,.1)' }}
         >
-          {aiOrganizing ? '…' : '✨ AI Organize'}
+          {aiOrganizing ? '…' : '✨ Organize'}
         </button>
 
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,.22)', whiteSpace: 'nowrap' }}>
-          dbl-click to add · drag handle to connect
+        <span style={{ fontSize: 11, color: 'rgba(255,255,255,.18)', whiteSpace: 'nowrap', paddingLeft: 4 }}>
+          dbl-click · drag to connect
         </span>
       </div>
 

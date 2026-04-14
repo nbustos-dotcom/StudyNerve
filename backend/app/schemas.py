@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ class TopicResponse(BaseModel):
 
 class QuizGenerateRequest(BaseModel):
     note_id: int
-    num_questions: int = 10
+    num_questions: int = Field(default=10, ge=5, le=100)
     difficulty: Optional[int] = None  # 1-5; None means mixed
     question_types: list[str] = ["mcq", "short_answer"]
 

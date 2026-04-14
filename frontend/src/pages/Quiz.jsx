@@ -41,6 +41,7 @@ function optionStyle(key, selectedAnswer, result) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 const PHASES = { CONFIGURE: 'configure', GENERATING: 'generating', ACTIVE: 'active', SUMMARY: 'summary' }
+const QUIZ_STORAGE_KEY = 'quiz_progress'
 
 export default function Quiz() {
   const navigate = useNavigate()
@@ -64,10 +65,21 @@ export default function Quiz() {
   const [results, setResults] = useState([]) // all AnswerResults
   const [sessionId, setSessionId] = useState(null)
   const questionStartTime = useRef(null)
+  const [savedProgress, setSavedProgress] = useState(null)
 
   useEffect(() => {
     api.getNotes().then(setNotes).catch(console.error)
+    try {
+      const saved = localStorage.getItem(QUIZ_STORAGE_KEY)
+      if (saved) setSavedProgress(JSON.parse(saved))
+    } catch {}
   }, [])
+
+  useEffect(() => {
+    if (phase === PHASES.ACTIVE && questions.length > 0) {
+      localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify({ questions, currentIdx, results, sessionId }))
+    }
+  }, [phase, currentIdx, results, questions, sessionId])
 
   function toggleType(type) {
     setConfig((c) => {
@@ -80,6 +92,25 @@ export default function Quiz() {
           : [...c.question_types, type],
       }
     })
+  }
+
+  function handleResume() {
+    if (!savedProgress) return
+    setQuestions(savedProgress.questions)
+    setCurrentIdx(savedProgress.currentIdx)
+    setResults(savedProgress.results)
+    setSessionId(savedProgress.sessionId)
+    setSelectedAnswer('')
+    setShortAnswer('')
+    setCurrentResult(null)
+    questionStartTime.current = Date.now()
+    setSavedProgress(null)
+    setPhase(PHASES.ACTIVE)
+  }
+
+  function dismissResume() {
+    localStorage.removeItem(QUIZ_STORAGE_KEY)
+    setSavedProgress(null)
   }
 
   async function handleGenerate() {
@@ -140,7 +171,8 @@ export default function Quiz() {
   async function handleNext() {
     const isLast = currentIdx === questions.length - 1
     if (isLast) {
-      // End session
+      localStorage.removeItem(QUIZ_STORAGE_KEY)
+      setSavedProgress(null)
       if (sessionId) {
         try { await api.endSession(sessionId) } catch {}
       }
@@ -155,6 +187,8 @@ export default function Quiz() {
   }
 
   function handleReset() {
+    localStorage.removeItem(QUIZ_STORAGE_KEY)
+    setSavedProgress(null)
     setPhase(PHASES.CONFIGURE)
     setQuestions([])
     setResults([])
@@ -178,15 +212,20 @@ export default function Quiz() {
       error={generateError}
       mode={mode}
       setMode={setMode}
+      savedProgress={savedProgress}
+      onResume={handleResume}
+      onDismissResume={dismissResume}
     />
   }
 
   if (phase === PHASES.GENERATING) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center px-8">
-        <Spinner size="lg" />
-        <p className="text-slate-200 font-medium mt-5">Generating questions…</p>
-        <p className="text-slate-500 text-sm mt-1">This can take 10–30 seconds with Ollama</p>
+      <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center px-8 fade-in-up">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
+          <Spinner size="lg" />
+        </div>
+        <p className="text-slate-200 font-semibold text-lg">Generating questions…</p>
+        <p className="text-slate-500 text-sm mt-2">This can take 10–30 seconds with Ollama</p>
       </div>
     )
   }
@@ -199,29 +238,31 @@ export default function Quiz() {
     const isMcq = question.type === 'mcq'
 
     return (
-      <div className="p-4 sm:p-8 max-w-2xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
         {/* Progress */}
         <div className="mb-8">
           <div className="flex justify-between text-xs text-slate-500 mb-2">
             <span>Question {currentIdx + 1} of {questions.length}</span>
             <span className="capitalize text-slate-600">{question.type.replace('_', ' ')} · difficulty {question.difficulty}/5</span>
           </div>
-          <div className="h-1 bg-[#1e1e2e] rounded-full overflow-hidden">
+          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
             <div
-              className="h-full bg-indigo-500 rounded-full transition-all"
+              className="h-full bg-indigo-500 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${((currentIdx + (isAnswered ? 1 : 0)) / questions.length) * 100}%` }}
             />
           </div>
         </div>
 
         {/* Question */}
-        <div className="card p-6 mb-5">
-          <MarkdownRenderer>{question.content}</MarkdownRenderer>
+        <div className="card p-7 mb-6" style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.3)' }}>
+          <div className="text-base leading-relaxed">
+            <MarkdownRenderer>{question.content}</MarkdownRenderer>
+          </div>
         </div>
 
         {/* MCQ Options */}
         {isMcq && options && (
-          <div className="space-y-2 mb-5">
+          <div className="space-y-3 mb-5">
             {Object.entries(options).map(([key, value]) => (
               <button
                 key={key}
@@ -230,12 +271,13 @@ export default function Quiz() {
                   setSelectedAnswer(key)
                   submitAnswer(key)
                 }}
-                className={`w-full text-left flex items-start gap-3 px-4 py-3 min-h-[52px] rounded-xl border text-sm transition-colors ${optionStyle(
+                className={`w-full text-left flex items-start gap-4 px-5 py-4 min-h-[60px] rounded-xl border transition-all duration-200 ${optionStyle(
                   key, selectedAnswer, currentResult
                 )}`}
+                style={selectedAnswer === key && !currentResult ? { boxShadow: '0 0 0 2px rgba(99,102,241,0.5)' } : {}}
               >
-                <span className="font-mono font-semibold flex-shrink-0 mt-0.5">{key}.</span>
-                <span>{value}</span>
+                <span className="font-mono font-bold text-sm flex-shrink-0 mt-0.5 w-5">{key}.</span>
+                <span className="text-sm leading-relaxed">{value}</span>
               </button>
             ))}
           </div>
@@ -331,18 +373,25 @@ export default function Quiz() {
     const scoreColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
 
     return (
-      <div className="p-4 sm:p-8 max-w-2xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
         <div className="text-center mb-10">
-          <p className="text-slate-500 text-sm mb-1">Quiz complete</p>
-          <p className={`text-5xl font-bold mb-2 ${scoreColor}`}>{pct}%</p>
+          <p className="text-white/30 text-sm mb-2 uppercase tracking-widest font-medium">Quiz Complete</p>
+          <p className={`text-6xl font-bold mb-3 ${scoreColor}`}>{pct}%</p>
           <p className="text-slate-400 text-sm">{correct} of {total} correct</p>
         </div>
 
         <div className="space-y-3 mb-8">
           {results.map(({ question, result, answer }, i) => (
-            <div key={i} className={`card p-4 border ${result.is_correct ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
+            <div
+              key={i}
+              className="card p-4"
+              style={{
+                borderLeft: `3px solid ${result.is_correct ? 'rgba(52,211,153,0.6)' : 'rgba(248,113,113,0.6)'}`,
+                animation: `fade-in-up 0.35s ease-out ${i * 40}ms both`,
+              }}
+            >
               <div className="flex items-start gap-3">
-                <span className={`mt-0.5 flex-shrink-0 ${result.is_correct ? 'text-emerald-400' : 'text-red-400'}`}>
+                <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${result.is_correct ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
                   {result.is_correct ? '✓' : '✗'}
                 </span>
                 <div className="min-w-0">
@@ -369,20 +418,78 @@ export default function Quiz() {
   return null
 }
 
+// ── Question count input ──────────────────────────────────────────────────────
+
+function QuestionCountInput({ config, setConfig }) {
+  const [raw, setRaw] = useState(String(config.num_questions))
+
+  function commit(value) {
+    const n = parseInt(value, 10)
+    const clamped = isNaN(n) ? 10 : Math.max(5, Math.min(100, n))
+    setRaw(String(clamped))
+    setConfig((c) => ({ ...c, num_questions: clamped }))
+    return clamped
+  }
+
+  const preview = parseInt(raw, 10) || 0
+
+  return (
+    <div>
+      <label className="label">Number of questions (5–100)</label>
+      <input
+        type="number"
+        className="input"
+        min={5}
+        max={100}
+        value={raw}
+        onChange={(e) => setRaw(e.target.value)}
+        onBlur={(e) => commit(e.target.value)}
+      />
+      {preview > 20 && (
+        <p className="text-xs text-amber-400/70 mt-1.5 flex items-center gap-1.5">
+          <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 12 12" fill="currentColor">
+            <path d="M6 1a5 5 0 100 10A5 5 0 006 1zm0 2.25a.75.75 0 01.75.75v2.5a.75.75 0 01-1.5 0V4A.75.75 0 016 3.25zm0 6a.875.875 0 110-1.75.875.875 0 010 1.75z"/>
+          </svg>
+          Large quizzes may take longer to generate.
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ── Configure view ────────────────────────────────────────────────────────────
 
-function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error, mode, setMode }) {
+function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error, mode, setMode, savedProgress, onResume, onDismissResume }) {
   const canGenerate = config.note_id && (mode === 'adaptive' || config.question_types.length > 0)
 
   return (
-    <div className="p-4 sm:p-8 max-w-xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-xl mx-auto fade-in-up">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Quiz</h1>
         <p className="text-sm text-slate-500 mt-1">Generate questions from your notes with AI</p>
       </div>
 
+      {/* Resume banner */}
+      {savedProgress && (
+        <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl border border-indigo-500/30 bg-indigo-500/8">
+          <svg className="w-4 h-4 text-indigo-400 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM6.5 5.5l4 2.5-4 2.5V5.5z"/>
+          </svg>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-slate-200 font-medium">In-progress quiz found</p>
+            <p className="text-xs text-slate-500">Question {savedProgress.currentIdx + 1} of {savedProgress.questions.length}</p>
+          </div>
+          <button className="btn-primary text-xs px-3 py-1.5" onClick={onResume}>Resume</button>
+          <button className="text-slate-600 hover:text-slate-400 transition-colors ml-1" onClick={onDismissResume} title="Discard">
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Mode toggle */}
-      <div className="card p-1.5 flex gap-1 mb-4">
+      <div className="pill-tabs mb-4">
         {[
           { id: 'standard', label: 'Standard Quiz' },
           { id: 'adaptive', label: 'Adaptive Quiz' },
@@ -390,11 +497,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
           <button
             key={id}
             onClick={() => setMode(id)}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              mode === id
-                ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
-                : 'text-slate-500 hover:text-slate-300 border border-transparent'
-            }`}
+            className={`pill-tab${mode === id ? ' active' : ''}`}
           >
             {label}
           </button>
@@ -426,28 +529,11 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
             ))}
           </select>
           {notes.length === 0 && (
-            <p className="text-xs text-slate-500 mt-1.5">No notes yet. Add one on the Notes page first.</p>
+            <p className="text-xs text-white/30 mt-1.5">No notes yet — add one on the Notes page first.</p>
           )}
         </div>
 
-        <div>
-          <label className="label">Number of questions</label>
-          <div className="flex gap-2">
-            {[5, 10, 15, 20].map((n) => (
-              <button
-                key={n}
-                onClick={() => setConfig((c) => ({ ...c, num_questions: n }))}
-                className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${
-                  config.num_questions === n
-                    ? 'bg-indigo-500/15 border-indigo-500/50 text-indigo-300'
-                    : 'border-[#1e1e2e] text-slate-400 hover:border-slate-500 hover:text-slate-200'
-                }`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
+        <QuestionCountInput config={config} setConfig={setConfig} />
 
         {mode === 'standard' && (
           <div>

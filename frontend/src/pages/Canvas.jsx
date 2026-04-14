@@ -67,6 +67,25 @@ function ImportIcon() {
   )
 }
 
+// ── Course accent color from name hash ────────────────────────────────────────
+
+const COURSE_ACCENTS = [
+  'rgba(99,102,241,0.5)',   // indigo
+  'rgba(168,85,247,0.5)',   // purple
+  'rgba(59,130,246,0.5)',   // blue
+  'rgba(20,184,166,0.5)',   // teal
+  'rgba(234,179,8,0.5)',    // yellow
+  'rgba(239,68,68,0.5)',    // red
+  'rgba(34,197,94,0.5)',    // green
+  'rgba(249,115,22,0.5)',   // orange
+]
+
+function courseAccent(name = '') {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return COURSE_ACCENTS[h % COURSE_ACCENTS.length]
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Canvas() {
@@ -156,7 +175,7 @@ export default function Canvas() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto fade-in-up">
 
       {/* Page header */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-8">
@@ -265,32 +284,37 @@ export default function Canvas() {
               <Spinner small />Loading courses…
             </div>
           ) : courses.length === 0 ? (
-            <div className="card p-8 text-center text-sm text-slate-500">
-              No active courses found.
+            <div className="card p-10 flex flex-col items-center gap-3 text-center">
+              <svg className="w-8 h-8 text-white/10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M4 19V6a2 2 0 012-2h12a2 2 0 012 2v13"/><path d="M9 22H5a2 2 0 01-2-2v-1h18v1a2 2 0 01-2 2h-4"/></svg>
+              <p className="text-sm text-white/30">No active courses found.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {courses.map((course) => (
-                <button
-                  key={course.id}
-                  onClick={() => selectCourse(course)}
-                  className="card p-5 text-left group transition-all duration-200 hover:border-indigo-500/30"
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99,102,241,0.07)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = '')}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-200 leading-snug">{course.name}</p>
-                      {course.code && (
-                        <p className="text-[11px] font-mono text-slate-600 mt-1">{course.code}</p>
-                      )}
+              {courses.map((course) => {
+                const accent = courseAccent(course.name)
+                return (
+                  <button
+                    key={course.id}
+                    onClick={() => selectCourse(course)}
+                    className="card p-5 text-left group transition-all duration-200 hover:border-indigo-500/30 card-lift"
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99,102,241,0.06)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = '')}
+                    style={{ borderLeft: `3px solid ${accent}` }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-200 leading-snug">{course.name}</p>
+                        {course.code && (
+                          <p className="text-[11px] font-mono text-slate-600 mt-1">{course.code}</p>
+                        )}
+                      </div>
+                      <span className="flex-shrink-0 text-slate-700 group-hover:text-indigo-400 transition-colors mt-0.5">
+                        <ChevronRight />
+                      </span>
                     </div>
-                    <span className="flex-shrink-0 text-slate-700 group-hover:text-indigo-400 transition-colors mt-0.5">
-                      <ChevronRight />
-                    </span>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                )
+              })}
             </div>
           )}
         </section>
@@ -320,8 +344,9 @@ export default function Canvas() {
               <Spinner small />Loading assignments…
             </div>
           ) : assignments.length === 0 ? (
-            <div className="card p-8 text-center text-sm text-slate-500">
-              No assignments found for this course.
+            <div className="card p-10 flex flex-col items-center gap-3 text-center">
+              <svg className="w-8 h-8 text-white/10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+              <p className="text-sm text-white/30">No assignments found for this course.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -339,15 +364,29 @@ export default function Canvas() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-200 leading-snug">{a.name}</p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
-                        <span className={`text-xs ${u.text}`}>
-                          {a.due_at ? `Due ${formatDue(a.due_at)}` : 'No due date'}
-                        </span>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        {a.due_at ? (
+                          <span
+                            className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${u.text}`}
+                            style={{
+                              background: urgency === 'critical' ? 'rgba(248,113,113,0.1)'
+                                : urgency === 'warning' ? 'rgba(251,191,36,0.1)'
+                                : 'rgba(255,255,255,0.05)',
+                              border: `1px solid ${urgency === 'critical' ? 'rgba(248,113,113,0.25)' : urgency === 'warning' ? 'rgba(251,191,36,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                            }}
+                          >
+                            Due {formatDue(a.due_at)}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center text-[11px] text-white/25 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                            No due date
+                          </span>
+                        )}
                         {a.points_possible != null && (
-                          <span className="text-xs text-slate-600">{a.points_possible} pts</span>
+                          <span className="text-[11px] text-white/30 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>{a.points_possible} pts</span>
                         )}
                         {a.submission_types?.length > 0 && (
-                          <span className="text-xs text-slate-700 capitalize">
+                          <span className="text-[11px] text-white/25 capitalize px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                             {a.submission_types[0].replace(/_/g, ' ')}
                           </span>
                         )}

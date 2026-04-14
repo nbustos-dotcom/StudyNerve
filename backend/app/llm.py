@@ -231,10 +231,14 @@ async def generate_questions(
         if question_type == "short_answer"
         else "Generate a mix of MCQ and short-answer questions."
     )
+    variety_instruction = (
+        " Vary the difficulty and question types significantly across all questions."
+        if count > 15 else ""
+    )
     prompt = (
         f"Topic: {topic_name}\n\n"
         f"Source content:\n{note_content}\n\n"
-        f"Generate exactly {count} questions about this topic. {type_instruction} "
+        f"Generate exactly {count} questions about this topic.{variety_instruction} {type_instruction} "
         f"Mix difficulty levels: 30% easy (recall/definition), 40% medium (application/comparison), "
         f"30% hard (analysis/problem-solving). For math or science topics, include calculation "
         f"problems with step-by-step solutions.\n\n"

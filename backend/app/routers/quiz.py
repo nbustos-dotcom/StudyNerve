@@ -14,6 +14,7 @@ from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
 
 _MAX_NOTE_CHARS = 3000
+_BATCH_SIZE = 15  # max questions per LLM call to stay within token limits
 from app.schemas import (
     AdaptiveQuizRequest,
     AnswerResult,
@@ -68,25 +69,32 @@ async def generate_quiz(
         remaining = body.num_questions - len(saved)
         if remaining <= 0:
             break
-        batch_count = min(count_per_type, remaining)
+        type_target = min(count_per_type, remaining)
 
-        try:
-            llm_result = await generate_questions(
-                note_content=note_content,
-                topic_name=topic.name,
-                count=batch_count,
-                question_type=q_type,
-                **llm_kwargs,
-            )
-        except LLMTokenLimitError as exc:
-            raise HTTPException(status_code=422, detail=exc.message)
-        if llm_result is None:
-            raise HTTPException(
-                status_code=502,
-                detail="LLM unavailable or failed to generate questions",
-            )
+        # Split into batches of _BATCH_SIZE to avoid token limits on large counts
+        raw_questions: list[dict] = []
+        to_generate = type_target
+        while to_generate > 0:
+            batch = min(_BATCH_SIZE, to_generate)
+            try:
+                llm_result = await generate_questions(
+                    note_content=note_content,
+                    topic_name=topic.name,
+                    count=batch,
+                    question_type=q_type,
+                    **llm_kwargs,
+                )
+            except LLMTokenLimitError as exc:
+                raise HTTPException(status_code=422, detail=exc.message)
+            if llm_result is None:
+                raise HTTPException(
+                    status_code=502,
+                    detail="LLM unavailable or failed to generate questions",
+                )
+            raw_questions.extend(llm_result.get("questions", []))
+            to_generate -= batch
 
-        for q_data in llm_result.get("questions", []):
+        for q_data in raw_questions:
             options = q_data.get("options")
             db_question = Question(
                 topic_id=topic.id,

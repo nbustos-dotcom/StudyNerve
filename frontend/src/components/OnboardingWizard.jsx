@@ -340,9 +340,9 @@ export default function OnboardingWizard({ onComplete }) {
   }
 
   const contentStyle = {
-    transition: 'opacity 0.21s ease, transform 0.21s ease',
+    transition: 'opacity 0.22s ease, transform 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
     opacity: transitioning ? 0 : 1,
-    transform: transitioning ? `translateX(${dir * 28}px)` : 'translateX(0)',
+    transform: transitioning ? `translateX(${dir * 40}px)` : 'translateX(0)',
   }
 
   return (
@@ -415,15 +415,20 @@ export default function OnboardingWizard({ onComplete }) {
           gap: '12px',
         }}>
           {/* Progress dots */}
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
             {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
               <div key={i} style={{
                 height: '6px',
-                width: i === step ? '20px' : '6px',
+                width: i === step ? '24px' : '6px',
                 borderRadius: '3px',
-                background: i === step ? '#6366f1' : i < step ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.1)',
-                transition: 'all 0.25s ease',
+                background: i === step
+                  ? 'linear-gradient(90deg, #6366f1, #8b5cf6)'
+                  : i < step
+                  ? 'rgba(99,102,241,0.5)'
+                  : 'rgba(255,255,255,0.08)',
+                transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.25s ease',
                 flexShrink: 0,
+                boxShadow: i === step ? '0 0 8px rgba(99,102,241,0.5)' : 'none',
               }} />
             ))}
           </div>

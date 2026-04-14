@@ -88,7 +88,7 @@ export default function Login({ onAuth }) {
         }}
       />
 
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-[400px] fade-in-up">
         {/* Brand */}
         <div className="flex flex-col items-center mb-8 gap-3">
           <NeuralNetIcon size={48} idPrefix="login" />

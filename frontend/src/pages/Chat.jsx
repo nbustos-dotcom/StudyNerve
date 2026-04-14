@@ -62,7 +62,16 @@ function MessageBubble({ message }) {
     <div className="border-t border-white/[0.05] py-5">
       <div className="flex items-center gap-2 mb-3">
         {isUser ? (
-          <span className="text-[11px] font-medium text-white/35">You</span>
+          <>
+            <div
+              className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white/70 flex-shrink-0"
+              style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)' }}
+            >
+              {/* Initial is set from context — use generic "U" as fallback */}
+              U
+            </div>
+            <span className="text-[11px] font-medium text-white/35">You</span>
+          </>
         ) : (
           <>
             <NeuralNetIcon size={14} idPrefix={iconIdRef.current} />
@@ -164,8 +173,11 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat }) 
                 style={
                   isActive
                     ? {
-                        background: 'rgba(99,102,241,0.15)',
-                        border: '1px solid rgba(99,102,241,0.25)',
+                        background: 'rgba(99,102,241,0.12)',
+                        borderLeft: '2px solid rgba(99,102,241,0.7)',
+                        borderTop: '1px solid rgba(99,102,241,0.2)',
+                        borderRight: '1px solid rgba(99,102,241,0.2)',
+                        borderBottom: '1px solid rgba(99,102,241,0.2)',
                       }
                     : {
                         background: 'transparent',

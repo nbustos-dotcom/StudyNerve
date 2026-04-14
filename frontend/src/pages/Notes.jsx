@@ -152,7 +152,7 @@ export default function Notes() {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto fade-in-up">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Notes</h1>
         <p className="text-sm text-slate-500 mt-1">Paste study material and extract topics for quizzing</p>
@@ -163,17 +163,13 @@ export default function Notes() {
         <h2 className="text-sm font-medium text-slate-300 mb-4">Add Note</h2>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-5 p-1 rounded-lg bg-[#13131a] border border-[#1e1e2e] w-fit">
+        <div className="pill-tabs mb-5">
           {['paste', 'upload'].map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setAddTab(tab)}
-              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                addTab === tab
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              className={`pill-tab${addTab === tab ? ' active' : ''}`}
             >
               {tab === 'paste' ? 'Paste Text' : 'Upload File'}
             </button>
@@ -235,11 +231,12 @@ export default function Notes() {
               onDragLeave={() => setDragOver(false)}
               onDrop={handleFileDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed cursor-pointer transition-colors px-6 py-10
+              className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 px-6 py-10
                 ${dragOver
-                  ? 'border-indigo-400 bg-indigo-500/10'
-                  : 'border-[#2a2a3e] bg-[#13131a] hover:border-indigo-500/50 hover:bg-indigo-500/5'
+                  ? 'border-indigo-400 bg-indigo-500/10 scale-[1.01]'
+                  : 'border-white/10 bg-white/[0.02] hover:border-indigo-500/40 hover:bg-indigo-500/5'
                 }`}
+              style={dragOver ? { animation: 'none' } : { animation: 'none' }}
             >
               <svg className="w-8 h-8 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 3v13M8 7l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
@@ -312,16 +309,24 @@ export default function Notes() {
 
       {/* Notes list */}
       {notes.length === 0 ? (
-        <div className="text-center py-16 text-slate-500 text-sm">
-          No notes yet. Add your first note above.
+        <div className="card p-10 flex flex-col items-center gap-4 text-center">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
+            <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-slate-300 font-medium mb-1">No notes yet</p>
+            <p className="text-sm text-slate-500">Paste text or upload a file to get started.</p>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
-          {notes.map((note) => {
+          {notes.map((note, noteIdx) => {
             const ts = topicState[note.id]
             const ss = summaryState[note.id]
             return (
-              <div key={note.id} className="card p-6">
+              <div key={note.id} className="card p-6 card-lift" style={{ animationDelay: `${noteIdx * 50}ms`, animation: 'fade-in-up 0.4s ease-out both' }}>
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

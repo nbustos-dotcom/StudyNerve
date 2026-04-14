@@ -18,8 +18,8 @@ function AccuracyBar({ value }) {
     pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
   return (
     <div className="flex items-center gap-3 min-w-0">
-      <div className="flex-1 h-1.5 bg-[#1e1e2e] rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full bar-animate ${color}`} style={{ width: `${pct}%` }} />
       </div>
       <span className={`text-xs font-medium tabular-nums w-8 text-right ${textColor}`}>
         {pct}%
@@ -73,15 +73,33 @@ export default function Results() {
   const thCls = 'text-left text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-slate-300 select-none transition-colors'
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto fade-in-up">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Results</h1>
         <p className="text-sm text-slate-500 mt-1">Per-topic accuracy and weak areas from your quiz attempts</p>
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 text-slate-500 text-sm">
-          <Spinner /> Loading…
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="card p-4">
+                <div className="skeleton h-3 w-28 mb-3 rounded" />
+                <div className="skeleton h-2 w-full mb-2 rounded" />
+                <div className="skeleton h-2 w-16 rounded" />
+              </div>
+            ))}
+          </div>
+          <div className="card overflow-hidden">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-white/[0.04]">
+                <div className="skeleton h-3 w-40 rounded" />
+                <div className="skeleton h-3 w-12 ml-auto rounded" />
+                <div className="skeleton h-3 w-12 rounded" />
+                <div className="skeleton h-2 w-32 rounded" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -92,8 +110,16 @@ export default function Results() {
       )}
 
       {!loading && !error && topics.length === 0 && (
-        <div className="text-center py-20 text-slate-500 text-sm">
-          No attempts yet. Complete a quiz to see your results here.
+        <div className="card p-10 flex flex-col items-center gap-4 text-center">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
+            <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-slate-300 font-medium mb-1">No results yet</p>
+            <p className="text-sm text-slate-500">Complete a quiz to see your per-topic results here.</p>
+          </div>
         </div>
       )}
 
@@ -112,8 +138,8 @@ export default function Results() {
                     <p className="text-sm text-slate-200 font-medium truncate max-w-[70%]">{g.topic_name}</p>
                     <span className={`text-sm font-semibold tabular-nums ${textColor}`}>{pct}%</span>
                   </div>
-                  <div className="h-1.5 bg-[#1e1e2e] rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full bar-animate ${barColor}`} style={{ width: `${pct}%` }} />
                   </div>
                   <p className="text-xs text-slate-600 mt-2">{g.total_attempts} attempt{g.total_attempts !== 1 ? 's' : ''}</p>
                 </div>

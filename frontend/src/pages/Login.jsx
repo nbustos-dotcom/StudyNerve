@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import NeuralNetIcon from '../components/NeuralNetIcon'
 import NeuralBackground from '../components/NeuralBackground'
@@ -209,6 +209,14 @@ export default function Login({ onAuth }) {
         <p className="text-center text-xs text-slate-700 mt-5">
           Your data stays local. No tracking, no ads.
         </p>
+        <div className="flex justify-center gap-5 mt-3">
+          <Link to="/terms" className="text-xs text-slate-700 hover:text-slate-500 transition-colors">
+            Terms of Service
+          </Link>
+          <Link to="/privacy" className="text-xs text-slate-700 hover:text-slate-500 transition-colors">
+            Privacy Policy
+          </Link>
+        </div>
       </div>
     </div>
   )

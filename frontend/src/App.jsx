@@ -12,6 +12,8 @@ import Quiz from './pages/Quiz'
 import Results from './pages/Results'
 import Settings from './pages/Settings'
 import VisionBoard from './pages/VisionBoard'
+import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 
 function useAuth() {
   const [user, setUser] = useState(() => {
@@ -61,6 +63,8 @@ export default function App() {
     return (
       <Routes>
         <Route path="/login" element={<Login onAuth={handleAuth} />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )
@@ -71,6 +75,8 @@ export default function App() {
       {showWizard && <OnboardingWizard onComplete={handleWizardComplete} />}
       <Routes>
         <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="/" element={<Layout user={user} onLogout={handleLogout} />}>
           <Route index element={<Dashboard />} />
           <Route path="notes" element={<Notes />} />

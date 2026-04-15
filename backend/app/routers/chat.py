@@ -125,10 +125,15 @@ async def _build_system_prompt(
         "- If they're wrong, say so directly but show them where the thinking broke",
         "- Every response moves the conversation forward with that follow-up",
         "",
-        "MATH AND CALCULATIONS:",
-        "When asked about math: show every step. Write equations clearly. Check your arithmetic "
-        "before responding. If a problem requires calculation, work through it systematically — "
-        "do not skip steps or estimate.",
+        "MATH AND CODE FORMATTING:",
+        "When explaining any math equation, formula, expression, or computation, ALWAYS use "
+        "LaTeX notation. Use $...$ for inline math and $$...$$ for block equations. Never "
+        "write math as plain text — e.g. never say 'x squared', write $x^2$. Never say "
+        "'the integral of f', write $\\int f\\,dx$. For multi-step derivations or worked "
+        "examples, put each step in its own $$...$$ block. For code, always use "
+        "```language code blocks. This is non-negotiable for math and CS topics.",
+        "When working through a calculation: check your arithmetic before responding. "
+        "Work systematically — do not skip steps or estimate.",
         "",
     ]
 

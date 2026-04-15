@@ -12,6 +12,105 @@ function Spinner({ className = 'w-4 h-4' }) {
   )
 }
 
+// ── My Decks View ─────────────────────────────────────────────────────────────
+
+function DecksView({ onStudyDeck, onStudyAll, onGenerate }) {
+  const [groups, setGroups] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.getFlashcards()
+      .then(setGroups)
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Spinner className="w-6 h-6" />
+      </div>
+    )
+  }
+
+  if (groups.length === 0) {
+    return (
+      <div className="card p-10 flex flex-col items-center gap-4 text-center">
+        <div
+          className="w-14 h-14 rounded-2xl flex items-center justify-center"
+          style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}
+        >
+          <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
+          </svg>
+        </div>
+        <div>
+          <p className="text-slate-300 font-medium mb-1">No flashcard decks yet</p>
+          <p className="text-sm text-slate-500">Generate cards from your notes to get started.</p>
+        </div>
+        <button className="btn-primary" onClick={onGenerate}>Generate First Deck</button>
+      </div>
+    )
+  }
+
+  const totalCards = groups.reduce((sum, g) => sum + g.flashcards.length, 0)
+
+  return (
+    <div className="space-y-4">
+      {/* Study all */}
+      <div
+        className="card p-4 flex items-center gap-4 cursor-pointer hover:border-indigo-500/30 transition-colors group"
+        onClick={onStudyAll}
+        style={{ borderColor: 'rgba(99,102,241,0.15)' }}
+      >
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: 'rgba(99,102,241,0.12)' }}
+        >
+          <svg className="w-5 h-5 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-slate-200">All Decks</p>
+          <p className="text-xs text-slate-500 mt-0.5">{totalCards} cards across {groups.length} note{groups.length !== 1 ? 's' : ''}</p>
+        </div>
+        <svg className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+
+      <p className="text-xs text-slate-600 uppercase tracking-widest font-medium pt-2">By Note</p>
+
+      {/* Per-note decks */}
+      {groups.map((group) => (
+        <div
+          key={group.note_id ?? 'unlinked'}
+          className="card p-4 flex items-center gap-4 cursor-pointer hover:border-slate-600 transition-colors group"
+          onClick={() => onStudyDeck(group.flashcards, group.note_title)}
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.04)' }}
+          >
+            <svg className="w-5 h-5 text-slate-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="14" height="12" rx="2"/>
+              <path d="M7 8h6M7 12h4"/>
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-slate-200 truncate">{group.note_title}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{group.flashcards.length} card{group.flashcards.length !== 1 ? 's' : ''}</p>
+          </div>
+          <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ── Generate View ─────────────────────────────────────────────────────────────
 
 function GenerateView() {
@@ -87,7 +186,7 @@ function GenerateView() {
 
       {generated.length > 0 && (
         <div>
-          <p className="text-xs text-slate-500 mb-3">{generated.length} cards created — switch to Study to review them.</p>
+          <p className="text-xs text-slate-500 mb-3">{generated.length} cards created — switch to My Decks to study them.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {generated.map((card) => (
               <div key={card.id} className="card p-4 space-y-2">
@@ -110,7 +209,11 @@ const DIFFICULTY_CFG = {
   hard:   { label: 'Hard',   color: 'bg-red-500/20    text-red-300    border-red-500/30    hover:bg-red-500/30'    },
 }
 
-function StudyView() {
+// initialCards: if provided, study just these cards (a specific deck).
+//               if null, load all cards from the API.
+// deckTitle:    shown in the header when studying a specific deck.
+// onBack:       if provided, show a back button.
+function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
   const [activeDeck, setActiveDeck] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -119,9 +222,8 @@ function StudyView() {
   const [reviewing, setReviewing] = useState(false)
   const [done, setDone] = useState(false)
   const [skippedOnce, setSkippedOnce] = useState(new Set())
-  // Resume prompt state
   const [savedProgress, setSavedProgress] = useState(null)
-  // Use refs so keyboard handler always sees latest values without re-registering
+
   const indexRef = useRef(0)
   const activeDeckRef = useRef([])
   const doneRef = useRef(false)
@@ -131,7 +233,18 @@ function StudyView() {
   useEffect(() => { doneRef.current = done }, [done])
 
   useEffect(() => {
-    // Check for saved progress before loading from API
+    // When studying a specific deck, skip localStorage and start fresh.
+    if (initialCards) {
+      setActiveDeck(initialCards)
+      setIndex(0)
+      setFlipped(false)
+      setDone(false)
+      setSkippedOnce(new Set())
+      setLoading(false)
+      return
+    }
+
+    // Check for saved progress before hitting the API.
     try {
       const raw = localStorage.getItem(FLASHCARD_STORAGE_KEY)
       if (raw) {
@@ -144,10 +257,11 @@ function StudyView() {
       }
     } catch {}
     loadCards()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save progress whenever index or deck changes (only during active study)
+  // Persist progress (only for the all-cards session, not deck-specific).
   useEffect(() => {
+    if (initialCards) return
     if (!loading && activeDeck.length > 0 && !done) {
       try {
         localStorage.setItem(FLASHCARD_STORAGE_KEY, JSON.stringify({
@@ -157,7 +271,7 @@ function StudyView() {
         }))
       } catch {}
     }
-  }, [activeDeck, index, done, loading, skippedOnce])
+  }, [activeDeck, index, done, loading, skippedOnce, initialCards])
 
   useEffect(() => {
     function handleKey(e) {
@@ -195,6 +309,18 @@ function StudyView() {
     }
   }
 
+  function restart() {
+    if (initialCards) {
+      setActiveDeck(initialCards)
+      setIndex(0)
+      setFlipped(false)
+      setDone(false)
+      setSkippedOnce(new Set())
+    } else {
+      loadCards()
+    }
+  }
+
   function handleResume() {
     if (!savedProgress) return
     setActiveDeck(savedProgress.cards)
@@ -220,7 +346,7 @@ function StudyView() {
     setReviewing(false)
     const next = index + 1
     if (next >= activeDeck.length) {
-      localStorage.removeItem(FLASHCARD_STORAGE_KEY)
+      if (!initialCards) localStorage.removeItem(FLASHCARD_STORAGE_KEY)
       setDone(true)
     } else { setIndex(next); setFlipped(false) }
   }
@@ -234,7 +360,7 @@ function StudyView() {
   function handleNext() {
     const next = index + 1
     if (next >= activeDeck.length) {
-      localStorage.removeItem(FLASHCARD_STORAGE_KEY)
+      if (!initialCards) localStorage.removeItem(FLASHCARD_STORAGE_KEY)
       setDone(true)
     } else { setIndex(next); setFlipped(false) }
   }
@@ -249,12 +375,25 @@ function StudyView() {
     const effectiveDeckLength = activeDeck.length + (alreadySkipped ? 0 : 1)
     const next = index + 1
     if (next >= effectiveDeckLength) {
-      localStorage.removeItem(FLASHCARD_STORAGE_KEY)
+      if (!initialCards) localStorage.removeItem(FLASHCARD_STORAGE_KEY)
       setDone(true)
     } else { setIndex(next); setFlipped(false) }
   }
 
-  // Resume prompt
+  // Back link — shown when studying a specific deck.
+  const backLink = onBack && (
+    <button
+      onClick={onBack}
+      className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-300 transition-colors mb-6"
+    >
+      <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M10 4L6 8l4 4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {deckTitle ? `Back to My Decks` : 'Back'}
+    </button>
+  )
+
+  // Resume prompt (only for all-cards session).
   if (savedProgress && !loading) {
     return (
       <div className="max-w-xl mx-auto">
@@ -298,34 +437,50 @@ function StudyView() {
 
   if (activeDeck.length === 0) {
     return (
-      <div className="card p-10 flex flex-col items-center gap-4 text-center">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
-          <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
-          </svg>
+      <>
+        {backLink}
+        <div className="card p-10 flex flex-col items-center gap-4 text-center">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
+            <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-slate-300 font-medium mb-1">No flashcards yet</p>
+            <p className="text-sm text-slate-500">Switch to the Generate tab to create some.</p>
+          </div>
         </div>
-        <div>
-          <p className="text-slate-300 font-medium mb-1">No flashcards yet</p>
-          <p className="text-sm text-slate-500">Switch to the Generate tab to create some.</p>
-        </div>
-      </div>
+      </>
     )
   }
 
   if (done) {
     return (
-      <div className="card p-10 flex flex-col items-center gap-4 text-center fade-in-up">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)' }}>
-          <svg className="w-8 h-8 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/>
-          </svg>
+      <>
+        {backLink}
+        <div className="card p-10 flex flex-col items-center gap-4 text-center fade-in-up">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)' }}>
+            <svg className="w-8 h-8 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-slate-200 font-semibold text-lg">Session complete!</p>
+            <p className="text-sm text-slate-500 mt-1">You reviewed {activeDeck.length} card{activeDeck.length !== 1 ? 's' : ''}.</p>
+          </div>
+          <div className="flex gap-3">
+            <button className="btn-primary" onClick={restart}>Study Again</button>
+            {onBack && (
+              <button
+                className="px-4 py-2 rounded-xl text-sm border border-[#1e1e2e] text-slate-400 hover:border-slate-500 hover:text-slate-200 transition-colors"
+                onClick={onBack}
+              >
+                Back to Decks
+              </button>
+            )}
+          </div>
         </div>
-        <div>
-          <p className="text-slate-200 font-semibold text-lg">Session complete!</p>
-          <p className="text-sm text-slate-500 mt-1">You reviewed {activeDeck.length} card{activeDeck.length !== 1 ? 's' : ''}.</p>
-        </div>
-        <button className="btn-primary" onClick={loadCards}>Study Again</button>
-      </div>
+      </>
     )
   }
 
@@ -334,6 +489,13 @@ function StudyView() {
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
+      {backLink}
+
+      {/* Deck label when studying specific note */}
+      {deckTitle && (
+        <p className="text-xs text-slate-500 uppercase tracking-widest font-medium -mb-2">{deckTitle}</p>
+      )}
+
       {/* Progress */}
       <div className="space-y-1.5">
         <div className="flex justify-between text-xs text-slate-500">
@@ -348,7 +510,7 @@ function StudyView() {
         </div>
       </div>
 
-      {/* Flip card — click anywhere to toggle front/back */}
+      {/* Flip card */}
       <div style={{ perspective: '1000px', height: '280px' }}>
         <div
           onClick={() => setFlipped(f => !f)}
@@ -367,12 +529,7 @@ function StudyView() {
         >
           {/* Front */}
           <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-            }}
+            style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
             className="card flex flex-col items-center justify-center p-8 text-center select-none"
           >
             <p className="text-xs text-slate-600 mb-3 uppercase tracking-widest">Question</p>
@@ -406,7 +563,7 @@ function StudyView() {
         </div>
       </div>
 
-      {/* Navigation controls */}
+      {/* Navigation */}
       <div className="flex items-center gap-2">
         <button
           onClick={handlePrev}
@@ -429,7 +586,7 @@ function StudyView() {
         </button>
       </div>
 
-      {/* Rating buttons — only visible after flip, optional */}
+      {/* Difficulty rating */}
       <div
         className="flex gap-3 justify-center transition-all duration-300"
         style={{ opacity: flipped ? 1 : 0, pointerEvents: flipped ? 'auto' : 'none' }}
@@ -456,7 +613,25 @@ function StudyView() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Flashcards() {
-  const [view, setView] = useState('generate') // 'generate' | 'study'
+  const [view, setView] = useState('decks') // 'decks' | 'generate' | 'study'
+  // When studying a specific deck, store its cards + title here.
+  // null = study all cards.
+  const [studyDeck, setStudyDeck] = useState(null) // { cards, title } | null
+
+  function openDeck(cards, title) {
+    setStudyDeck({ cards, title })
+    setView('study')
+  }
+
+  function openStudyAll() {
+    setStudyDeck(null)
+    setView('study')
+  }
+
+  function backToDecks() {
+    setStudyDeck(null)
+    setView('decks')
+  }
 
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto fade-in-up">
@@ -467,11 +642,18 @@ export default function Flashcards() {
 
       {/* Tab switcher */}
       <div className="pill-tabs mb-6">
-        {[['generate', 'Generate'], ['study', 'Study']].map(([val, label]) => (
+        {[
+          ['decks',    'My Decks'],
+          ['generate', 'Generate'],
+          ['study',    'Study All'],
+        ].map(([val, label]) => (
           <button
             key={val}
             type="button"
-            onClick={() => setView(val)}
+            onClick={() => {
+              if (val === 'study') { openStudyAll(); return }
+              setView(val)
+            }}
             className={`pill-tab${view === val ? ' active' : ''}`}
           >
             {label}
@@ -479,7 +661,22 @@ export default function Flashcards() {
         ))}
       </div>
 
-      {view === 'generate' ? <GenerateView /> : <StudyView key="study" />}
+      {view === 'decks' && (
+        <DecksView
+          onStudyDeck={openDeck}
+          onStudyAll={openStudyAll}
+          onGenerate={() => setView('generate')}
+        />
+      )}
+      {view === 'generate' && <GenerateView />}
+      {view === 'study' && (
+        <StudyView
+          key={studyDeck ? `deck-${studyDeck.title}` : 'all'}
+          initialCards={studyDeck?.cards ?? null}
+          deckTitle={studyDeck?.title ?? null}
+          onBack={studyDeck ? backToDecks : null}
+        />
+      )}
     </div>
   )
 }

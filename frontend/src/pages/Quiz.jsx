@@ -38,10 +38,18 @@ function optionStyle(key, selectedAnswer, result) {
   return 'border-[#1e1e2e] text-slate-600 opacity-40'
 }
 
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function scoreColor(pct) {
+  return pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
-const PHASES = { CONFIGURE: 'configure', GENERATING: 'generating', ACTIVE: 'active', SUMMARY: 'summary' }
-const QUIZ_STORAGE_KEY = 'quiz_progress'
+const PHASES = { CONFIGURE: 'configure', GENERATING: 'generating', ACTIVE: 'active', SUMMARY: 'summary', REVIEW: 'review' }
+const QUIZ_STORAGE_KEY = 'studynerve_quiz_progress'
 
 export default function Quiz() {
   const navigate = useNavigate()
@@ -67,8 +75,13 @@ export default function Quiz() {
   const questionStartTime = useRef(null)
   const [savedProgress, setSavedProgress] = useState(null)
 
+  // History state
+  const [history, setHistory] = useState([])
+  const [reviewItem, setReviewItem] = useState(null)
+
   useEffect(() => {
     api.getNotes().then(setNotes).catch(console.error)
+    api.getQuizHistory().then(setHistory).catch(console.error)
     try {
       const saved = localStorage.getItem(QUIZ_STORAGE_KEY)
       if (saved) setSavedProgress(JSON.parse(saved))
@@ -173,6 +186,32 @@ export default function Quiz() {
     if (isLast) {
       localStorage.removeItem(QUIZ_STORAGE_KEY)
       setSavedProgress(null)
+
+      // Save history before ending session
+      try {
+        const noteId = questions[0]?.note_id
+        const noteObj = notes.find((n) => n.id === noteId)
+        const saved = await api.saveQuizHistory({
+          note_id: noteId || null,
+          note_title: noteObj?.title || 'Unknown Note',
+          score: results.filter((r) => r.result.is_correct).length,
+          total_questions: results.length,
+          questions: results.map(({ question, result, answer }) => ({
+            question_id: question.id,
+            content: question.content,
+            type: question.type,
+            options: question.options || null,
+            user_answer: answer,
+            correct_answer: result.correct_answer,
+            is_correct: result.is_correct,
+            explanation: result.explanation || null,
+          })),
+        })
+        setHistory((prev) => [saved, ...prev])
+      } catch (e) {
+        console.error('Failed to save quiz history:', e)
+      }
+
       if (sessionId) {
         try { await api.endSession(sessionId) } catch {}
       }
@@ -200,6 +239,20 @@ export default function Quiz() {
     setGenerateError(null)
   }
 
+  function openReview(item) {
+    setReviewItem(item)
+    setPhase(PHASES.REVIEW)
+  }
+
+  async function handleOpenReview(summary) {
+    try {
+      const detail = await api.getQuizHistoryDetail(summary.id)
+      openReview(detail)
+    } catch (e) {
+      console.error('Failed to load quiz detail:', e)
+    }
+  }
+
   // ── Render phases ──────────────────────────────────────────────────────────
 
   if (phase === PHASES.CONFIGURE) {
@@ -215,6 +268,8 @@ export default function Quiz() {
       savedProgress={savedProgress}
       onResume={handleResume}
       onDismissResume={dismissResume}
+      history={history}
+      onOpenReview={handleOpenReview}
     />
   }
 
@@ -370,13 +425,13 @@ export default function Quiz() {
     const correct = results.filter((r) => r.result.is_correct).length
     const total = results.length
     const pct = Math.round((correct / total) * 100)
-    const scoreColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
+    const color = scoreColor(pct)
 
     return (
       <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
         <div className="text-center mb-10">
           <p className="text-white/30 text-sm mb-2 uppercase tracking-widest font-medium">Quiz Complete</p>
-          <p className={`text-6xl font-bold mb-3 ${scoreColor}`}>{pct}%</p>
+          <p className={`text-6xl font-bold mb-3 ${color}`}>{pct}%</p>
           <p className="text-slate-400 text-sm">{correct} of {total} correct</p>
         </div>
 
@@ -415,7 +470,94 @@ export default function Quiz() {
     )
   }
 
+  if (phase === PHASES.REVIEW && reviewItem) {
+    return <ReviewView item={reviewItem} onBack={handleReset} />
+  }
+
   return null
+}
+
+// ── Review view ───────────────────────────────────────────────────────────────
+
+function ReviewView({ item, onBack }) {
+  const pct = Math.round((item.score / item.total_questions) * 100)
+  const color = scoreColor(pct)
+
+  return (
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-300 transition-colors mb-6"
+      >
+        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M10 4L6 8l4 4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Back to Quiz
+      </button>
+
+      <div className="text-center mb-8">
+        <p className="text-white/30 text-xs mb-1 uppercase tracking-widest font-medium">{item.note_title}</p>
+        <p className={`text-5xl font-bold mb-2 ${color}`}>{pct}%</p>
+        <p className="text-slate-400 text-sm">{item.score} of {item.total_questions} correct · {formatDate(item.completed_at)}</p>
+      </div>
+
+      <div className="space-y-3">
+        {item.questions.map((q, i) => {
+          const options = parseOptions(q.options)
+          return (
+            <div
+              key={i}
+              className="card p-4"
+              style={{ borderLeft: `3px solid ${q.is_correct ? 'rgba(52,211,153,0.6)' : 'rgba(248,113,113,0.6)'}` }}
+            >
+              <div className="flex items-start gap-3">
+                <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${q.is_correct ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                  {q.is_correct ? '✓' : '✗'}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-slate-300 leading-snug mb-2">{q.content}</p>
+                  {options && (
+                    <div className="space-y-1 mb-2">
+                      {Object.entries(options).map(([key, value]) => {
+                        const isCorrect = key === q.correct_answer
+                        const isUserWrong = key === q.user_answer && !q.is_correct
+                        if (!isCorrect && !isUserWrong) return null
+                        return (
+                          <div
+                            key={key}
+                            className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border ${
+                              isCorrect
+                                ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300'
+                                : 'border-red-500/30 bg-red-500/5 text-red-300'
+                            }`}
+                          >
+                            <span className="font-mono font-bold w-4">{key}.</span>
+                            <span>{value}</span>
+                            <span className="ml-auto text-xs opacity-70">{isCorrect ? 'correct' : 'your answer'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {!options && (
+                    <p className="text-xs text-slate-500 mb-1">
+                      Your answer: <span className={q.is_correct ? 'text-emerald-400' : 'text-red-400'}>{q.user_answer}</span>
+                      {!q.is_correct && (
+                        <> · Correct: <span className="text-emerald-400">{q.correct_answer}</span></>
+                      )}
+                    </p>
+                  )}
+                  {q.explanation && (
+                    <p className="text-xs text-slate-500 mt-1 italic">{q.explanation}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 // ── Question count input ──────────────────────────────────────────────────────
@@ -459,7 +601,7 @@ function QuestionCountInput({ config, setConfig }) {
 
 // ── Configure view ────────────────────────────────────────────────────────────
 
-function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error, mode, setMode, savedProgress, onResume, onDismissResume }) {
+function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error, mode, setMode, savedProgress, onResume, onDismissResume, history, onOpenReview }) {
   const canGenerate = config.note_id && (mode === 'adaptive' || config.question_types.length > 0)
 
   return (
@@ -572,6 +714,35 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
           {mode === 'adaptive' ? 'Generate Adaptive Quiz' : 'Generate Quiz'}
         </button>
       </div>
+
+      {/* Past Quizzes */}
+      {history.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-sm font-medium text-slate-400 mb-3">Past Quizzes</h2>
+          <div className="space-y-2">
+            {history.map((item) => {
+              const pct = Math.round((item.score / item.total_questions) * 100)
+              const color = scoreColor(pct)
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onOpenReview(item)}
+                  className="w-full text-left card p-4 flex items-center gap-4 hover:border-slate-600 transition-colors group"
+                >
+                  <div className={`text-2xl font-bold tabular-nums w-14 flex-shrink-0 ${color}`}>{pct}%</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-200 truncate">{item.note_title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{item.score}/{item.total_questions} correct · {formatDate(item.completed_at)}</p>
+                  </div>
+                  <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

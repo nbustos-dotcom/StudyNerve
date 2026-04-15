@@ -289,6 +289,25 @@ class VisionStep(Base):
     )
 
 
+class QuizResult(Base):
+    __tablename__ = "quiz_results"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    note_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("notes.id", ondelete="SET NULL"), nullable=True
+    )
+    note_title: Mapped[str] = mapped_column(String(255), nullable=False)
+    score: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_questions: Mapped[int] = mapped_column(Integer, nullable=False)
+    questions_json: Mapped[str] = mapped_column(Text, nullable=False)  # JSON array
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+
 class VisionBoardSnapshot(Base):
     __tablename__ = "vision_board_snapshots"
 

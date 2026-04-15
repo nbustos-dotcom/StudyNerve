@@ -165,6 +165,15 @@ export const api = {
   startSession: () => req('POST', '/quiz/session/start'),
   endSession: (id) => req('POST', `/quiz/session/${id}/end`),
 
+  /** @param {{ note_id, note_title, score, total_questions, questions }} data */
+  saveQuizHistory: (data) => req('POST', '/quiz/history', data),
+
+  /** @returns {Promise<Array<{ id, note_id, note_title, score, total_questions, completed_at }>>} */
+  getQuizHistory: () => req('GET', '/quiz/history'),
+
+  /** @param {number} id @returns {Promise<{ id, note_title, score, total_questions, completed_at, questions }>} */
+  getQuizHistoryDetail: (id) => req('GET', `/quiz/history/${id}`),
+
   // ── Stats ───────────────────────────────────────────────────────────────────
   /**
    * @returns {Promise<{ total_notes, total_questions, total_attempts, overall_accuracy, topic_accuracies }>}

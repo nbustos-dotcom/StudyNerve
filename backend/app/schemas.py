@@ -152,6 +152,50 @@ class AdaptiveQuizRequest(BaseModel):
     count: int = 5
 
 
+# ── Quiz history ─────────────────────────────────────────────────────────────
+
+class QuizHistoryQuestion(BaseModel):
+    question_id: int
+    content: str
+    type: str
+    options: Optional[str] = None  # JSON string, same as QuestionResponse
+    user_answer: str
+    correct_answer: str
+    is_correct: bool
+    explanation: Optional[str] = None
+
+
+class QuizHistorySave(BaseModel):
+    note_id: Optional[int] = None
+    note_title: str
+    score: int
+    total_questions: int
+    questions: list[QuizHistoryQuestion]
+
+
+class QuizHistorySummary(BaseModel):
+    id: int
+    note_id: Optional[int]
+    note_title: str
+    score: int
+    total_questions: int
+    completed_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class QuizHistoryDetail(BaseModel):
+    id: int
+    note_id: Optional[int]
+    note_title: str
+    score: int
+    total_questions: int
+    completed_at: datetime
+    questions: list[QuizHistoryQuestion]
+
+    model_config = {"from_attributes": True}
+
+
 # ── Chat ──────────────────────────────────────────────────────────────────────
 
 class ChatSendRequest(BaseModel):

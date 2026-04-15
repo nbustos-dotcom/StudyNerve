@@ -3,12 +3,12 @@ import math
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import Integer, func, select
+from sqlalchemy import Integer, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.llm import evaluate_answer, generate_questions
-from app.models import Attempt, Note, Question, StudySession, Topic, User
+from app.models import Attempt, Note, Question, QuizResult, StudySession, Topic, User
 from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
@@ -22,6 +22,9 @@ from app.schemas import (
     OverviewStats,
     QuestionResponse,
     QuizGenerateRequest,
+    QuizHistoryDetail,
+    QuizHistorySave,
+    QuizHistorySummary,
     SessionResponse,
     TopicAccuracy,
     TopicGapScoreResponse,
@@ -450,3 +453,79 @@ async def generate_adaptive_quiz(
     for q in saved:
         await db.refresh(q)
     return saved
+
+
+# ── Quiz history ──────────────────────────────────────────────────────────────
+
+@router.post("/history", response_model=QuizHistorySummary, status_code=201)
+async def save_quiz_history(
+    body: QuizHistorySave,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    record = QuizResult(
+        user_id=current_user.id,
+        note_id=body.note_id,
+        note_title=body.note_title,
+        score=body.score,
+        total_questions=body.total_questions,
+        questions_json=json.dumps([q.model_dump() for q in body.questions]),
+    )
+    db.add(record)
+    await db.flush()
+    await db.refresh(record)
+    return QuizHistorySummary(
+        id=record.id,
+        note_id=record.note_id,
+        note_title=record.note_title,
+        score=record.score,
+        total_questions=record.total_questions,
+        completed_at=record.completed_at,
+    )
+
+
+@router.get("/history", response_model=list[QuizHistorySummary])
+async def list_quiz_history(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(QuizResult)
+        .where(QuizResult.user_id == current_user.id)
+        .order_by(desc(QuizResult.completed_at))
+        .limit(20)
+    )
+    rows = result.scalars().all()
+    return [
+        QuizHistorySummary(
+            id=r.id,
+            note_id=r.note_id,
+            note_title=r.note_title,
+            score=r.score,
+            total_questions=r.total_questions,
+            completed_at=r.completed_at,
+        )
+        for r in rows
+    ]
+
+
+@router.get("/history/{quiz_id}", response_model=QuizHistoryDetail)
+async def get_quiz_history_detail(
+    quiz_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    record = await db.get(QuizResult, quiz_id)
+    if not record or record.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    questions = json.loads(record.questions_json)
+    return QuizHistoryDetail(
+        id=record.id,
+        note_id=record.note_id,
+        note_title=record.note_title,
+        score=record.score,
+        total_questions=record.total_questions,
+        completed_at=record.completed_at,
+        questions=questions,
+    )

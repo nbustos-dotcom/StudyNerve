@@ -318,14 +318,6 @@ export default function Layout({ user, onLogout }) {
       {/* ── Page content ────────────────────────────────────────────────────── */}
       <main className="pt-16">
         <Outlet />
-        <footer className="flex justify-center gap-5 py-6 mt-4">
-          <NavLink to="/terms" className="text-xs text-white/20 hover:text-white/45 transition-colors">
-            Terms of Service
-          </NavLink>
-          <NavLink to="/privacy" className="text-xs text-white/20 hover:text-white/45 transition-colors">
-            Privacy Policy
-          </NavLink>
-        </footer>
       </main>
     </div>
   )

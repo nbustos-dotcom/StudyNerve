@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import NeuralNetIcon from './NeuralNetIcon'
-import NeuralBackground from './NeuralBackground'
+import Background from './Background'
 
 const NAV = [
   { to: '/',        label: 'Dashboard', end: true },
@@ -43,8 +43,9 @@ export default function Layout({ user, onLogout }) {
   }
 
   return (
-    <div className="relative z-10 min-h-screen">
-      <NeuralBackground />
+    <div className="relative min-h-screen" style={{ zIndex: 1 }}>
+
+      <Background />
 
       {/* ── Top navigation bar ──────────────────────────────────────────────── */}
       <header
@@ -316,7 +317,7 @@ export default function Layout({ user, onLogout }) {
       )}
 
       {/* ── Page content ────────────────────────────────────────────────────── */}
-      <main className="pt-16">
+      <main className="pt-16 relative" style={{ zIndex: 1 }}>
         <Outlet />
       </main>
     </div>

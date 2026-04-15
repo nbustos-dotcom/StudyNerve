@@ -77,11 +77,15 @@ export default function Quiz() {
 
   // History state
   const [history, setHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(true)
   const [reviewItem, setReviewItem] = useState(null)
 
   useEffect(() => {
     api.getNotes().then(setNotes).catch(console.error)
-    api.getQuizHistory().then(setHistory).catch(console.error)
+    api.getQuizHistory()
+      .then(setHistory)
+      .catch(console.error)
+      .finally(() => setHistoryLoading(false))
     try {
       const saved = localStorage.getItem(QUIZ_STORAGE_KEY)
       if (saved) setSavedProgress(JSON.parse(saved))
@@ -269,6 +273,7 @@ export default function Quiz() {
       onResume={handleResume}
       onDismissResume={dismissResume}
       history={history}
+      historyLoading={historyLoading}
       onOpenReview={handleOpenReview}
     />
   }
@@ -309,7 +314,7 @@ export default function Quiz() {
         </div>
 
         {/* Question */}
-        <div className="card p-7 mb-6" style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.3)' }}>
+        <div className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-xl p-7 mb-6" style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.3)' }}>
           <div className="text-base leading-relaxed">
             <MarkdownRenderer>{question.content}</MarkdownRenderer>
           </div>
@@ -601,7 +606,7 @@ function QuestionCountInput({ config, setConfig }) {
 
 // ── Configure view ────────────────────────────────────────────────────────────
 
-function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error, mode, setMode, savedProgress, onResume, onDismissResume, history, onOpenReview }) {
+function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error, mode, setMode, savedProgress, onResume, onDismissResume, history, historyLoading, onOpenReview }) {
   const canGenerate = config.note_id && (mode === 'adaptive' || config.question_types.length > 0)
 
   return (
@@ -716,9 +721,13 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
       </div>
 
       {/* Past Quizzes */}
-      {history.length > 0 && (
-        <div className="mt-10">
-          <h2 className="text-sm font-medium text-slate-400 mb-3">Past Quizzes</h2>
+      <div className="mt-10">
+        <h2 className="text-sm font-medium text-slate-400 mb-3">Past Quizzes</h2>
+        {historyLoading ? (
+          <div className="flex justify-center py-6"><Spinner /></div>
+        ) : history.length === 0 ? (
+          <p className="text-xs text-slate-600 text-center py-4">No completed quizzes yet — finish one above to see it here.</p>
+        ) : (
           <div className="space-y-2">
             {history.map((item) => {
               const pct = Math.round((item.score / item.total_questions) * 100)
@@ -727,13 +736,14 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
                 <button
                   key={item.id}
                   onClick={() => onOpenReview(item)}
-                  className="w-full text-left card p-4 flex items-center gap-4 hover:border-slate-600 transition-colors group"
+                  className="w-full text-left rounded-2xl border border-white/10 bg-black/60 backdrop-blur-xl p-4 flex items-center gap-4 hover:border-white/20 transition-colors group"
                 >
                   <div className={`text-2xl font-bold tabular-nums w-14 flex-shrink-0 ${color}`}>{pct}%</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-200 truncate">{item.note_title}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{item.score}/{item.total_questions} correct · {formatDate(item.completed_at)}</p>
                   </div>
+                  <span className="text-xs text-indigo-400 group-hover:text-indigo-300 transition-colors flex-shrink-0 font-medium">Review</span>
                   <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -741,8 +751,8 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
               )
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

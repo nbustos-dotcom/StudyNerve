@@ -14,7 +14,7 @@ function Spinner({ className = 'w-4 h-4' }) {
 
 // ── My Decks View ─────────────────────────────────────────────────────────────
 
-function DecksView({ onStudyDeck, onStudyAll, onGenerate }) {
+function DecksView({ onStudyDeck, onGenerate }) {
   const [groups, setGroups] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -53,35 +53,8 @@ function DecksView({ onStudyDeck, onStudyAll, onGenerate }) {
     )
   }
 
-  const totalCards = groups.reduce((sum, g) => sum + g.flashcards.length, 0)
-
   return (
-    <div className="space-y-4">
-      {/* Study all */}
-      <div
-        className="card p-4 flex items-center gap-4 cursor-pointer hover:border-indigo-500/30 transition-colors group"
-        onClick={onStudyAll}
-        style={{ borderColor: 'rgba(99,102,241,0.15)' }}
-      >
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(99,102,241,0.12)' }}
-        >
-          <svg className="w-5 h-5 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
-          </svg>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-slate-200">All Decks</p>
-          <p className="text-xs text-slate-500 mt-0.5">{totalCards} cards across {groups.length} note{groups.length !== 1 ? 's' : ''}</p>
-        </div>
-        <svg className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
-
-      <p className="text-xs text-slate-600 uppercase tracking-widest font-medium pt-2">By Note</p>
-
+    <div className="space-y-3">
       {/* Per-note decks */}
       {groups.map((group) => (
         <div
@@ -113,13 +86,12 @@ function DecksView({ onStudyDeck, onStudyAll, onGenerate }) {
 
 // ── Generate View ─────────────────────────────────────────────────────────────
 
-function GenerateView() {
+function GenerateView({ onStudyDeck }) {
   const [notes, setNotes] = useState([])
   const [selectedNote, setSelectedNote] = useState('')
   const [count, setCount] = useState(10)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState(null)
-  const [generated, setGenerated] = useState([])
 
   useEffect(() => {
     api.getNotes().then(setNotes).catch(console.error)
@@ -129,13 +101,12 @@ function GenerateView() {
     if (!selectedNote) return
     setGenerating(true)
     setError(null)
-    setGenerated([])
     try {
       const cards = await api.generateFlashcards({ note_id: Number(selectedNote), count })
-      setGenerated(cards)
+      const noteTitle = notes.find((n) => String(n.id) === selectedNote)?.title ?? 'New Deck'
+      onStudyDeck(cards, noteTitle)
     } catch (e) {
       setError(e.message)
-    } finally {
       setGenerating(false)
     }
   }
@@ -183,20 +154,6 @@ function GenerateView() {
         </div>
         {error && <p className="text-sm text-red-400 mt-3">{error}</p>}
       </div>
-
-      {generated.length > 0 && (
-        <div>
-          <p className="text-xs text-slate-500 mb-3">{generated.length} cards created — switch to My Decks to study them.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {generated.map((card) => (
-              <div key={card.id} className="card p-4 space-y-2">
-                <p className="text-xs font-medium text-indigo-300">{card.front}</p>
-                <p className="text-xs text-slate-400 border-t border-[#1e1e2e] pt-2">{card.back}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -530,7 +487,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
           {/* Front */}
           <div
             style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
-            className="card flex flex-col items-center justify-center p-8 text-center select-none"
+            className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center select-none"
           >
             <p className="text-xs text-slate-600 mb-3 uppercase tracking-widest">Question</p>
             <p className="text-base font-medium text-slate-200 leading-relaxed">{card.front}</p>
@@ -545,9 +502,10 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
-              background: 'rgba(99,102,241,0.07)',
-              border: '1px solid rgba(99,102,241,0.2)',
-              backdropFilter: 'blur(12px)',
+              background: 'rgba(0,0,0,0.6)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
               borderRadius: '1rem',
               display: 'flex',
               flexDirection: 'column',
@@ -614,17 +572,10 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
 
 export default function Flashcards() {
   const [view, setView] = useState('decks') // 'decks' | 'generate' | 'study'
-  // When studying a specific deck, store its cards + title here.
-  // null = study all cards.
-  const [studyDeck, setStudyDeck] = useState(null) // { cards, title } | null
+  const [studyDeck, setStudyDeck] = useState(null) // { cards, title }
 
   function openDeck(cards, title) {
     setStudyDeck({ cards, title })
-    setView('study')
-  }
-
-  function openStudyAll() {
-    setStudyDeck(null)
     setView('study')
   }
 
@@ -640,41 +591,38 @@ export default function Flashcards() {
         <p className="text-sm text-slate-500 mt-1">AI-generated cards for active recall practice</p>
       </div>
 
-      {/* Tab switcher */}
-      <div className="pill-tabs mb-6">
-        {[
-          ['decks',    'My Decks'],
-          ['generate', 'Generate'],
-          ['study',    'Study All'],
-        ].map(([val, label]) => (
-          <button
-            key={val}
-            type="button"
-            onClick={() => {
-              if (val === 'study') { openStudyAll(); return }
-              setView(val)
-            }}
-            className={`pill-tab${view === val ? ' active' : ''}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Tab switcher — only shown when not in study mode */}
+      {view !== 'study' && (
+        <div className="pill-tabs mb-6">
+          {[
+            ['decks',    'My Decks'],
+            ['generate', 'Generate'],
+          ].map(([val, label]) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => setView(val)}
+              className={`pill-tab${view === val ? ' active' : ''}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {view === 'decks' && (
         <DecksView
           onStudyDeck={openDeck}
-          onStudyAll={openStudyAll}
           onGenerate={() => setView('generate')}
         />
       )}
-      {view === 'generate' && <GenerateView />}
-      {view === 'study' && (
+      {view === 'generate' && <GenerateView onStudyDeck={openDeck} />}
+      {view === 'study' && studyDeck && (
         <StudyView
-          key={studyDeck ? `deck-${studyDeck.title}` : 'all'}
-          initialCards={studyDeck?.cards ?? null}
-          deckTitle={studyDeck?.title ?? null}
-          onBack={studyDeck ? backToDecks : null}
+          key={`deck-${studyDeck.title}`}
+          initialCards={studyDeck.cards}
+          deckTitle={studyDeck.title}
+          onBack={backToDecks}
         />
       )}
     </div>

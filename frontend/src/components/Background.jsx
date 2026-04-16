@@ -1,3 +1,4 @@
+// Background v2
 import { useEffect, useRef } from 'react'
 
 // ── Bioluminescent ocean background ───────────────────────────────────────────

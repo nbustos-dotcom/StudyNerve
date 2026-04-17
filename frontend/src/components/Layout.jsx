@@ -320,6 +320,7 @@ export default function Layout({ user, onLogout }) {
       <main className="pt-16 relative" style={{ zIndex: 1 }}>
         <Outlet />
       </main>
+
     </div>
   )
 }

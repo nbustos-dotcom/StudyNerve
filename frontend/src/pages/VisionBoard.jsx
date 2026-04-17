@@ -23,6 +23,11 @@ const VB_STYLES = `
     50%  { box-shadow: 0 0 0 1.5px rgba(16,185,129,.55), 0 4px 18px rgba(16,185,129,.12); }
     100% { box-shadow: 0 0 0 1px rgba(16,185,129,.35), 0 2px 12px rgba(0,0,0,.3); }
   }
+  @keyframes vb-selected-pulse {
+    0%   { box-shadow: 0 0 0 2px rgba(99,102,241,.7),  0 0 16px rgba(99,102,241,.35); }
+    50%  { box-shadow: 0 0 0 2px rgba(139,92,246,.9),  0 0 28px rgba(139,92,246,.5); }
+    100% { box-shadow: 0 0 0 2px rgba(99,102,241,.7),  0 0 16px rgba(99,102,241,.35); }
+  }
   @keyframes vb-burst {
     0%   { opacity: .65; transform: scale(.3); }
     100% { opacity: 0;   transform: scale(3.8); }
@@ -49,6 +54,10 @@ const VB_STYLES = `
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
   }
+  @keyframes vb-toolbar-in {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(5px) scale(0.95); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  }
 `
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -56,7 +65,7 @@ const VB_STYLES = `
 const NODE_W = 180
 const NODE_H = 52
 
-// ── Bezier path ───────────────────────────────────────────────────────────────
+// ── Bezier path: exits right edge of source, enters left edge of target ───────
 
 function bezier(x1, y1, x2, y2) {
   const cx = Math.max(Math.abs(x2 - x1) * 0.5, 50)
@@ -215,7 +224,6 @@ function AiVisionModal({ onSubmit, onClose, busy }) {
 
   function handleKey(e) {
     if (e.key === 'Escape') onClose()
-    // Ctrl/Cmd+Enter submits
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault()
       if (desc.trim() && !busy) onSubmit(desc.trim())
@@ -240,7 +248,6 @@ function AiVisionModal({ onSubmit, onClose, busy }) {
         backdropFilter: 'blur(24px)',
         boxShadow: '0 32px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(99,102,241,.1)',
       }}>
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -257,7 +264,6 @@ function AiVisionModal({ onSubmit, onClose, busy }) {
           }}>×</button>
         </div>
 
-        {/* Text area */}
         <textarea
           autoFocus
           value={desc}
@@ -276,7 +282,6 @@ function AiVisionModal({ onSubmit, onClose, busy }) {
           onBlur={e => e.currentTarget.style.borderColor = 'rgba(99,102,241,.3)'}
         />
 
-        {/* Footer */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,.2)' }}>
             {busy ? 'Mapping your project…' : 'Ctrl+Enter to generate'}
@@ -290,7 +295,8 @@ function AiVisionModal({ onSubmit, onClose, busy }) {
               onClick={() => desc.trim() && !busy && onSubmit(desc.trim())}
               disabled={!desc.trim() || busy}
               style={{
-                padding: '8px 20px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: desc.trim() && !busy ? 'pointer' : 'default',
+                padding: '8px 20px', borderRadius: 9, fontSize: 13, fontWeight: 600,
+                cursor: desc.trim() && !busy ? 'pointer' : 'default',
                 background: desc.trim() && !busy ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(99,102,241,.25)',
                 border: 'none', color: 'white', opacity: desc.trim() && !busy ? 1 : 0.6,
                 transition: 'opacity 150ms',
@@ -420,59 +426,87 @@ function NoteIcon({ filled }) {
   )
 }
 
+// ── Toolbar Icon Buttons ──────────────────────────────────────────────────────
+
+function ToolbarBtn({ onClick, title, danger, children, spinning }) {
+  return (
+    <button
+      onClick={onClick}
+      onMouseDown={e => e.stopPropagation()}
+      title={title}
+      style={{
+        width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer',
+        background: danger ? 'rgba(239,68,68,.12)' : 'rgba(255,255,255,.07)',
+        color: danger ? '#f87171' : 'rgba(255,255,255,.75)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 13, transition: 'background 120ms',
+        flexShrink: 0,
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = danger ? 'rgba(239,68,68,.22)' : 'rgba(255,255,255,.14)'}
+      onMouseLeave={e => e.currentTarget.style.background = danger ? 'rgba(239,68,68,.12)' : 'rgba(255,255,255,.07)'}
+    >
+      {spinning
+        ? <span style={{ display: 'inline-block', width: 10, height: 10, border: '1.5px solid rgba(255,255,255,.2)', borderTopColor: 'rgba(196,181,253,.9)', borderRadius: '50%', animation: 'vb-spin 0.6s linear infinite' }} />
+        : children
+      }
+    </button>
+  )
+}
+
 // ── Board Canvas ──────────────────────────────────────────────────────────────
 
 function BoardCanvas({ boardId, onBack }) {
-  const [board, setBoard]         = useState(null)
-  const [nodes, setNodes]         = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState(null)
+  const [board, setBoard]               = useState(null)
+  const [nodes, setNodes]               = useState([])
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState(null)
 
-  const [pending, setPending]     = useState(null)
-  const confirmingRef             = useRef(false)
+  const [pending, setPending]           = useState(null)
+  const confirmingRef                   = useRef(false)
 
-  const [editingId, setEditingId] = useState(null)
-  const [editValue, setEditValue] = useState('')
-  const [hoveredId, setHoveredId] = useState(null)
-  const [liveConn, setLiveConn]   = useState(null)
+  const [editingId, setEditingId]       = useState(null)
+  const [editValue, setEditValue]       = useState('')
+  const [hoveredId, setHoveredId]       = useState(null)
+  const [selectedId, setSelectedId]     = useState(null)
   const [aiOrganizing, setAiOrganizing] = useState(false)
-  const [ctxMenu, setCtxMenu]     = useState(null)
-  const [tutorNodeId, setTutorNodeId] = useState(null)
+  const [aiExpandingId, setAiExpandingId] = useState(null)
+  const [ctxMenu, setCtxMenu]           = useState(null)
+  const [tutorNodeId, setTutorNodeId]   = useState(null)
+  const [animatingLayout, setAnimatingLayout] = useState(false)
 
   // Physics / drag
-  const [draggingId, setDraggingId] = useState(null)
-  const velocityRef     = useRef({ vx: 0, vy: 0 })
-  const lastDragPosRef  = useRef(null)
-  const physicsRafRef   = useRef(null)
+  const [draggingId, setDraggingId]     = useState(null)
+  const velocityRef                     = useRef({ vx: 0, vy: 0 })
+  const lastDragPosRef                  = useRef(null)
+  const physicsRafRef                   = useRef(null)
+  const hasDraggedRef                   = useRef(false)
 
   // Note panels: { [nodeId]: boolean }
-  const [openNotes, setOpenNotes]   = useState({})
-  // Note drafts: { [nodeId]: string } — local edits before save
-  const [noteDrafts, setNoteDrafts] = useState({})
+  const [openNotes, setOpenNotes]       = useState({})
+  const [noteDrafts, setNoteDrafts]     = useState({})
 
-  // Burst effect on create: nodeId of last-created node
-  const [burstId, setBurstId] = useState(null)
+  // Burst effect on create
+  const [burstId, setBurstId]           = useState(null)
 
   // Connection hover/disconnect
-  const [hoveredConnId, setHoveredConnId] = useState(null)   // "fromId-toId"
-  const [fadingConns, setFadingConns]     = useState(new Set()) // keys fading out
+  const [hoveredConnId, setHoveredConnId] = useState(null)
+  const [fadingConns, setFadingConns]   = useState(new Set())
 
   // AI Vision modal + stagger animation
   const [aiVisionOpen, setAiVisionOpen]   = useState(false)
   const [aiVisionBusy, setAiVisionBusy]   = useState(false)
-  // revealDelays: { [nodeId]: delayMs } — nodes in this map play vb-pop-in
   const [revealDelays, setRevealDelays]   = useState({})
-  // connsVisible: false while nodes are staggering in, then fades in
   const [connsVisible, setConnsVisible]   = useState(true)
 
-  const innerRef    = useRef(null)
-  const nodesRef    = useRef([])
-  const boardIdRef  = useRef(boardId)
-  const dragRef     = useRef(null)
-  const connectRef  = useRef(null)
+  const innerRef     = useRef(null)
+  const nodesRef     = useRef([])
+  const boardIdRef   = useRef(boardId)
+  const dragRef      = useRef(null)
+  const selectedIdRef = useRef(null)
 
-  nodesRef.current   = nodes
-  boardIdRef.current = boardId
+  nodesRef.current    = nodes
+  boardIdRef.current  = boardId
+  selectedIdRef.current = selectedId
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -482,7 +516,6 @@ function BoardCanvas({ boardId, onBack }) {
         setBoard(b)
         const ns = b.nodes || []
         setNodes(ns)
-        // Seed note drafts from existing descriptions
         const drafts = {}
         ns.forEach(n => { if (n.description) drafts[n.id] = n.description })
         setNoteDrafts(drafts)
@@ -501,7 +534,6 @@ function BoardCanvas({ boardId, onBack }) {
   // ── Hit-test ──────────────────────────────────────────────────────────────
 
   function hitNode(cx, cy, excludeId = null) {
-    // Use a generous height (NODE_H * 2) so notes + padding don't break drop targeting
     return nodesRef.current.find(n =>
       n.id !== excludeId &&
       cx >= n.x_position - 8 && cx <= n.x_position + NODE_W + 8 &&
@@ -523,7 +555,6 @@ function BoardCanvas({ boardId, onBack }) {
       cx = Math.max(0, Math.min(3820, cx + cvx))
       cy = Math.max(0, Math.min(2948, cy + cvy))
 
-      // Gentle collision repulsion
       const others = nodesRef.current.filter(n => n.id !== nodeId)
       for (const other of others) {
         const ox = other.x_position + NODE_W / 2
@@ -562,64 +593,68 @@ function BoardCanvas({ boardId, onBack }) {
         const dx = e.clientX - d.startMX
         const dy = e.clientY - d.startMY
 
-        // Track velocity
-        const now = performance.now()
-        if (lastDragPosRef.current) {
-          const dt = Math.max(now - lastDragPosRef.current.t, 1)
-          velocityRef.current = {
-            vx: (e.clientX - lastDragPosRef.current.x) / dt * 16,
-            vy: (e.clientY - lastDragPosRef.current.y) / dt * 16,
-          }
+        // Only start dragging after a 5px threshold
+        if (!hasDraggedRef.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+          hasDraggedRef.current = true
+          setDraggingId(d.nodeId)
         }
-        lastDragPosRef.current = { x: e.clientX, y: e.clientY, t: now }
 
-        setNodes(prev => prev.map(n =>
-          n.id === d.nodeId
-            ? { ...n, x_position: d.startNX + dx, y_position: d.startNY + dy }
-            : n
-        ))
-      }
-      if (connectRef.current && innerRef.current) {
-        const pos = clientToCanvas(e.clientX, e.clientY)
-        setLiveConn(prev => prev ? { ...prev, x2: pos.x, y2: pos.y } : null)
+        if (hasDraggedRef.current) {
+          const now = performance.now()
+          if (lastDragPosRef.current) {
+            const dt = Math.max(now - lastDragPosRef.current.t, 1)
+            velocityRef.current = {
+              vx: (e.clientX - lastDragPosRef.current.x) / dt * 16,
+              vy: (e.clientY - lastDragPosRef.current.y) / dt * 16,
+            }
+          }
+          lastDragPosRef.current = { x: e.clientX, y: e.clientY, t: now }
+
+          setNodes(prev => prev.map(n =>
+            n.id === d.nodeId
+              ? { ...n, x_position: d.startNX + dx, y_position: d.startNY + dy }
+              : n
+          ))
+        }
       }
     }
 
     async function onUp(e) {
-      if (dragRef.current) {
-        const { nodeId } = dragRef.current
-        const { vx, vy } = velocityRef.current
-        dragRef.current = null
-        lastDragPosRef.current = null
-        setDraggingId(null)
+      if (!dragRef.current) return
 
-        const n = nodesRef.current.find(n => n.id === nodeId)
-        if (!n) return
+      const { nodeId } = dragRef.current
+      const wasDrag = hasDraggedRef.current
 
-        if (Math.abs(vx) > 0.5 || Math.abs(vy) > 0.5) {
-          launchPhysics(nodeId, vx, vy, n.x_position, n.y_position)
+      dragRef.current = null
+      lastDragPosRef.current = null
+      hasDraggedRef.current = false
+      setDraggingId(null)
+
+      if (!wasDrag) {
+        // Treat as a click — select or connect
+        const prevSelected = selectedIdRef.current
+        if (prevSelected === null) {
+          setSelectedId(nodeId)
+        } else if (prevSelected === nodeId) {
+          setSelectedId(null)
         } else {
-          api.visionMoveNode(nodeId, Math.round(n.x_position), Math.round(n.y_position)).catch(() => {})
+          try {
+            const updated = await api.visionConnect(boardIdRef.current, prevSelected, nodeId)
+            setNodes(prev => prev.map(n => n.id === nodeId ? updated : n))
+          } catch {}
+          setSelectedId(null)
         }
         return
       }
 
-      if (connectRef.current) {
-        const { fromNodeId } = connectRef.current
-        connectRef.current = null
-        setLiveConn(null)
-        if (!innerRef.current) return
-        const pos = clientToCanvas(e.clientX, e.clientY)
-        const hit = hitNode(pos.x, pos.y, fromNodeId)
-        if (hit) {
-          try {
-            const updated = await api.visionConnect(boardIdRef.current, fromNodeId, hit.id)
-            setNodes(prev => prev.map(n => n.id === hit.id ? updated : n))
-          } catch {}
-        } else {
-          confirmingRef.current = false
-          setPending({ x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2, value: '', fromId: fromNodeId })
-        }
+      // Was a drag — save position with physics
+      const n = nodesRef.current.find(n => n.id === nodeId)
+      if (!n) return
+      const { vx, vy } = velocityRef.current
+      if (Math.abs(vx) > 0.5 || Math.abs(vy) > 0.5) {
+        launchPhysics(nodeId, vx, vy, n.x_position, n.y_position)
+      } else {
+        api.visionMoveNode(nodeId, Math.round(n.x_position), Math.round(n.y_position)).catch(() => {})
       }
     }
 
@@ -648,7 +683,6 @@ function BoardCanvas({ boardId, onBack }) {
         parent_step_id: snap.fromId ?? undefined,
       })
       setNodes(prev => [...prev, node])
-      // Trigger burst animation
       setBurstId(node.id)
       setTimeout(() => setBurstId(null), 450)
     } catch (err) {
@@ -658,7 +692,6 @@ function BoardCanvas({ boardId, onBack }) {
   }
 
   function handleCanvasDblClick(e) {
-    // Block if double-clicking on a node, button, input, or SVG interactive element
     if (
       e.target.closest('[data-node]') ||
       e.target.closest('button') ||
@@ -668,6 +701,14 @@ function BoardCanvas({ boardId, onBack }) {
     const pos = clientToCanvas(e.clientX, e.clientY)
     confirmingRef.current = false
     setPending({ x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2, value: '', fromId: null })
+  }
+
+  function handleCanvasClick(e) {
+    // Deselect when clicking empty canvas
+    if (!e.target.closest('[data-node]') && !e.target.closest('[data-toolbar]')) {
+      setSelectedId(null)
+    }
+    setCtxMenu(null)
   }
 
   // ── Node actions ──────────────────────────────────────────────────────────
@@ -682,6 +723,7 @@ function BoardCanvas({ boardId, onBack }) {
   }
 
   async function deleteNode(nodeId) {
+    setSelectedId(prev => prev === nodeId ? null : prev)
     try {
       await api.visionDeleteNode(nodeId)
       setNodes(prev => prev
@@ -715,7 +757,6 @@ function BoardCanvas({ boardId, onBack }) {
     setHoveredConnId(null)
     try {
       await api.visionDisconnect(boardIdRef.current, fromId, toId)
-      // Give fade animation time to finish before removing from state
       setTimeout(() => {
         setNodes(prev => prev.map(n =>
           n.id === toId ? { ...n, parent_step_id: null } : n
@@ -733,28 +774,16 @@ function BoardCanvas({ boardId, onBack }) {
     setAiVisionBusy(true)
     try {
       const res = await api.visionAiVision(boardIdRef.current, description)
-      // Sort nodes left-to-right for stagger order
       const sorted = [...res.nodes].sort((a, b) => a.x_position - b.x_position)
-
-      // Hide connections while nodes stagger in
       setConnsVisible(false)
-
-      // Build reveal delay map: each node gets index * 150ms delay
       const delays = {}
       sorted.forEach((n, i) => { delays[n.id] = i * 150 })
       setRevealDelays(delays)
-
-      // Add all nodes to state at once — CSS animation-delay handles the visual stagger
       setNodes(prev => [...prev, ...sorted])
-
-      // Close modal immediately so user sees the canvas
       setAiVisionOpen(false)
-
-      // After last node's pop-in finishes, show connections with a fade
       const totalMs = sorted.length * 150 + 550
       setTimeout(() => {
         setConnsVisible(true)
-        // Clear reveal delays after animations complete
         setTimeout(() => setRevealDelays({}), 700)
       }, totalMs)
     } catch (err) {
@@ -789,6 +818,83 @@ function BoardCanvas({ boardId, onBack }) {
     setAiOrganizing(false)
   }
 
+  // ── AI Expand (breakdown) ─────────────────────────────────────────────────
+
+  async function handleAiExpand(nodeId) {
+    if (aiExpandingId) return
+    setAiExpandingId(nodeId)
+    try {
+      const res = await api.visionAiBreakdown(boardIdRef.current, nodeId)
+      setNodes(prev => [...prev, ...res.created_nodes])
+    } catch (err) {
+      console.error('[VisionBoard] ai expand error:', err)
+    }
+    setAiExpandingId(null)
+    setSelectedId(null)
+  }
+
+  // ── Clean Layout ──────────────────────────────────────────────────────────
+
+  function cleanLayout() {
+    if (nodes.length === 0) return
+
+    const nodeMap = {}
+    const childrenMap = {}
+    for (const n of nodes) {
+      nodeMap[n.id] = n
+      childrenMap[n.id] = []
+    }
+    const roots = []
+    for (const n of nodes) {
+      const pid = n.parent_step_id
+      if (pid != null && nodeMap[pid]) {
+        childrenMap[pid].push(n.id)
+      } else {
+        roots.push(n.id)
+      }
+    }
+
+    const GX = 250
+    const GY = 80
+    const SX = 80
+    const SY = 100
+    const newPositions = {}
+    let nextY = SY
+
+    function layout(nodeId, depth) {
+      const kids = childrenMap[nodeId]
+      if (kids.length === 0) {
+        newPositions[nodeId] = { x: SX + depth * GX, y: nextY }
+        nextY += GY
+      } else {
+        const startY = nextY
+        for (const kid of kids) layout(kid, depth + 1)
+        const endY = nextY - GY
+        newPositions[nodeId] = { x: SX + depth * GX, y: (startY + endY) / 2 }
+      }
+    }
+
+    for (const rootId of roots) {
+      layout(rootId, 0)
+      nextY += GY * 0.5
+    }
+
+    setAnimatingLayout(true)
+    setNodes(prev => prev.map(n =>
+      newPositions[n.id]
+        ? { ...n, x_position: newPositions[n.id].x, y_position: newPositions[n.id].y }
+        : n
+    ))
+    setSelectedId(null)
+
+    setTimeout(() => {
+      setAnimatingLayout(false)
+      for (const [idStr, pos] of Object.entries(newPositions)) {
+        api.visionMoveNode(Number(idStr), Math.round(pos.x), Math.round(pos.y)).catch(() => {})
+      }
+    }, 520)
+  }
+
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const total       = nodes.length
@@ -812,13 +918,12 @@ function BoardCanvas({ boardId, onBack }) {
     </div>
   )
 
+  const isConnecting = selectedId !== null
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', position: 'relative' }}>
 
-      {/* ── CSS Animations ── */}
       <style>{VB_STYLES}</style>
-
-      {/* ── Stars (fixed, behind everything) ── */}
       <StarField />
 
       {/* ── Toolbar ── */}
@@ -897,21 +1002,41 @@ function BoardCanvas({ boardId, onBack }) {
           {aiOrganizing ? '…' : '✨ Organize'}
         </button>
 
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,.18)', whiteSpace: 'nowrap', paddingLeft: 4 }}>
-          dbl-click · drag to connect
+        <button
+          onClick={cleanLayout}
+          disabled={nodes.length === 0 || animatingLayout}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+            background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.22)',
+            color: 'rgba(52,211,153,.85)', cursor: nodes.length && !animatingLayout ? 'pointer' : 'default',
+            opacity: nodes.length && !animatingLayout ? 1 : 0.4,
+            whiteSpace: 'nowrap', transition: 'all 150ms',
+          }}
+          onMouseEnter={e => { if (nodes.length && !animatingLayout) e.currentTarget.style.background = 'rgba(16,185,129,.16)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16,185,129,.08)' }}
+        >
+          ⊞ Clean Layout
+        </button>
+
+        <span style={{
+          fontSize: 11, whiteSpace: 'nowrap', paddingLeft: 4,
+          color: isConnecting ? 'rgba(165,180,252,.6)' : 'rgba(255,255,255,.18)',
+        }}>
+          {isConnecting ? 'click a node to connect →' : 'dbl-click to add · click to select'}
         </span>
       </div>
 
       {/* ── Scroll wrapper ── */}
       <div style={{
         flex: 1, overflow: 'auto', minHeight: 0, position: 'relative', zIndex: 1,
-        background: '#050510',
+        background: '#04000e',
         backgroundImage: [
-          'radial-gradient(ellipse 600px 400px at 18% 28%, rgba(99,102,241,0.045) 0%, transparent 70%)',
-          'radial-gradient(ellipse 500px 620px at 82% 72%, rgba(139,92,246,0.035) 0%, transparent 70%)',
-          'radial-gradient(ellipse 420px 360px at 62% 18%, rgba(59,130,246,0.03) 0%, transparent 70%)',
-          'radial-gradient(ellipse 380px 500px at 35% 80%, rgba(168,85,247,0.025) 0%, transparent 70%)',
-          'radial-gradient(circle, rgba(255,255,255,.045) 1px, transparent 1px)',
+          'radial-gradient(ellipse 600px 400px at 18% 28%, rgba(99,102,241,0.04) 0%, transparent 70%)',
+          'radial-gradient(ellipse 500px 620px at 82% 72%, rgba(139,92,246,0.03) 0%, transparent 70%)',
+          'radial-gradient(ellipse 420px 360px at 62% 18%, rgba(59,130,246,0.025) 0%, transparent 70%)',
+          'radial-gradient(ellipse 380px 500px at 35% 80%, rgba(168,85,247,0.02) 0%, transparent 70%)',
+          'radial-gradient(circle, rgba(255,255,255,.03) 1px, transparent 1px)',
         ].join(', '),
         backgroundSize: '100% 100%, 100% 100%, 100% 100%, 100% 100%, 28px 28px',
       }}>
@@ -921,10 +1046,10 @@ function BoardCanvas({ boardId, onBack }) {
           ref={innerRef}
           style={{ position: 'relative', width: 4000, height: 3000 }}
           onDoubleClick={handleCanvasDblClick}
-          onMouseDown={e => { if (e.button === 0) setCtxMenu(null) }}
+          onClick={handleCanvasClick}
         >
 
-          {/* ── SVG: connections + glow + pulse + disconnect ── */}
+          {/* ── SVG: connections ── */}
           <svg style={{
             position: 'absolute', inset: 0, width: 4000, height: 3000,
             overflow: 'visible', pointerEvents: 'none',
@@ -967,18 +1092,16 @@ function BoardCanvas({ boardId, onBack }) {
                   style={{ opacity: isFading ? 0 : 1, transition: 'opacity 300ms ease' }}
                   filter={isHoveredConn ? 'url(#vb-conn-glow-bright)' : 'url(#vb-conn-glow)'}
                 >
-                  {/* Visible path */}
                   <path
                     id={pathId}
                     d={d}
                     fill="none"
                     stroke={isHoveredConn ? '#a5b4fc' : '#6366f1'}
                     strokeWidth={isHoveredConn ? 2.5 : 2}
-                    strokeOpacity={isHoveredConn ? 0.8 : 0.45}
+                    strokeOpacity={isHoveredConn ? 0.65 : 0.30}
                     strokeLinecap="round"
                     style={{ pointerEvents: 'none', transition: 'stroke-opacity 150ms, stroke-width 150ms' }}
                   />
-                  {/* Wide invisible overlay for easy hover detection */}
                   <path
                     d={d}
                     fill="none"
@@ -988,14 +1111,12 @@ function BoardCanvas({ boardId, onBack }) {
                     onMouseEnter={() => setHoveredConnId(connKey)}
                     onMouseLeave={() => setHoveredConnId(null)}
                   />
-                  {/* Energy pulse dot */}
-                  <circle r="3" fill="rgba(165,180,252,.85)" style={{ pointerEvents: 'none' }}>
+                  <circle r="3" fill="rgba(165,180,252,.7)" style={{ pointerEvents: 'none' }}>
                     <animateMotion dur="3s" repeatCount="indefinite" begin={`${(parent.id % 30) * 0.1}s`}>
                       <mpath href={`#${pathId}`} />
                     </animateMotion>
-                    <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.1;0.85;1" dur="3s" repeatCount="indefinite" begin={`${(parent.id % 30) * 0.1}s`} />
+                    <animate attributeName="opacity" values="0;0.7;0.7;0" keyTimes="0;0.1;0.85;1" dur="3s" repeatCount="indefinite" begin={`${(parent.id % 30) * 0.1}s`} />
                   </circle>
-                  {/* Disconnect X — shown on hover at midpoint */}
                   {isHoveredConn && !isFading && (
                     <g
                       transform={`translate(${mx}, ${my})`}
@@ -1016,19 +1137,6 @@ function BoardCanvas({ boardId, onBack }) {
               )
             })}
             </g>
-
-            {liveConn && (
-              <path
-                d={bezier(liveConn.x1, liveConn.y1, liveConn.x2, liveConn.y2)}
-                fill="none"
-                stroke="#6366f1"
-                strokeWidth="2"
-                strokeOpacity="0.65"
-                strokeDasharray="6 4"
-                strokeLinecap="round"
-                style={{ pointerEvents: 'none' }}
-              />
-            )}
           </svg>
 
           {/* ── Nodes ── */}
@@ -1037,22 +1145,21 @@ function BoardCanvas({ boardId, onBack }) {
             const isHovered   = hoveredId === node.id
             const isDragging  = draggingId === node.id
             const isCompleted = node.is_completed
+            const isSelected  = selectedId === node.id
             const isBursting  = burstId === node.id
             const noteOpen    = openNotes[node.id] ?? false
             const noteDraft   = noteDrafts[node.id] ?? node.description ?? ''
             const hasNote     = !!(node.description || noteDraft)
-            const hx = node.x_position + NODE_W
-            const hy = node.y_position + NODE_H / 2
 
-            // Float animation: each node has unique duration + delay offset
             const floatDur   = isCompleted ? `${6 + (idx % 4)}s` : `${4 + (idx % 3)}s`
             const floatDelay = `${-(idx * 0.7)}s`
             const floatAnim  = isCompleted ? 'vb-float-slow' : 'vb-float'
-            const borderAnim = isCompleted ? 'vb-border-glow-done' : 'vb-border-glow'
 
-            // AI Vision stagger: if this node has a reveal delay, use vb-pop-in
             const popDelay = revealDelays[node.id]
             const isPopping = popDelay !== undefined
+
+            // Status-based left border color
+            const borderColor = isCompleted ? '#10b981' : '#6366f1'
 
             return (
               <div
@@ -1063,19 +1170,88 @@ function BoardCanvas({ boardId, onBack }) {
                   left: node.x_position,
                   top: node.y_position,
                   width: NODE_W,
-                  zIndex: isDragging ? 20 : 2,
+                  zIndex: isDragging ? 20 : isSelected ? 10 : 2,
                   userSelect: 'none',
                   willChange: 'transform',
-                  // Pop-in takes precedence; float resumes after
-                  animation: isPopping
-                    ? `vb-pop-in 500ms ${popDelay}ms cubic-bezier(0.34,1.56,0.64,1) both`
-                    : isDragging || isEditing
-                      ? 'none'
-                      : `${floatAnim} ${floatDur} ${floatDelay} ease-in-out infinite`,
+                  animation: animatingLayout
+                    ? 'none'
+                    : isPopping
+                      ? `vb-pop-in 500ms ${popDelay}ms cubic-bezier(0.34,1.56,0.64,1) both`
+                      : isDragging || isEditing
+                        ? 'none'
+                        : `${floatAnim} ${floatDur} ${floatDelay} ease-in-out infinite`,
+                  transition: animatingLayout ? 'left 500ms ease, top 500ms ease' : undefined,
                 }}
                 onMouseEnter={() => setHoveredId(node.id)}
                 onMouseLeave={() => setHoveredId(null)}
               >
+                {/* Floating action toolbar — shown when selected */}
+                {isSelected && (
+                  <div
+                    data-toolbar="true"
+                    style={{
+                      position: 'absolute',
+                      bottom: '100%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      marginBottom: 8,
+                      display: 'flex',
+                      gap: 4,
+                      padding: '5px 7px',
+                      borderRadius: 10,
+                      background: 'rgba(8,8,22,.96)',
+                      border: '1px solid rgba(99,102,241,.35)',
+                      backdropFilter: 'blur(20px)',
+                      boxShadow: '0 8px 28px rgba(0,0,0,.55), 0 0 0 1px rgba(99,102,241,.1)',
+                      zIndex: 30,
+                      animation: 'vb-toolbar-in 160ms cubic-bezier(0.34,1.56,0.64,1)',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {/* Edit */}
+                    <ToolbarBtn
+                      title="Edit title"
+                      onClick={() => { setEditingId(node.id); setEditValue(node.title); setSelectedId(null) }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M8.5 1.5l2 2-6 6H2.5v-2l6-6z"/>
+                      </svg>
+                    </ToolbarBtn>
+                    {/* Delete */}
+                    <ToolbarBtn
+                      title="Delete node"
+                      danger
+                      onClick={() => { deleteNode(node.id); setSelectedId(null) }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 3h8M5 3V2h2v1M4 3v6.5a.5.5 0 00.5.5h3a.5.5 0 00.5-.5V3"/>
+                      </svg>
+                    </ToolbarBtn>
+                    {/* AI Expand */}
+                    <ToolbarBtn
+                      title="AI expand into sub-tasks"
+                      onClick={() => handleAiExpand(node.id)}
+                      spinning={aiExpandingId === node.id}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M6 1v2M6 9v2M1 6h2M9 6h2M2.5 2.5l1.4 1.4M8.1 8.1l1.4 1.4M9.5 2.5L8.1 3.9M3.9 8.1L2.5 9.5"/>
+                        <circle cx="6" cy="6" r="2"/>
+                      </svg>
+                    </ToolbarBtn>
+                    {/* Complete toggle */}
+                    <ToolbarBtn
+                      title={isCompleted ? 'Mark incomplete' : 'Mark complete'}
+                      onClick={() => { toggleNode(node.id); setSelectedId(null) }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke={isCompleted ? '#10b981' : 'currentColor'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 6.5l3 3 5-5.5"/>
+                      </svg>
+                    </ToolbarBtn>
+                  </div>
+                )}
+
                 {/* Light burst on create */}
                 {isBursting && (
                   <div style={{
@@ -1092,21 +1268,30 @@ function BoardCanvas({ boardId, onBack }) {
                 {/* Card */}
                 <div
                   style={{
-                    padding: '10px 14px',
+                    padding: '10px 20px',
                     minHeight: NODE_H,
-                    background: isCompleted ? 'rgba(16,185,129,.07)' : 'rgba(255,255,255,.055)',
-                    borderLeft: isCompleted ? '3px solid rgba(16,185,129,.55)' : undefined,
-                    borderRadius: 12,
+                    minWidth: 150,
+                    background: isCompleted
+                      ? 'rgba(16,185,129,.07)'
+                      : isSelected
+                        ? 'rgba(99,102,241,.12)'
+                        : 'rgba(255,255,255,.055)',
+                    borderLeft: `3px solid ${borderColor}`,
+                    borderRadius: 20,
                     backdropFilter: 'blur(14px)',
-                    animation: `${borderAnim} 8s ease-in-out infinite`,
+                    animation: isSelected
+                      ? 'vb-selected-pulse 2s ease-in-out infinite'
+                      : `${isCompleted ? 'vb-border-glow-done' : 'vb-border-glow'} 8s ease-in-out infinite`,
                     display: 'flex', alignItems: 'flex-start', gap: 8,
-                    cursor: isDragging ? 'grabbing' : isEditing ? 'default' : 'grab',
+                    cursor: isDragging ? 'grabbing' : isEditing ? 'default' : isConnecting && !isSelected ? 'crosshair' : 'grab',
                     boxSizing: 'border-box',
                     willChange: 'box-shadow',
+                    transition: 'background 150ms',
                   }}
                   onMouseDown={e => {
                     if (e.button !== 0 || isEditing) return
                     e.stopPropagation()
+                    hasDraggedRef.current = false
                     velocityRef.current = { vx: 0, vy: 0 }
                     lastDragPosRef.current = null
                     dragRef.current = {
@@ -1114,12 +1299,12 @@ function BoardCanvas({ boardId, onBack }) {
                       startMX: e.clientX, startMY: e.clientY,
                       startNX: node.x_position, startNY: node.y_position,
                     }
-                    setDraggingId(node.id)
                   }}
                   onDoubleClick={e => {
                     e.stopPropagation()
                     setEditingId(node.id)
                     setEditValue(node.title)
+                    setSelectedId(null)
                   }}
                   onContextMenu={e => {
                     e.preventDefault(); e.stopPropagation()
@@ -1173,28 +1358,36 @@ function BoardCanvas({ boardId, onBack }) {
                       {node.title}
                     </p>
                   )}
-                </div>
 
-                {/* Note icon + toggle */}
-                <div
-                  onClick={e => {
-                    e.stopPropagation()
-                    setOpenNotes(prev => ({ ...prev, [node.id]: !prev[node.id] }))
-                    if (!noteDrafts[node.id] && node.description) {
-                      setNoteDrafts(prev => ({ ...prev, [node.id]: node.description }))
-                    }
-                  }}
-                  onMouseDown={e => e.stopPropagation()}
-                  title={hasNote ? 'Show note' : 'Add note'}
-                  style={{
-                    marginTop: 4,
-                    display: 'flex', alignItems: 'center', gap: 4,
-                    cursor: 'pointer', opacity: noteOpen ? 1 : isHovered ? 0.7 : hasNote ? 0.5 : 0.25,
-                    transition: 'opacity 150ms',
-                    userSelect: 'none',
-                  }}
-                >
-                  <NoteIcon filled={hasNote} />
+                  {/* Note icon — inside card, right-aligned */}
+                  <div
+                    onClick={e => {
+                      e.stopPropagation()
+                      setOpenNotes(prev => ({ ...prev, [node.id]: !prev[node.id] }))
+                      if (!noteDrafts[node.id] && node.description) {
+                        setNoteDrafts(prev => ({ ...prev, [node.id]: node.description }))
+                      }
+                    }}
+                    onMouseDown={e => e.stopPropagation()}
+                    title={hasNote ? 'Show note' : 'Add note'}
+                    style={{
+                      flexShrink: 0, marginTop: 1,
+                      padding: '3px 4px', borderRadius: 5,
+                      display: 'flex', alignItems: 'center',
+                      cursor: 'pointer',
+                      opacity: noteOpen ? 1 : isHovered ? 0.75 : hasNote ? 0.55 : 0.22,
+                      background: noteOpen ? 'rgba(99,102,241,.15)' : 'none',
+                      transition: 'opacity 150ms, background 120ms',
+                      userSelect: 'none',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(99,102,241,.12)' }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.opacity = noteOpen ? '1' : hasNote ? '0.55' : '0.22'
+                      e.currentTarget.style.background = noteOpen ? 'rgba(99,102,241,.15)' : 'none'
+                    }}
+                  >
+                    <NoteIcon filled={hasNote} />
+                  </div>
                 </div>
 
                 {/* Note panel */}
@@ -1228,44 +1421,6 @@ function BoardCanvas({ boardId, onBack }) {
                     />
                   </div>
                 )}
-
-                {/* Connection handle — right edge */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    right: -5, top: NODE_H / 2, transform: 'translateY(-50%)',
-                    width: 10, height: 10, borderRadius: '50%',
-                    background: '#6366f1', border: '2px solid rgba(165,180,252,.55)',
-                    cursor: 'crosshair', zIndex: 3,
-                    opacity: isHovered ? 1 : 0,
-                    transition: 'opacity 150ms',
-                    boxShadow: '0 0 8px rgba(99,102,241,.6)',
-                  }}
-                  onMouseDown={e => {
-                    e.stopPropagation(); e.preventDefault()
-                    connectRef.current = { fromNodeId: node.id, x1: hx, y1: hy }
-                    setLiveConn({ x1: hx, y1: hy, x2: hx, y2: hy })
-                  }}
-                />
-
-                {/* Delete button */}
-                {isHovered && (
-                  <button
-                    onClick={e => { e.stopPropagation(); deleteNode(node.id) }}
-                    onMouseDown={e => e.stopPropagation()}
-                    style={{
-                      position: 'absolute', top: -7, right: -7,
-                      width: 18, height: 18, borderRadius: '50%',
-                      background: 'rgba(239,68,68,.8)', border: '1.5px solid rgba(254,202,202,.3)',
-                      color: 'white', fontSize: 11, lineHeight: 1, fontWeight: 600,
-                      cursor: 'pointer', zIndex: 5,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 2px 8px rgba(239,68,68,.35)',
-                    }}
-                  >
-                    ×
-                  </button>
-                )}
               </div>
             )
           })}
@@ -1284,7 +1439,7 @@ function BoardCanvas({ boardId, onBack }) {
                 onBlur={confirmNode}
                 placeholder="Node title…"
                 style={{
-                  width: '100%', padding: '10px 14px', borderRadius: 12, fontSize: 13, fontWeight: 500,
+                  width: '100%', padding: '10px 20px', borderRadius: 20, fontSize: 13, fontWeight: 500,
                   background: 'rgba(10,10,26,.92)', border: '1px solid rgba(99,102,241,.55)',
                   color: 'white', outline: 'none', boxSizing: 'border-box',
                   boxShadow: '0 0 18px rgba(99,102,241,.25)',

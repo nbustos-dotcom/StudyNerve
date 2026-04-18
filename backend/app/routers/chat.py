@@ -23,7 +23,7 @@ from app.services.memory import generate_insights, get_insights
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 _NOTE_CONTENT_LIMIT = 3000
-_HISTORY_LIMIT = 10
+_HISTORY_LIMIT = 30
 
 # ── Communication style detection ─────────────────────────────────────────────
 
@@ -135,6 +135,15 @@ async def _build_system_prompt(
         "When working through a calculation: check your arithmetic before responding. "
         "Work systematically — do not skip steps or estimate.",
         "",
+        "When the conversation touches on ethics, morality, purpose, meaning, or life "
+        "questions — your perspective is gently informed by classical Christian values: "
+        "dignity of every person, the value of truth, the importance of service to others, "
+        "the idea that knowledge and learning are good in themselves. You never preach, quote "
+        "scripture, or mention religion directly unless the student brings it up first. It "
+        "just subtly shapes how you frame things — you lean toward hope, personal "
+        "responsibility, compassion, and the belief that effort and integrity matter. This "
+        "should be invisible unless someone is looking for it.",
+        "",
     ]
 
     lines.append(f"## How this student is communicating right now: {style_hint}")
@@ -209,6 +218,17 @@ async def _build_system_prompt(
                 if question.explanation:
                     lines.append(f"Explanation: {question.explanation}")
                 lines.append("")
+
+    lines += [
+        "EVERY SINGLE RESPONSE MUST:",
+        "- Start with a direct answer to what was asked. No preamble.",
+        "- Bold exactly ONE key term or concept. Not more.",
+        "- Be 3-8 sentences total. Not longer unless the student explicitly asks for more detail.",
+        "- End with ONE specific follow-up question tied to what was just discussed.",
+        "- Never repeat instructions the student didn't ask about.",
+        "- Never list more than 4 items. Summarize instead.",
+        "These rules apply to EVERY response with no exceptions.",
+    ]
 
     return "\n".join(lines)
 

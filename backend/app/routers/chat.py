@@ -197,27 +197,40 @@ async def _build_system_prompt(
         lines.append("")
 
     if note_id is not None:
+        print(f"[query] note fetch: note_id={note_id} user_id={user_id}", flush=True)
         note = await db.get(Note, note_id)
         if note and note.user_id == user_id:
+            print(f"[query] note fetch: OK — note.user_id={note.user_id} matches", flush=True)
             lines.append(f"## Their study material — {note.title}:")
             content = note.content
             if len(content) > _NOTE_CONTENT_LIMIT:
                 content = content[:_NOTE_CONTENT_LIMIT] + "\n[…content truncated…]"
             lines.append(content)
             lines.append("")
+        else:
+            print(
+                f"[query] note fetch: BLOCKED — note.user_id={getattr(note, 'user_id', None)} != {user_id}",
+                flush=True,
+            )
 
     if question_id is not None:
+        print(f"[query] question fetch: question_id={question_id} user_id={user_id}", flush=True)
         question = await db.get(Question, question_id)
         if question:
-            # Verify ownership via the question's note before including content
             _q_note = await db.get(Note, question.note_id)
             if _q_note and _q_note.user_id == user_id:
+                print(f"[query] question fetch: OK — note.user_id={_q_note.user_id} matches", flush=True)
                 lines.append("## Quiz question they got wrong — help them understand why, don't just give the answer:")
                 lines.append(f"Question: {question.content}")
                 lines.append(f"Correct answer: {question.correct_answer}")
                 if question.explanation:
                     lines.append(f"Explanation: {question.explanation}")
                 lines.append("")
+            else:
+                print(
+                    f"[query] question fetch: BLOCKED — note.user_id={getattr(_q_note, 'user_id', None)} != {user_id}",
+                    flush=True,
+                )
 
     lines += [
         "EVERY SINGLE RESPONSE MUST:",
@@ -244,6 +257,10 @@ async def send_message(
 ):
     session_id = body.session_id or str(uuid.uuid4())
 
+    print(
+        f"[query] chat history: session_id={session_id} user_id={current_user.id} limit={_HISTORY_LIMIT}",
+        flush=True,
+    )
     history_result = await db.execute(
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
@@ -252,6 +269,7 @@ async def send_message(
         .limit(_HISTORY_LIMIT)
     )
     history_rows = list(reversed(history_result.scalars().all()))
+    print(f"[query] chat history: loaded {len(history_rows)} messages", flush=True)
     history = [{"role": m.role, "content": m.content} for m in history_rows]
 
     recent_user_msgs = [m.content for m in history_rows if m.role == "user"][-5:]
@@ -330,6 +348,7 @@ async def list_sessions(
         .subquery()
     )
 
+    print(f"[query] list_sessions: user_id={current_user.id}", flush=True)
     result = await db.execute(
         select(
             ChatMessage.session_id,
@@ -338,6 +357,7 @@ async def list_sessions(
             agg_subq.c.cnt,
             agg_subq.c.last_activity,
         )
+        .where(ChatMessage.user_id == current_user.id)
         .join(first_msg_subq, ChatMessage.id == first_msg_subq.c.first_id)
         .join(agg_subq, ChatMessage.session_id == agg_subq.c.session_id)
         .order_by(agg_subq.c.last_activity.desc())

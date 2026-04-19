@@ -377,6 +377,31 @@ async def list_sessions(
     ]
 
 
+@router.delete("/sessions/{session_id}")
+async def delete_chat_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    exists = await db.scalar(
+        select(func.count(ChatMessage.id)).where(
+            ChatMessage.session_id == session_id,
+            ChatMessage.user_id == current_user.id,
+        )
+    )
+    if not exists:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    await db.execute(
+        ChatMessage.__table__.delete().where(
+            ChatMessage.session_id == session_id,
+            ChatMessage.user_id == current_user.id,
+        )
+    )
+    await db.commit()
+    return {"session_id": session_id, "deleted": True}
+
+
 @router.post("/sessions/{session_id}/end")
 async def end_chat_session(
     session_id: str,

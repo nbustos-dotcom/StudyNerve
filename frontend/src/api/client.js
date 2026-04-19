@@ -219,6 +219,7 @@ export const api = {
    * @param {string} sessionId
    */
   endChatSession: (sessionId) => req('POST', `/chat/sessions/${sessionId}/end`),
+  deleteChatSession: (sessionId) => req('DELETE', `/chat/sessions/${sessionId}`),
 
   // ── Canvas ──────────────────────────────────────────────────────────────────
   /** @returns {Promise<{ connected: boolean, courses_visible?: number, reason?: string }>} */

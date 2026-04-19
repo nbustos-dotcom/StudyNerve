@@ -128,9 +128,38 @@ function SendIcon({ disabled }) {
   )
 }
 
+// ── Trash icon ────────────────────────────────────────────────────────────────
+
+function TrashIcon() {
+  return (
+    <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 4h12M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-9" />
+    </svg>
+  )
+}
+
 // ── Chat history sidebar ──────────────────────────────────────────────────────
 
-function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat }) {
+function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, onDeleteSession }) {
+  const [confirmId, setConfirmId] = useState(null)
+  const [hoveredId, setHoveredId] = useState(null)
+
+  function handleDeleteClick(e, sessionId) {
+    e.stopPropagation()
+    setConfirmId(sessionId)
+  }
+
+  function handleConfirm(e) {
+    e.stopPropagation()
+    onDeleteSession(confirmId)
+    setConfirmId(null)
+  }
+
+  function handleCancel(e) {
+    e.stopPropagation()
+    setConfirmId(null)
+  }
+
   return (
     <aside
       className="flex-shrink-0 flex flex-col border-r border-white/[0.06]"
@@ -165,45 +194,89 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat }) 
         ) : (
           sessions.map((session) => {
             const isActive = session.session_id === activeSessionId
+            const isConfirming = confirmId === session.session_id
+            const isHovered = hoveredId === session.session_id
+
             return (
-              <button
+              <div
                 key={session.session_id}
-                onClick={() => onSelectSession(session.session_id)}
-                className="w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150"
-                style={
-                  isActive
-                    ? {
-                        background: 'rgba(99,102,241,0.12)',
-                        borderLeft: '2px solid rgba(99,102,241,0.7)',
-                        borderTop: '1px solid rgba(99,102,241,0.2)',
-                        borderRight: '1px solid rgba(99,102,241,0.2)',
-                        borderBottom: '1px solid rgba(99,102,241,0.2)',
-                      }
-                    : {
-                        background: 'transparent',
-                        border: '1px solid transparent',
-                      }
-                }
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.background = 'transparent'
-                }}
+                className="relative group"
+                onMouseEnter={() => setHoveredId(session.session_id)}
+                onMouseLeave={() => setHoveredId(null)}
               >
-                <p className={`text-xs leading-snug truncate ${isActive ? 'text-slate-200' : 'text-slate-400'}`}>
-                  {session.preview}
-                </p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className="text-[10px] text-slate-600">
-                    {formatRelativeTime(session.last_activity)}
-                  </span>
-                  <span className="text-[10px] text-slate-700">·</span>
-                  <span className="text-[10px] text-slate-600">
-                    {session.message_count} {session.message_count === 1 ? 'msg' : 'msgs'}
-                  </span>
-                </div>
-              </button>
+                {isConfirming ? (
+                  /* ── Inline confirmation ── */
+                  <div
+                    className="px-3 py-2.5 rounded-xl"
+                    style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
+                  >
+                    <p className="text-[11px] text-red-300/90 leading-snug mb-2">
+                      Delete this conversation?
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleConfirm}
+                        className="text-[11px] font-medium text-red-300 hover:text-red-200 transition-colors px-2 py-0.5 rounded-md"
+                        style={{ background: 'rgba(239,68,68,0.15)' }}
+                      >
+                        Yes, delete
+                      </button>
+                      <button
+                        onClick={handleCancel}
+                        className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* ── Normal session row ── */
+                  <button
+                    onClick={() => onSelectSession(session.session_id)}
+                    className="w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150"
+                    style={
+                      isActive
+                        ? {
+                            background: 'rgba(99,102,241,0.12)',
+                            borderLeft: '2px solid rgba(99,102,241,0.7)',
+                            borderTop: '1px solid rgba(99,102,241,0.2)',
+                            borderRight: '1px solid rgba(99,102,241,0.2)',
+                            borderBottom: '1px solid rgba(99,102,241,0.2)',
+                          }
+                        : {
+                            background: isHovered ? 'rgba(255,255,255,0.04)' : 'transparent',
+                            border: '1px solid transparent',
+                          }
+                    }
+                  >
+                    <p className={`text-xs leading-snug truncate pr-5 ${isActive ? 'text-slate-200' : 'text-slate-400'}`}>
+                      {session.preview}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[10px] text-slate-600">
+                        {formatRelativeTime(session.last_activity)}
+                      </span>
+                      <span className="text-[10px] text-slate-700">·</span>
+                      <span className="text-[10px] text-slate-600">
+                        {session.message_count} {session.message_count === 1 ? 'msg' : 'msgs'}
+                      </span>
+                    </div>
+                  </button>
+                )}
+
+                {/* Trash button — visible on hover, hidden when confirming */}
+                {!isConfirming && isHovered && (
+                  <button
+                    onClick={(e) => handleDeleteClick(e, session.session_id)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md
+                               text-slate-600 hover:text-red-400 transition-colors"
+                    style={{ background: 'rgba(0,0,0,0.3)' }}
+                    aria-label="Delete conversation"
+                  >
+                    <TrashIcon />
+                  </button>
+                )}
+              </div>
             )
           })
         )}
@@ -258,6 +331,20 @@ export default function Chat() {
       sessionIdRef.current = sid
       setSessionId(sid)
     } catch {}
+  }
+
+  async function deleteSession(sid) {
+    try {
+      await api.deleteChatSession(sid)
+    } catch {
+      // best-effort — remove from UI regardless
+    }
+    setSessions((prev) => prev.filter((s) => s.session_id !== sid))
+    if (sessionIdRef.current === sid) {
+      sessionIdRef.current = null
+      setSessionId(null)
+      setMessages([])
+    }
   }
 
   // Start a fresh session
@@ -362,6 +449,7 @@ export default function Chat() {
             activeSessionId={sessionId}
             onSelectSession={loadSession}
             onNewChat={startNewChat}
+            onDeleteSession={deleteSession}
           />
         </div>
 
@@ -379,6 +467,7 @@ export default function Chat() {
                 activeSessionId={sessionId}
                 onSelectSession={(sid) => { loadSession(sid); setShowSidebar(false) }}
                 onNewChat={() => { startNewChat(); setShowSidebar(false) }}
+                onDeleteSession={deleteSession}
               />
             </div>
           </>

@@ -2,8 +2,6 @@ import math
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,7 +25,7 @@ class TopicGapScore:
 
 async def calculate_gap_scores(
     db: AsyncSession,
-    user_id: Optional[int] = None,
+    user_id: int,
 ) -> list[TopicGapScore]:
     """
     For each topic with attempt history, compute:
@@ -37,7 +35,7 @@ async def calculate_gap_scores(
       - gap_score        = (1 - accuracy) * recency_weight * frequency_factor
 
     Returns topics sorted by gap_score descending (weakest first).
-    When user_id is provided, only considers attempts for that user's notes.
+    Only considers attempts for the given user.
     """
     print(f"[query] calculate_gap_scores: user_id={user_id}", flush=True)
     query = (
@@ -51,14 +49,10 @@ async def calculate_gap_scores(
         .select_from(Attempt)
         .join(Question, Attempt.question_id == Question.id)
         .join(Topic, Question.topic_id == Topic.id)
+        .join(Note, Topic.note_id == Note.id)
+        .where(Attempt.user_id == user_id)
+        .where(Note.user_id == user_id)
     )
-
-    if user_id is not None:
-        query = (
-            query
-            .join(Note, Topic.note_id == Note.id)
-            .where(Note.user_id == user_id)
-        )
 
     query = query.order_by(Attempt.created_at)
     result = await db.execute(query)

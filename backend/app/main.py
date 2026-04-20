@@ -1,3 +1,4 @@
+import logging
 import os
 import traceback
 from contextlib import asynccontextmanager
@@ -17,6 +18,8 @@ from app.models import User
 from app.routers import canvas, chat, flashcards, notes, profile, quiz, topics, vision
 from app.routers.auth import get_current_user, router as auth_router
 from app.routers.settings import router as settings_router
+
+_isolation_logger = logging.getLogger("user_isolation")
 
 
 @asynccontextmanager
@@ -54,6 +57,32 @@ app.include_router(profile.router, prefix="/api")
 app.include_router(canvas.router, prefix="/api")
 app.include_router(vision.router, prefix="/api")
 app.include_router(flashcards.router, prefix="/api")
+
+
+def assert_user_owns(obj, authenticated_user_id: int, label: str = "") -> None:
+    """
+    Runtime isolation check. Call this after any db.get() or query result to
+    verify the returned object belongs to the authenticated user. Logs a CRITICAL
+    warning (and raises 403) if a mismatch is detected — this indicates a data
+    isolation bug before data reaches the response.
+
+    Usage:
+        note = await db.get(Note, note_id)
+        assert_user_owns(note, current_user.id, "Note")
+    """
+    if obj is None:
+        return
+    obj_uid = getattr(obj, "user_id", None)
+    if obj_uid is not None and obj_uid != authenticated_user_id:
+        msg = (
+            f"USER ISOLATION VIOLATION — {label or type(obj).__name__} "
+            f"id={getattr(obj, 'id', '?')} has user_id={obj_uid} "
+            f"but authenticated user is {authenticated_user_id}"
+        )
+        _isolation_logger.critical(msg)
+        print(f"[SECURITY] {msg}", flush=True)
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Access denied")
 
 
 @app.get("/api/health")

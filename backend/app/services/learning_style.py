@@ -10,7 +10,6 @@ Signal sources:
 import re
 from dataclasses import dataclass
 from datetime import timezone
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,12 +54,12 @@ class LearningProfile:
 
 async def detect_learning_style(
     db: AsyncSession,
-    user_id: Optional[int] = None,
+    user_id: int,
 ) -> LearningProfile:
     """
     Analyse quiz attempts and chat history to infer how this student learns best.
     Falls back gracefully when little data exists.
-    When user_id is provided, only considers data for that user.
+    Only considers data for the given user.
     """
     # ── Load attempts ─────────────────────────────────────────────────────────
     print(f"[query] detect_learning_style: user_id={user_id}", flush=True)
@@ -71,17 +70,13 @@ async def detect_learning_style(
             Attempt.created_at,
         )
         .select_from(Attempt)
+        .join(Question, Attempt.question_id == Question.id)
+        .join(Topic, Question.topic_id == Topic.id)
+        .join(Note, Topic.note_id == Note.id)
+        .where(Attempt.user_id == user_id)
+        .where(Note.user_id == user_id)
         .order_by(Attempt.created_at)
     )
-
-    if user_id is not None:
-        attempt_query = (
-            attempt_query
-            .join(Question, Attempt.question_id == Question.id)
-            .join(Topic, Question.topic_id == Topic.id)
-            .join(Note, Topic.note_id == Note.id)
-            .where(Note.user_id == user_id)
-        )
 
     attempt_rows = (await db.execute(attempt_query)).all()
     print(f"[query] detect_learning_style: attempt_rows={len(attempt_rows)} for user_id={user_id}", flush=True)
@@ -90,11 +85,9 @@ async def detect_learning_style(
     chat_query = (
         select(ChatMessage.content, ChatMessage.created_at)
         .where(ChatMessage.role == "user")
+        .where(ChatMessage.user_id == user_id)
         .order_by(ChatMessage.created_at)
     )
-
-    if user_id is not None:
-        chat_query = chat_query.where(ChatMessage.user_id == user_id)
     print(f"[query] detect_learning_style: chat WHERE user_id={user_id}", flush=True)
 
     chat_rows = (await db.execute(chat_query)).all()

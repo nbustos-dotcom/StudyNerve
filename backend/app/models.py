@@ -110,6 +110,9 @@ class Attempt(Base):
     question_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("questions.id", ondelete="CASCADE"), nullable=False
     )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     user_answer: Mapped[str] = mapped_column(Text, nullable=False)
     is_correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
     time_taken_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

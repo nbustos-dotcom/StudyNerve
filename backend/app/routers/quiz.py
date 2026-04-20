@@ -156,6 +156,7 @@ async def submit_answer(
 
     attempt = Attempt(
         question_id=question.id,
+        user_id=current_user.id,
         user_answer=body.user_answer,
         is_correct=is_correct,
         time_taken_seconds=body.time_taken_seconds,
@@ -198,12 +199,11 @@ async def end_session(
 
     session.ended_at = datetime.now(timezone.utc)
 
-    # Tally correct/total attempts for this user during the session window,
-    # joining through Question → Note to scope by user
     attempts_result = await db.execute(
         select(func.count(Attempt.id), func.sum(func.cast(Attempt.is_correct, Integer)))
         .join(Question, Attempt.question_id == Question.id)
         .join(Note, Question.note_id == Note.id)
+        .where(Attempt.user_id == current_user.id)
         .where(Note.user_id == current_user.id)
         .where(Attempt.created_at >= session.started_at)
         .where(Attempt.created_at <= session.ended_at)
@@ -244,6 +244,7 @@ async def overview_stats(
             select(func.count(Attempt.id))
             .join(Question, Attempt.question_id == Question.id)
             .join(Note, Question.note_id == Note.id)
+            .where(Attempt.user_id == current_user.id)
             .where(Note.user_id == current_user.id)
         )
         or 0
@@ -253,6 +254,7 @@ async def overview_stats(
             select(func.count(Attempt.id))
             .join(Question, Attempt.question_id == Question.id)
             .join(Note, Question.note_id == Note.id)
+            .where(Attempt.user_id == current_user.id)
             .where(Note.user_id == current_user.id)
             .where(Attempt.is_correct.is_(True))
         )
@@ -292,6 +294,7 @@ async def _topic_accuracies(db: AsyncSession, user_id: int) -> list[TopicAccurac
         .join(Question, Attempt.question_id == Question.id)
         .join(Topic, Question.topic_id == Topic.id)
         .join(Note, Question.note_id == Note.id)
+        .where(Attempt.user_id == user_id)
         .where(Note.user_id == user_id)
         .group_by(Topic.id, Topic.name)
         .order_by(Topic.name)

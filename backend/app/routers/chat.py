@@ -2,7 +2,9 @@ import io
 import re
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from typing import Optional
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -323,15 +325,27 @@ async def _build_system_prompt(
 
 @router.post("/send", response_model=ChatSendResponse)
 async def send_message(
+    request: Request,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    message: str = Form(...),
-    session_id: str | None = Form(None),
-    note_id: int | None = Form(None),
-    question_id: int | None = Form(None),
-    file: UploadFile | None = File(None),
+    message: str = Form(default=""),
+    session_id: Optional[str] = Form(default=None),
+    note_id: Optional[int] = Form(default=None),
+    question_id: Optional[int] = Form(default=None),
+    file: Optional[UploadFile] = File(default=None),
 ):
+    print(
+        f"[send_message] content-type={request.headers.get('content-type', 'MISSING')} "
+        f"message={message!r} session_id={session_id!r} "
+        f"note_id={note_id!r} question_id={question_id!r} "
+        f"file={(file.filename if file else None)!r}",
+        flush=True,
+    )
+
+    if not message and not (file and file.filename):
+        raise HTTPException(status_code=422, detail="message or file is required")
+
     sid = session_id or str(uuid.uuid4())
 
     file_text: str = ""

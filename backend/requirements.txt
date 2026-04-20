@@ -11,4 +11,6 @@ python-jose[cryptography]
 bcrypt
 google-generativeai
 PyPDF2
+Pillow
+pytesseract
 slowapi

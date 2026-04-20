@@ -45,6 +45,16 @@ function TypingIndicator() {
   )
 }
 
+// ── Paperclip icon ────────────────────────────────────────────────────────────
+
+function PaperclipIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13.5 7.5l-6 6a4 4 0 0 1-5.66-5.66l6.5-6.5a2.5 2.5 0 0 1 3.54 3.54l-6.5 6.5a1 1 0 0 1-1.42-1.42l6-6" />
+    </svg>
+  )
+}
+
 // ── Message bubble ────────────────────────────────────────────────────────────
 
 function MessageBubble({ message }) {
@@ -67,7 +77,6 @@ function MessageBubble({ message }) {
               className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white/70 flex-shrink-0"
               style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)' }}
             >
-              {/* Initial is set from context — use generic "U" as fallback */}
               U
             </div>
             <span className="text-[11px] font-medium text-white/35">You</span>
@@ -82,7 +91,20 @@ function MessageBubble({ message }) {
       {message.error ? (
         <p className="text-sm text-red-400">{message.content}</p>
       ) : isUser ? (
-        <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        <>
+          {message.fileName && (
+            <div className="mb-2">
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-indigo-300/80"
+                style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }}
+              >
+                <PaperclipIcon />
+                {message.fileName}
+              </span>
+            </div>
+          )}
+          <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        </>
       ) : (
         <div className={animate ? 'ai-message-animate' : ''}>
           <MarkdownRenderer>{message.content}</MarkdownRenderer>
@@ -298,9 +320,11 @@ export default function Chat() {
   const [isTyping, setIsTyping] = useState(false)
   const [sessions, setSessions] = useState([])
   const [showSidebar, setShowSidebar] = useState(false)
+  const [attachedFile, setAttachedFile] = useState(null) // { file, name, previewUrl, isImage }
 
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
+  const fileInputRef = useRef(null)
   const sessionIdRef = useRef(null)
   const didAutoSend = useRef(false)
 
@@ -327,7 +351,7 @@ export default function Chat() {
     }
     try {
       const history = await api.chatHistory(sid)
-      setMessages(history.map((m) => ({ role: m.role, content: m.content })))
+      setMessages(history.map((m) => ({ role: m.role, content: m.content, fileName: m.file_name ?? null })))
       sessionIdRef.current = sid
       setSessionId(sid)
     } catch {}
@@ -366,7 +390,7 @@ export default function Chat() {
       if (!(questionId && autoQuestion) && data.length > 0) {
         const sid = data[0].session_id
         const history = await api.chatHistory(sid).catch(() => [])
-        setMessages(history.map((m) => ({ role: m.role, content: m.content })))
+        setMessages(history.map((m) => ({ role: m.role, content: m.content, fileName: m.file_name ?? null })))
         sessionIdRef.current = sid
         setSessionId(sid)
       }
@@ -394,23 +418,29 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function doSend(text) {
-    if (!text.trim() || isTyping) return
+  async function doSend(text, fileOverride) {
+    const sendFile = fileOverride ?? attachedFile
+    if ((!text || !text.trim()) && !sendFile) return
+    if (isTyping) return
 
-    setMessages((prev) => [...prev, { role: 'user', content: text }])
+    const fileName = sendFile?.name ?? null
+    setMessages((prev) => [...prev, { role: 'user', content: text || '', fileName }])
     setInput('')
+    setAttachedFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
     setIsTyping(true)
 
     try {
       const res = await api.chatSend({
-        message: text,
+        message: text || '',
         session_id: sessionIdRef.current ?? undefined,
         question_id: questionId ?? undefined,
+        file: sendFile?.file ?? undefined,
       })
       sessionIdRef.current = res.session_id
       setSessionId(res.session_id)
       setMessages((prev) => [...prev, { role: 'assistant', content: res.response }])
-      fetchSessions() // refresh sidebar counts/previews
+      fetchSessions()
     } catch (e) {
       setMessages((prev) => [
         ...prev,
@@ -422,6 +452,20 @@ export default function Chat() {
     }
   }
 
+  function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const isImage = file.type.startsWith('image/')
+    const previewUrl = isImage ? URL.createObjectURL(file) : null
+    setAttachedFile({ file, name: file.name, previewUrl, isImage })
+  }
+
+  function removeAttachedFile() {
+    if (attachedFile?.previewUrl) URL.revokeObjectURL(attachedFile.previewUrl)
+    setAttachedFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -429,6 +473,7 @@ export default function Chat() {
     }
   }
 
+  const canSend = (input.trim().length > 0 || attachedFile != null) && !isTyping
   const showWelcome = messages.length === 0 && !isTyping
 
   return (
@@ -513,48 +558,102 @@ export default function Chat() {
             className="flex-shrink-0 border-t border-white/[0.06] px-4 py-4"
             style={{ background: 'rgba(10,10,26,0.6)', backdropFilter: 'blur(24px)' }}
           >
-            <div className="max-w-2xl mx-auto flex items-end gap-3">
-              <div className="flex-1 relative">
-                <textarea
-                  ref={inputRef}
-                  rows={1}
-                  className="w-full resize-none rounded-2xl px-4 py-3 text-sm text-white/85
-                             placeholder-white/25 border border-white/[0.08]
-                             focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20
-                             transition-all duration-200 leading-relaxed"
-                  style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    backdropFilter: 'blur(12px)',
-                    maxHeight: '140px',
-                    overflowY: 'auto',
-                    scrollbarWidth: 'none',
-                  }}
-                  placeholder="Ask StudyNerve AI anything…"
-                  value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value)
-                    e.target.style.height = 'auto'
-                    e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'
-                  }}
-                  onKeyDown={handleKeyDown}
-                  disabled={isTyping}
-                />
-              </div>
+            <div className="max-w-2xl mx-auto">
 
-              <button
-                onClick={() => doSend(input)}
-                disabled={!input.trim() || isTyping}
-                className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
-                           text-white transition-all duration-200
-                           disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{
-                  background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                  boxShadow: '0 4px 20px rgba(99,102,241,0.3)',
-                }}
-                aria-label="Send message"
-              >
-                <SendIcon disabled={!input.trim() || isTyping} />
-              </button>
+              {/* File preview chip */}
+              {attachedFile && (
+                <div className="mb-2 flex items-center gap-2">
+                  {attachedFile.isImage && attachedFile.previewUrl ? (
+                    <img
+                      src={attachedFile.previewUrl}
+                      alt="preview"
+                      className="h-10 w-10 object-cover rounded-lg flex-shrink-0"
+                      style={{ border: '1px solid rgba(99,102,241,0.3)' }}
+                    />
+                  ) : null}
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-indigo-300/80 truncate max-w-[280px]"
+                    style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }}
+                  >
+                    <PaperclipIcon />
+                    {attachedFile.name}
+                  </span>
+                  <button
+                    onClick={removeAttachedFile}
+                    className="text-white/30 hover:text-white/70 transition-colors text-base leading-none ml-auto"
+                    aria-label="Remove file"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-end gap-3">
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.txt,.png,.jpg,.jpeg,.webp"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+
+                {/* Paperclip button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isTyping}
+                  title="Attach a file (PDF, TXT, or image)"
+                  className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
+                             text-white/40 hover:text-indigo-300 transition-all duration-200
+                             disabled:opacity-30 disabled:cursor-not-allowed"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  aria-label="Attach file"
+                >
+                  <PaperclipIcon />
+                </button>
+
+                <div className="flex-1 relative">
+                  <textarea
+                    ref={inputRef}
+                    rows={1}
+                    className="w-full resize-none rounded-2xl px-4 py-3 text-sm text-white/85
+                               placeholder-white/25 border border-white/[0.08]
+                               focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20
+                               transition-all duration-200 leading-relaxed"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      backdropFilter: 'blur(12px)',
+                      maxHeight: '140px',
+                      overflowY: 'auto',
+                      scrollbarWidth: 'none',
+                    }}
+                    placeholder={attachedFile ? 'Add a message about the file…' : 'Ask StudyNerve AI anything…'}
+                    value={input}
+                    onChange={(e) => {
+                      setInput(e.target.value)
+                      e.target.style.height = 'auto'
+                      e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'
+                    }}
+                    onKeyDown={handleKeyDown}
+                    disabled={isTyping}
+                  />
+                </div>
+
+                <button
+                  onClick={() => doSend(input)}
+                  disabled={!canSend}
+                  className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
+                             text-white transition-all duration-200
+                             disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                    boxShadow: '0 4px 20px rgba(99,102,241,0.3)',
+                  }}
+                  aria-label="Send message"
+                >
+                  <SendIcon disabled={!canSend} />
+                </button>
+              </div>
             </div>
 
             <p className="max-w-2xl mx-auto text-[10px] text-white/15 mt-2 px-1">

@@ -1,7 +1,8 @@
+import io
 import re
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +13,6 @@ from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
 from app.schemas import (
     ChatMessageResponse,
-    ChatSendRequest,
     ChatSendResponse,
     ChatSessionPreview,
 )
@@ -24,6 +24,55 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 _NOTE_CONTENT_LIMIT = 3000
 _HISTORY_LIMIT = 30
+_MAX_UPLOAD_BYTES = 10 * 1024 * 1024   # 10 MB
+_MAX_EXTRACTED_CHARS = 3000
+_OCR_MIN_CHARS = 20
+
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+
+
+async def _extract_file_text(file: UploadFile) -> str:
+    """Return extracted text from an uploaded PDF, TXT, or image file."""
+    raw = await file.read()
+    if len(raw) > _MAX_UPLOAD_BYTES:
+        return "[File too large — could not extract content.]"
+
+    name = (file.filename or "").lower()
+    ext = "." + name.rsplit(".", 1)[-1] if "." in name else ""
+
+    if ext == ".txt":
+        try:
+            return raw.decode("utf-8")[:_MAX_EXTRACTED_CHARS]
+        except UnicodeDecodeError:
+            return raw.decode("latin-1")[:_MAX_EXTRACTED_CHARS]
+
+    if ext == ".pdf":
+        try:
+            import PyPDF2
+            reader = PyPDF2.PdfReader(io.BytesIO(raw))
+            pages = [page.extract_text() or "" for page in reader.pages]
+            return "\n\n".join(pages).strip()[:_MAX_EXTRACTED_CHARS]
+        except Exception:
+            return "[Could not extract text from PDF.]"
+
+    if ext in _IMAGE_EXTS:
+        try:
+            from PIL import Image
+            import pytesseract
+            img = Image.open(io.BytesIO(raw))
+            text = pytesseract.image_to_string(img).strip()
+            if len(text) < _OCR_MIN_CHARS:
+                return (
+                    "[Note: OCR could only extract limited text from this image. "
+                    "The image may contain diagrams, handwriting, or content that's "
+                    "difficult to read. Ask the student to clarify if needed.]"
+                )
+            return text[:_MAX_EXTRACTED_CHARS]
+        except Exception:
+            return "[Could not extract text from image.]"
+
+    return ""
+
 
 # ── Communication style detection ─────────────────────────────────────────────
 
@@ -274,20 +323,30 @@ async def _build_system_prompt(
 
 @router.post("/send", response_model=ChatSendResponse)
 async def send_message(
-    body: ChatSendRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    message: str = Form(...),
+    session_id: str | None = Form(None),
+    note_id: int | None = Form(None),
+    question_id: int | None = Form(None),
+    file: UploadFile | None = File(None),
 ):
-    session_id = body.session_id or str(uuid.uuid4())
+    sid = session_id or str(uuid.uuid4())
+
+    file_text: str = ""
+    file_name: str | None = None
+    if file and file.filename:
+        file_name = file.filename
+        file_text = await _extract_file_text(file)
 
     print(
-        f"[query] chat history: session_id={session_id} user_id={current_user.id} limit={_HISTORY_LIMIT}",
+        f"[query] chat history: session_id={sid} user_id={current_user.id} limit={_HISTORY_LIMIT}",
         flush=True,
     )
     history_result = await db.execute(
         select(ChatMessage)
-        .where(ChatMessage.session_id == session_id)
+        .where(ChatMessage.session_id == sid)
         .where(ChatMessage.user_id == current_user.id)
         .order_by(ChatMessage.created_at.desc())
         .limit(_HISTORY_LIMIT)
@@ -303,32 +362,43 @@ async def send_message(
     stored_insights = await get_insights(db, user_id=current_user.id)
 
     system = await _build_system_prompt(
-        db, current_user.id, body.note_id, body.question_id,
+        db, current_user.id, note_id, question_id,
         style_hint, learning_profile, stored_insights,
     )
 
-    llm_messages = history + [{"role": "user", "content": body.message}]
+    if file_text:
+        llm_user_content = (
+            f"[The student uploaded a file: {file_name}. Extracted content:\n{file_text}]\n\n"
+            f"Student's question: {message}"
+        )
+    else:
+        llm_user_content = message
+
+    llm_messages = history + [{"role": "user", "content": llm_user_content}]
 
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
     response_text = await generate_chat(llm_messages, system, **llm_kwargs)
     if response_text is None:
         raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond")
 
-    db.add(ChatMessage(role="user", content=body.message, session_id=session_id, user_id=current_user.id))
-    db.add(ChatMessage(role="assistant", content=response_text, session_id=session_id, user_id=current_user.id))
+    db.add(ChatMessage(
+        role="user", content=message, file_name=file_name,
+        session_id=sid, user_id=current_user.id,
+    ))
+    db.add(ChatMessage(role="assistant", content=response_text, session_id=sid, user_id=current_user.id))
     await db.flush()
 
     user_msg_count = await db.scalar(
         select(func.count(ChatMessage.id)).where(
-            ChatMessage.session_id == session_id,
+            ChatMessage.session_id == sid,
             ChatMessage.user_id == current_user.id,
             ChatMessage.role == "user",
         )
     )
     if user_msg_count and user_msg_count % 5 == 0:
-        background_tasks.add_task(generate_insights, session_id, current_user.id)
+        background_tasks.add_task(generate_insights, sid, current_user.id)
 
-    return ChatSendResponse(session_id=session_id, response=response_text)
+    return ChatSendResponse(session_id=sid, response=response_text, file_name=file_name)
 
 
 @router.get("/history/{session_id}", response_model=list[ChatMessageResponse])

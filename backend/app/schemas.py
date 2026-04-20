@@ -209,12 +209,14 @@ class ChatSendResponse(BaseModel):
     session_id: str
     response: str
     role: str = "assistant"
+    file_name: str | None = None
 
 
 class ChatMessageResponse(BaseModel):
     id: int
     role: str
     content: str
+    file_name: str | None = None
     session_id: str
     created_at: datetime
 

@@ -6,6 +6,34 @@ function getToken() {
   return localStorage.getItem('mt_token')
 }
 
+async function reqMultipart(method, path, formData) {
+  const token = getToken()
+  const headers = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(`${BASE}${path}`, { method, headers, body: formData })
+
+  if (res.status === 204) return null
+  let data
+  try { data = await res.json() } catch { data = null }
+
+  if (res.status === 401) {
+    const detail = data?.detail || 'Session expired. Please log in again.'
+    const message = Array.isArray(detail) ? detail[0]?.msg ?? String(detail) : String(detail)
+    if (!path.startsWith('/auth/')) {
+      localStorage.removeItem('mt_token')
+      localStorage.removeItem('mt_user')
+      window.location.href = '/login'
+    }
+    throw new Error(message)
+  }
+  if (!res.ok) {
+    const detail = data?.detail || `HTTP ${res.status}`
+    throw new Error(Array.isArray(detail) ? detail[0]?.msg ?? String(detail) : String(detail))
+  }
+  return data
+}
+
 async function req(method, path, body) {
   const token = getToken()
   const headers = {}
@@ -201,10 +229,18 @@ export const api = {
 
   // ── Chat ────────────────────────────────────────────────────────────────────
   /**
-   * @param {{ message: string, session_id?: string, note_id?: number, question_id?: number }} data
-   * @returns {Promise<{ session_id: string, response: string, role: string }>}
+   * @param {{ message: string, session_id?: string, note_id?: number, question_id?: number, file?: File }} data
+   * @returns {Promise<{ session_id: string, response: string, role: string, file_name?: string }>}
    */
-  chatSend: (data) => req('POST', '/chat/send', data),
+  chatSend: ({ message, session_id, note_id, question_id, file } = {}) => {
+    const fd = new FormData()
+    fd.append('message', message)
+    if (session_id) fd.append('session_id', session_id)
+    if (note_id != null) fd.append('note_id', String(note_id))
+    if (question_id != null) fd.append('question_id', String(question_id))
+    if (file) fd.append('file', file)
+    return reqMultipart('POST', '/chat/send', fd)
+  },
 
   /**
    * @param {string} sessionId

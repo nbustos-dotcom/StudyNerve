@@ -21,3 +21,7 @@ ALTER TABLE student_insights
   ADD COLUMN IF NOT EXISTS session_id VARCHAR(36) NULL;
 
 CREATE INDEX IF NOT EXISTS ix_student_insights_session_id ON student_insights(session_id);
+
+-- 3. Add file_name to chat_messages table
+ALTER TABLE chat_messages
+  ADD COLUMN IF NOT EXISTS file_name VARCHAR(255) NULL;

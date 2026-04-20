@@ -163,6 +163,7 @@ class StudentInsight(Base):
     user_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
+    session_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
     insight: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String(50), nullable=False)  # "learning_pattern" | "misconception" | "preference" | "strength"
     topic_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

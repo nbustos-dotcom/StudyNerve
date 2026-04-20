@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User
+from app.models import StudentInsight, User
 from app.routers.auth import get_current_user
 from app.schemas import LearningStyleResponse, StudentInsightResponse
 from app.services.learning_style import detect_learning_style
@@ -32,3 +33,16 @@ async def student_insights(
     db: AsyncSession = Depends(get_db),
 ):
     return await get_insights(db, user_id=current_user.id)
+
+
+@router.delete("/insights", status_code=200)
+async def clear_all_insights(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete every StudentInsight row for the current user — nuclear memory reset."""
+    result = await db.execute(
+        sa_delete(StudentInsight).where(StudentInsight.user_id == current_user.id)
+    )
+    deleted = result.rowcount
+    return {"deleted": deleted}

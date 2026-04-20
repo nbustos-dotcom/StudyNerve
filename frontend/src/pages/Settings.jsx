@@ -109,6 +109,62 @@ function DeleteAccountModal({ onConfirm, onCancel, deleting }) {
   )
 }
 
+function ClearMemoryModal({ onConfirm, onCancel, clearing }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+    >
+      <div
+        className="rounded-2xl p-6 max-w-md w-full mx-4"
+        style={{
+          background: 'rgba(12,12,28,0.98)',
+          border: '1px solid rgba(239,68,68,0.2)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+        }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}
+          >
+            <svg className="w-5 h-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+              <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-slate-100">Clear AI Memory</h3>
+            <p className="text-xs text-slate-500 mt-0.5">This cannot be undone</p>
+          </div>
+        </div>
+
+        <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+          This will erase everything the AI has learned about you from past conversations — your learning patterns, strengths, weak spots, and preferences. Your notes, quizzes, and chat history are <span className="text-slate-300">not</span> deleted. The AI just starts learning you from scratch.
+        </p>
+
+        <div className="flex gap-3">
+          <button onClick={onCancel} disabled={clearing} className="flex-1 btn-ghost">
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={clearing}
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+            style={{
+              background: 'rgba(239,68,68,0.12)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              color: 'rgb(252,165,165)',
+            }}
+          >
+            {clearing ? 'Clearing…' : 'Clear Memory'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Settings() {
   const navigate = useNavigate()
 
@@ -126,6 +182,11 @@ export default function Settings() {
   const [canvasMsg, setCanvasMsg] = useState(null)
   const [showApiKey, setShowApiKey] = useState(false)
   const [showCanvasToken, setShowCanvasToken] = useState(false)
+
+  // ── Clear AI memory state ────────────────────────────────────────────────────
+  const [showClearMemoryModal, setShowClearMemoryModal] = useState(false)
+  const [clearingMemory, setClearingMemory] = useState(false)
+  const [clearMemoryMsg, setClearMemoryMsg] = useState(null)
 
   // ── Delete account state ─────────────────────────────────────────────────────
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -201,6 +262,21 @@ export default function Settings() {
       setCanvasMsg({ ok: false, text: err.message })
     } finally {
       setCanvasSaving(false)
+    }
+  }
+
+  async function handleClearMemory() {
+    setClearingMemory(true)
+    setClearMemoryMsg(null)
+    try {
+      const result = await api.clearAllInsights()
+      setShowClearMemoryModal(false)
+      setClearMemoryMsg({ ok: true, text: `Done — ${result.deleted} insight${result.deleted !== 1 ? 's' : ''} erased. The AI starts fresh next conversation.` })
+    } catch (err) {
+      setShowClearMemoryModal(false)
+      setClearMemoryMsg({ ok: false, text: err.message })
+    } finally {
+      setClearingMemory(false)
     }
   }
 
@@ -454,6 +530,47 @@ export default function Settings() {
         </form>
       </SectionCard>
 
+      {/* ── Data ──────────────────────────────────────────────────────────────── */}
+      <SectionCard title="Data">
+        <p className="text-sm text-slate-500 mb-4">
+          Reset what the AI has learned about you. Your notes, quizzes, and chat history are not affected.
+        </p>
+
+        {clearMemoryMsg && (
+          <div
+            className={`text-xs rounded-lg px-3 py-2.5 mb-4 ${clearMemoryMsg.ok ? 'text-emerald-300' : 'text-red-300'}`}
+            style={{
+              background: clearMemoryMsg.ok ? 'rgba(52,211,153,0.07)' : 'rgba(239,68,68,0.07)',
+              border: `1px solid ${clearMemoryMsg.ok ? 'rgba(52,211,153,0.18)' : 'rgba(239,68,68,0.18)'}`,
+            }}
+          >
+            {clearMemoryMsg.text}
+          </div>
+        )}
+
+        <button
+          onClick={() => { setClearMemoryMsg(null); setShowClearMemoryModal(true) }}
+          className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+          style={{
+            background: 'rgba(239,68,68,0.06)',
+            border: '1px solid rgba(239,68,68,0.15)',
+            color: 'rgba(252,165,165,0.7)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239,68,68,0.12)'
+            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.28)'
+            e.currentTarget.style.color = 'rgb(252,165,165)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(239,68,68,0.06)'
+            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'
+            e.currentTarget.style.color = 'rgba(252,165,165,0.7)'
+          }}
+        >
+          Clear AI Memory
+        </button>
+      </SectionCard>
+
       {/* ── Danger Zone ───────────────────────────────────────────────────────── */}
       <SectionCard title="Danger Zone">
         <p className="text-sm text-slate-500 mb-4">
@@ -491,6 +608,15 @@ export default function Settings() {
           Delete Account
         </button>
       </SectionCard>
+
+      {/* ── Clear memory confirmation modal ───────────────────────────────────── */}
+      {showClearMemoryModal && (
+        <ClearMemoryModal
+          onConfirm={handleClearMemory}
+          onCancel={() => setShowClearMemoryModal(false)}
+          clearing={clearingMemory}
+        />
+      )}
 
       {/* ── Delete confirmation modal ─────────────────────────────────────────── */}
       {showDeleteModal && (

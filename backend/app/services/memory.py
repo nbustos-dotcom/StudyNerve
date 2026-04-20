@@ -100,6 +100,7 @@ async def generate_insights(session_id: str, user_id: int) -> int:
 
                 if existing:
                     existing.insight = insight_text
+                    existing.session_id = session_id
                     existing.updated_at = now
                 else:
                     db.add(StudentInsight(
@@ -107,6 +108,7 @@ async def generate_insights(session_id: str, user_id: int) -> int:
                         category=category,
                         topic_name=topic_name,
                         user_id=user_id,
+                        session_id=session_id,
                     ))
                 saved += 1
 

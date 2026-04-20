@@ -2,7 +2,7 @@ import re
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -396,6 +396,12 @@ async def delete_chat_session(
         ChatMessage.__table__.delete().where(
             ChatMessage.session_id == session_id,
             ChatMessage.user_id == current_user.id,
+        )
+    )
+    await db.execute(
+        sa_delete(StudentInsight).where(
+            StudentInsight.session_id == session_id,
+            StudentInsight.user_id == current_user.id,
         )
     )
     await db.commit()

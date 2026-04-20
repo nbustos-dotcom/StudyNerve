@@ -63,6 +63,9 @@ export const api = {
   /** Permanently delete the authenticated user and all their data. */
   deleteAccount: () => req('DELETE', '/auth/delete-account'),
 
+  /** Erase all AI memory (StudentInsight rows) for the current user. */
+  clearAllInsights: () => req('DELETE', '/profile/insights'),
+
   // ── User Settings ────────────────────────────────────────────────────────────
   /** @returns {Promise<{ llm_provider, llm_api_key_set, canvas_url, canvas_connected }>} */
   getSettings: () => req('GET', '/settings'),

@@ -11,7 +11,8 @@ const NAV = [
   { to: '/results', label: 'Results'             },
   { to: '/flashcards', label: 'Flashcards'        },
   { to: '/canvas',  label: 'Canvas'              },
-  { to: '/vision',  label: 'Vision'              },
+  { to: '/vision',   label: 'Vision'              },
+  { to: '/universe', label: 'My Universe'         },
 ]
 
 

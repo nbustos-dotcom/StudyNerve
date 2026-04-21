@@ -101,6 +101,9 @@ export const api = {
   /** Erase all AI memory (StudentInsight rows) for the current user. */
   clearAllInsights: () => req('DELETE', '/profile/insights'),
 
+  /** @returns {Promise<StudyUniverseData>} aggregated study history */
+  studyUniverse: () => req('GET', '/profile/study-universe'),
+
   // ── User Settings ────────────────────────────────────────────────────────────
   /** @returns {Promise<{ llm_provider, llm_api_key_set, canvas_url, canvas_connected }>} */
   getSettings: () => req('GET', '/settings'),

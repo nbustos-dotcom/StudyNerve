@@ -13,6 +13,7 @@ import Quiz from './pages/Quiz'
 import Results from './pages/Results'
 import Settings from './pages/Settings'
 import VisionBoard from './pages/VisionBoard'
+import StudyUniverse from './pages/StudyUniverse'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 
@@ -88,6 +89,7 @@ export default function App() {
           <Route path="flashcards" element={<Flashcards />} />
           <Route path="canvas" element={<Canvas />} />
           <Route path="vision" element={<VisionBoard />} />
+          <Route path="universe" element={<StudyUniverse />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 
 function Spinner() {
@@ -14,6 +15,7 @@ const EMPTY_FORM = { title: '', content: '', subject: '' }
 const EMPTY_UPLOAD = { title: '', subject: '', file: null }
 
 export default function Notes() {
+  const navigate = useNavigate()
   const [notes, setNotes] = useState([])
   const [form, setForm] = useState(EMPTY_FORM)
   const [creating, setCreating] = useState(false)
@@ -380,6 +382,13 @@ export default function Notes() {
                     ) : (
                       'Summarize'
                     )}
+                  </button>
+
+                  <button
+                    className="btn-secondary text-xs"
+                    onClick={() => navigate(`/notes/${note.id}/study-guide`)}
+                  >
+                    Study Guide
                   </button>
 
                   {ts?.topics && ts.topics.length > 0 && (

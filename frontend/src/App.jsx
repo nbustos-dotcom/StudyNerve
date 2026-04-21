@@ -8,6 +8,7 @@ import Chat from './pages/Chat'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Notes from './pages/Notes'
+import StudyGuide from './pages/StudyGuide'
 import Quiz from './pages/Quiz'
 import Results from './pages/Results'
 import Settings from './pages/Settings'
@@ -80,6 +81,7 @@ export default function App() {
         <Route path="/" element={<Layout user={user} onLogout={handleLogout} />}>
           <Route index element={<Dashboard />} />
           <Route path="notes" element={<Notes />} />
+          <Route path="notes/:noteId/study-guide" element={<StudyGuide />} />
           <Route path="quiz" element={<Quiz />} />
           <Route path="chat" element={<Chat />} />
           <Route path="results" element={<Results />} />

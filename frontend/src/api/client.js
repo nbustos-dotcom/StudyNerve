@@ -167,6 +167,12 @@ export const api = {
   /** @returns {Promise<{ summary: string }>} */
   summarizeNote: (id) => req('POST', `/notes/${id}/summarize`),
 
+  /** @returns {Promise<{ study_guide: string, title: string }>} */
+  noteStudyGuide: (id) => req('POST', `/notes/${id}/study-guide`),
+
+  /** @returns {Promise<{ id, title, content, subject, created_at }>} */
+  getNote: (id) => req('GET', `/notes/${id}`),
+
   // ── Flashcards ───────────────────────────────────────────────────────────────
   /** @param {{ note_id: number, count?: number }} data @returns {Promise<Array>} */
   generateFlashcards: (data) => req('POST', '/flashcards/generate', data),

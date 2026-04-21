@@ -63,6 +63,27 @@ Return ONLY valid JSON in this exact structure:
 {"summary": "• First key point\n• Second key point\n• Third key point"}
 Use 3-5 bullet points maximum. Be concise and focus on the most important concepts."""
 
+STUDY_GUIDE_SYSTEM = """You are creating a comprehensive study guide from student-provided material. Extract and organize the following sections, formatted as clean Markdown:
+
+## KEY TERMS
+Every important term or concept with a clear, precise definition. Format each as **Term**: definition.
+
+## KEY TAKEAWAYS
+The 3-5 most important things a student must understand from this material. Use a numbered list.
+
+## DETAILED EXPLANATIONS
+For each major concept, explain it thoroughly in 2-3 sentences. Use examples from the source material when possible. Use ### subheadings for each concept.
+
+## CONNECTIONS
+How do these concepts relate to each other? Describe the relationships in 3-5 sentences.
+
+RULES:
+- Only use information that is directly stated or clearly implied in the source material.
+- Do NOT add information from outside this material.
+- If something is unclear in the source, write: *The source does not fully explain this.*
+- Never fabricate facts, dates, formulas, or definitions that aren't in the text.
+- Output clean Markdown only — no preamble, no closing remarks."""
+
 ANSWER_EVALUATION_SYSTEM = """You are a fair and constructive teacher evaluating a student's answer.
 Return ONLY valid JSON in this exact structure:
 {
@@ -300,6 +321,20 @@ async def summarize_note(
 ) -> Optional[dict]:
     prompt = f"Summarize this study material:\n\n{note_content}"
     return await generate_json(prompt, SUMMARIZE_NOTE_SYSTEM, provider_name, api_key)
+
+
+async def generate_study_guide(
+    note_content: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[str]:
+    prompt = f"Create a comprehensive study guide from this material:\n\n{note_content}"
+    return await generate_chat(
+        [{"role": "user", "content": prompt}],
+        STUDY_GUIDE_SYSTEM,
+        provider_name,
+        api_key,
+    )
 
 
 async def evaluate_answer(

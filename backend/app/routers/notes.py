@@ -11,7 +11,7 @@ from app.models import Note, Topic, User
 from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
-from app.schemas import NoteCreate, NoteResponse
+from app.schemas import NoteCreate, NoteResponse, StudyGuideUpdate
 
 _MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
 
@@ -172,6 +172,32 @@ async def extract_note_topics(
     return result
 
 
+@router.get("/{note_id}/study-guide")
+async def get_study_guide(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    note = await db.get(Note, note_id)
+    if not note or note.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"study_guide": note.study_guide, "title": note.title}
+
+
+@router.put("/{note_id}/study-guide")
+async def update_study_guide(
+    note_id: int,
+    body: StudyGuideUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    note = await db.get(Note, note_id)
+    if not note or note.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Note not found")
+    note.study_guide = body.content
+    return {"study_guide": note.study_guide, "title": note.title}
+
+
 @router.post("/{note_id}/study-guide")
 async def study_guide_endpoint(
     note_id: int,
@@ -191,6 +217,7 @@ async def study_guide_endpoint(
     if result is None:
         raise HTTPException(status_code=502, detail="LLM unavailable or failed to generate study guide")
 
+    note.study_guide = result
     return {"study_guide": result, "title": note.title}
 
 

@@ -167,8 +167,14 @@ export const api = {
   /** @returns {Promise<{ summary: string }>} */
   summarizeNote: (id) => req('POST', `/notes/${id}/summarize`),
 
+  /** @returns {Promise<{ study_guide: string | null, title: string }>} */
+  getNoteStudyGuide: (id) => req('GET', `/notes/${id}/study-guide`),
+
   /** @returns {Promise<{ study_guide: string, title: string }>} */
   noteStudyGuide: (id) => req('POST', `/notes/${id}/study-guide`),
+
+  /** @param {string} content @returns {Promise<{ study_guide: string, title: string }>} */
+  updateNoteStudyGuide: (id, content) => req('PUT', `/notes/${id}/study-guide`, { content }),
 
   /** @returns {Promise<{ id, title, content, subject, created_at }>} */
   getNote: (id) => req('GET', `/notes/${id}`),

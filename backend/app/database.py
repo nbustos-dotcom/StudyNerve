@@ -1,6 +1,7 @@
 import re
 import sys
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -63,3 +64,10 @@ async def get_db():
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        if _db_url.startswith("postgresql"):
+            await conn.execute(text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS study_guide TEXT"))
+        else:
+            try:
+                await conn.execute(text("ALTER TABLE notes ADD COLUMN study_guide TEXT"))
+            except Exception:
+                pass

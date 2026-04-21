@@ -40,6 +40,10 @@ class NoteCreate(BaseModel):
     subject: Optional[str] = None
 
 
+class StudyGuideUpdate(BaseModel):
+    content: str
+
+
 class NoteResponse(BaseModel):
     id: int
     title: str

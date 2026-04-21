@@ -39,6 +39,7 @@ class Note(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
+    study_guide: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     topics: Mapped[list["Topic"]] = relationship(
         "Topic", back_populates="note", cascade="all, delete-orphan"

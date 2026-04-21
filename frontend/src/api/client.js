@@ -10,8 +10,15 @@ async function reqMultipart(method, path, formData) {
   const token = getToken()
   const headers = {}
   if (token) headers['Authorization'] = `Bearer ${token}`
+  // Do NOT set Content-Type — browser sets multipart/form-data + boundary automatically
 
-  const res = await fetch(`${BASE}${path}`, { method, headers, body: formData })
+  const url = `${BASE}${path}`
+  console.log('[reqMultipart] url:', url)
+  console.log('[reqMultipart] form fields:', [...formData.entries()].map(([k, v]) =>
+    `${k}=${v instanceof File ? `File(${v.name}, ${v.size}B)` : v}`
+  ))
+
+  const res = await fetch(url, { method, headers, body: formData })
 
   if (res.status === 204) return null
   let data

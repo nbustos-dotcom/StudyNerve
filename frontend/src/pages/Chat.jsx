@@ -455,6 +455,14 @@ export default function Chat() {
   function handleFileChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: 'That file is over 5 MB — please attach a smaller file.', error: true },
+      ])
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
     const isImage = file.type.startsWith('image/')
     const previewUrl = isImage ? URL.createObjectURL(file) : null
     setAttachedFile({ file, name: file.name, previewUrl, isImage })

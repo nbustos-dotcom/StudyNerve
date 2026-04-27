@@ -1,13 +1,12 @@
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import Integer, cast, delete as sa_delete, distinct, func, select, union_all
+from sqlalchemy import Integer, cast, delete as sa_delete, func, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import (
-    Attempt, ChatMessage, Flashcard, Note, Question, QuizResult,
-    StudentInsight, Topic, User, VisionBoard, VisionStep,
+    Attempt, Flashcard, Note, Question, StudentInsight, User,
 )
 from app.routers.auth import get_current_user
 from app.schemas import LearningStyleResponse, StudentInsightResponse
@@ -45,12 +44,10 @@ async def clear_all_insights(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete every StudentInsight row for the current user — nuclear memory reset."""
     result = await db.execute(
         sa_delete(StudentInsight).where(StudentInsight.user_id == current_user.id)
     )
-    deleted = result.rowcount
-    return {"deleted": deleted}
+    return {"deleted": result.rowcount}
 
 
 @router.get("/study-universe")
@@ -66,16 +63,6 @@ async def study_universe(
 
     total_notes = await db.scalar(
         select(func.count(Note.id)).where(Note.user_id == uid)
-    ) or 0
-
-    total_topics = await db.scalar(
-        select(func.count(Topic.id))
-        .join(Note, Topic.note_id == Note.id)
-        .where(Note.user_id == uid)
-    ) or 0
-
-    total_quizzes_taken = await db.scalar(
-        select(func.count(QuizResult.id)).where(QuizResult.user_id == uid)
     ) or 0
 
     total_questions_answered = await db.scalar(
@@ -94,27 +81,8 @@ async def study_universe(
         .where(Flashcard.times_reviewed > 0)
     ) or 0
 
-    total_chat_sessions = await db.scalar(
-        select(func.count(distinct(ChatMessage.session_id)))
-        .where(ChatMessage.user_id == uid)
-    ) or 0
-
-    total_chat_messages = await db.scalar(
-        select(func.count(ChatMessage.id)).where(ChatMessage.user_id == uid)
-    ) or 0
-
-    total_vision_boards = await db.scalar(
-        select(func.count(VisionBoard.id)).where(VisionBoard.user_id == uid)
-    ) or 0
-
-    total_vision_steps_completed = await db.scalar(
-        select(func.count(VisionStep.id))
-        .join(VisionBoard, VisionStep.board_id == VisionBoard.id)
-        .where(VisionBoard.user_id == uid)
-        .where(VisionStep.is_completed.is_(True))
-    ) or 0
-
     # ── Subjects ───────────────────────────────────────────────────────────────
+    # note_count per subject
 
     note_by_subj = {
         (r.subject or ""): r.cnt
@@ -125,16 +93,7 @@ async def study_universe(
         )).all()
     }
 
-    quiz_by_subj = {
-        (r.subject or ""): r.cnt
-        for r in (await db.execute(
-            select(Note.subject, func.count(QuizResult.id).label("cnt"))
-            .join(Note, QuizResult.note_id == Note.id)
-            .where(QuizResult.user_id == uid)
-            .group_by(Note.subject)
-        )).all()
-    }
-
+    # questions_answered + correct per subject (via Note.subject on each question's note)
     acc_by_subj = {
         (r.subject or ""): (r.total, int(r.correct or 0))
         for r in (await db.execute(
@@ -151,20 +110,31 @@ async def study_universe(
         )).all()
     }
 
-    all_subjects = set(note_by_subj) | set(quiz_by_subj) | set(acc_by_subj)
+    all_subjects = set(note_by_subj) | set(acc_by_subj)
     subjects = []
     for name in sorted(all_subjects):
         total_att, correct_att = acc_by_subj.get(name, (0, 0))
         subjects.append({
-            "name": name or "Uncategorized",
+            "name": name or "General",
             "note_count": note_by_subj.get(name, 0),
-            "quiz_count": quiz_by_subj.get(name, 0),
+            "questions_answered": total_att,
+            "correct": correct_att,
             "accuracy": correct_att / total_att if total_att > 0 else 0.0,
         })
 
-    # ── Daily activity (last 30 days) ──────────────────────────────────────────
-    # Union of activity events: note creations, quiz attempts, user chat messages,
-    # and flashcard last-review dates. Each contributes one row per event.
+    # ── Individual notes (one planet per note) ────────────────────────────────
+
+    notes_rows = (await db.execute(
+        select(Note.id, Note.subject, func.length(Note.content).label("cl"))
+        .where(Note.user_id == uid)
+        .order_by(Note.id)
+    )).all()
+    notes_list = [
+        {"id": r.id, "subject": r.subject or "General", "content_length": r.cl or 0}
+        for r in notes_rows
+    ]
+
+    # ── Study streak (consecutive active days up to today) ────────────────────
 
     notes_days = select(func.date(Note.created_at).label("day")).where(
         Note.user_id == uid, Note.created_at >= cutoff_30
@@ -172,76 +142,41 @@ async def study_universe(
     attempts_days = select(func.date(Attempt.created_at).label("day")).where(
         Attempt.user_id == uid, Attempt.created_at >= cutoff_30
     )
-    chat_days = select(func.date(ChatMessage.created_at).label("day")).where(
-        ChatMessage.user_id == uid,
-        ChatMessage.role == "user",
-        ChatMessage.created_at >= cutoff_30,
-    )
     fc_days = select(func.date(Flashcard.last_reviewed).label("day")).where(
         Flashcard.user_id == uid,
         Flashcard.last_reviewed.isnot(None),
         Flashcard.last_reviewed >= cutoff_30,
     )
 
-    combined = union_all(notes_days, attempts_days, chat_days, fc_days).subquery("activity")
-    daily_rows = (await db.execute(
-        select(combined.c.day, func.count().label("actions"))
-        .group_by(combined.c.day)
-        .order_by(combined.c.day)
+    combined = union_all(notes_days, attempts_days, fc_days).subquery("activity")
+    day_rows = (await db.execute(
+        select(combined.c.day).group_by(combined.c.day)
     )).all()
 
-    # Normalise the day value — SQLite returns str, Postgres returns date/datetime
-    day_map: dict[date, int] = {}
-    for row in daily_rows:
+    active_days: set[date] = set()
+    for row in day_rows:
         d = row.day
         if isinstance(d, str):
             d = date.fromisoformat(d)
         elif isinstance(d, datetime):
             d = d.date()
         if d is not None:
-            day_map[d] = row.actions
-
-    daily_activity = [
-        {"date": d.isoformat(), "actions": cnt}
-        for d, cnt in sorted(day_map.items())
-    ]
-
-    # ── Individual notes (one planet per note) ────────────────────────────────
-    notes_rows = (await db.execute(
-        select(Note.id, Note.subject, func.length(Note.content).label("cl"))
-        .where(Note.user_id == uid)
-        .order_by(Note.id)
-    )).all()
-    notes_list = [
-        {"id": r.id, "subject": r.subject or "Uncategorized", "content_length": r.cl or 0}
-        for r in notes_rows
-    ]
-
-    # ── Streak (consecutive days up to and including today) ────────────────────
+            active_days.add(d)
 
     today = now.date()
     streak = 0
     check = today
-    while check in day_map:
+    while check in active_days:
         streak += 1
         check -= timedelta(days=1)
 
-    total_study_days = len(day_map)
-
     return {
         "total_notes": total_notes,
-        "total_topics": total_topics,
-        "total_quizzes_taken": total_quizzes_taken,
-        "total_questions_answered": total_questions_answered,
         "total_correct": total_correct,
+        "total_questions_answered": total_questions_answered,
         "total_flashcards_reviewed": total_flashcards_reviewed,
-        "total_chat_sessions": total_chat_sessions,
-        "total_chat_messages": total_chat_messages,
-        "total_vision_boards": total_vision_boards,
-        "total_vision_steps_completed": total_vision_steps_completed,
+        "study_streak": streak,
+        "total_study_days": len(active_days),
         "subjects": subjects,
         "notes": notes_list,
-        "daily_activity": daily_activity,
-        "study_streak": streak,
-        "total_study_days": total_study_days,
     }

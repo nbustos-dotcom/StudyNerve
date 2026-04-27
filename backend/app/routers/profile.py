@@ -206,6 +206,17 @@ async def study_universe(
         for d, cnt in sorted(day_map.items())
     ]
 
+    # ── Individual notes (one planet per note) ────────────────────────────────
+    notes_rows = (await db.execute(
+        select(Note.id, Note.subject, func.length(Note.content).label("cl"))
+        .where(Note.user_id == uid)
+        .order_by(Note.id)
+    )).all()
+    notes_list = [
+        {"id": r.id, "subject": r.subject or "Uncategorized", "content_length": r.cl or 0}
+        for r in notes_rows
+    ]
+
     # ── Streak (consecutive days up to and including today) ────────────────────
 
     today = now.date()
@@ -229,6 +240,7 @@ async def study_universe(
         "total_vision_boards": total_vision_boards,
         "total_vision_steps_completed": total_vision_steps_completed,
         "subjects": subjects,
+        "notes": notes_list,
         "daily_activity": daily_activity,
         "study_streak": streak,
         "total_study_days": total_study_days,

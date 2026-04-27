@@ -80,6 +80,11 @@ export default function Quiz() {
   const [historyLoading, setHistoryLoading] = useState(true)
   const [reviewItem, setReviewItem] = useState(null)
 
+  // Flag state for current quiz results
+  const [lastQuizId, setLastQuizId] = useState(null)
+  const [flaggedQuestions, setFlaggedQuestions] = useState(new Set())
+  const [flagging, setFlagging] = useState(null)
+
   useEffect(() => {
     api.getNotes().then(setNotes).catch(console.error)
     api.getQuizHistory()
@@ -185,7 +190,28 @@ export default function Quiz() {
     }
   }
 
-  async function handleNext() {
+  async function handleFlagQuestion(questionIndex) {
+    if (!lastQuizId || flagging !== null) return
+    const willFlag = !flaggedQuestions.has(questionIndex)
+    setFlagging(questionIndex)
+    try {
+      await api.flagQuizQuestion(lastQuizId, questionIndex, willFlag)
+      setFlaggedQuestions((prev) => {
+        const next = new Set(prev)
+        if (willFlag) next.add(questionIndex)
+        else next.delete(questionIndex)
+        return next
+      })
+    } catch (e) {
+      console.error('Failed to flag question:', e)
+    } finally {
+      setFlagging(null)
+    }
+  }
+
+  async function handleNext(finalResults) {
+    // finalResults is passed explicitly to avoid stale closure on the last question
+    const allResults = finalResults ?? results
     const isLast = currentIdx === questions.length - 1
     if (isLast) {
       localStorage.removeItem(QUIZ_STORAGE_KEY)
@@ -198,9 +224,9 @@ export default function Quiz() {
         const saved = await api.saveQuizHistory({
           note_id: noteId || null,
           note_title: noteObj?.title || 'Unknown Note',
-          score: results.filter((r) => r.result.is_correct).length,
-          total_questions: results.length,
-          questions: results.map(({ question, result, answer }) => ({
+          score: allResults.filter((r) => r.result.is_correct).length,
+          total_questions: allResults.length,
+          questions: allResults.map(({ question, result, answer }) => ({
             question_id: question.id,
             content: question.content,
             type: question.type,
@@ -209,9 +235,12 @@ export default function Quiz() {
             correct_answer: result.correct_answer,
             is_correct: result.is_correct,
             explanation: result.explanation || null,
+            is_flagged: false,
           })),
         })
         setHistory((prev) => [saved, ...prev])
+        setLastQuizId(saved.id)
+        setFlaggedQuestions(new Set())
       } catch (e) {
         console.error('Failed to save quiz history:', e)
       }
@@ -241,6 +270,9 @@ export default function Quiz() {
     setShortAnswer('')
     setSessionId(null)
     setGenerateError(null)
+    setLastQuizId(null)
+    setFlaggedQuestions(new Set())
+    setFlagging(null)
   }
 
   function openReview(item) {
@@ -417,7 +449,10 @@ export default function Quiz() {
         {/* Next */}
         {isAnswered && (
           <div className="flex justify-end">
-            <button className="btn-primary" onClick={handleNext}>
+            <button
+              className="btn-primary"
+              onClick={() => handleNext(isLast ? results : undefined)}
+            >
               {isLast ? 'Finish Quiz' : 'Next Question →'}
             </button>
           </div>
@@ -441,31 +476,50 @@ export default function Quiz() {
         </div>
 
         <div className="space-y-3 mb-8">
-          {results.map(({ question, result, answer }, i) => (
-            <div
-              key={i}
-              className="card p-4"
-              style={{
-                borderLeft: `3px solid ${result.is_correct ? 'rgba(52,211,153,0.6)' : 'rgba(248,113,113,0.6)'}`,
-                animation: `fade-in-up 0.35s ease-out ${i * 40}ms both`,
-              }}
-            >
-              <div className="flex items-start gap-3">
-                <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${result.is_correct ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
-                  {result.is_correct ? '✓' : '✗'}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm text-slate-300 leading-snug">{question.content}</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Your answer: <span className="text-slate-400">{answer}</span>
-                    {!result.is_correct && (
-                      <> · Correct: <span className="text-emerald-400">{result.correct_answer}</span></>
+          {results.map(({ question, result, answer }, i) => {
+            const isFlagged = flaggedQuestions.has(i)
+            return (
+              <div
+                key={i}
+                className="card p-4"
+                style={{
+                  borderLeft: `3px solid ${result.is_correct ? 'rgba(52,211,153,0.6)' : 'rgba(248,113,113,0.6)'}`,
+                  animation: `fade-in-up 0.35s ease-out ${i * 40}ms both`,
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${result.is_correct ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                    {result.is_correct ? '✓' : '✗'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-slate-300 leading-snug">{question.content}</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Your answer: <span className="text-slate-400">{answer}</span>
+                      {!result.is_correct && (
+                        <> · Correct: <span className="text-emerald-400">{result.correct_answer}</span></>
+                      )}
+                    </p>
+                    {lastQuizId && (
+                      <button
+                        onClick={() => handleFlagQuestion(i)}
+                        disabled={flagging !== null}
+                        className={`mt-2 flex items-center gap-1 text-xs transition-colors ${
+                          isFlagged
+                            ? 'text-amber-400 hover:text-amber-300'
+                            : 'text-slate-600 hover:text-slate-400'
+                        }`}
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 16 16" fill={isFlagged ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
+                          <path d="M3 2v12M3 2l9 3-9 3" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        {isFlagged ? 'Flagged' : 'Report Wrong Answer'}
+                      </button>
                     )}
-                  </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         <div className="flex justify-center">
@@ -487,6 +541,29 @@ export default function Quiz() {
 function ReviewView({ item, onBack }) {
   const pct = Math.round((item.score / item.total_questions) * 100)
   const color = scoreColor(pct)
+  const [flagged, setFlagged] = useState(
+    () => new Set(item.questions.map((q, i) => (q.is_flagged ? i : -1)).filter((i) => i !== -1))
+  )
+  const [flagging, setFlagging] = useState(null)
+
+  async function handleFlag(idx) {
+    if (flagging !== null) return
+    const willFlag = !flagged.has(idx)
+    setFlagging(idx)
+    try {
+      await api.flagQuizQuestion(item.id, idx, willFlag)
+      setFlagged((prev) => {
+        const next = new Set(prev)
+        if (willFlag) next.add(idx)
+        else next.delete(idx)
+        return next
+      })
+    } catch (e) {
+      console.error('Failed to flag question:', e)
+    } finally {
+      setFlagging(null)
+    }
+  }
 
   return (
     <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
@@ -509,6 +586,7 @@ function ReviewView({ item, onBack }) {
       <div className="space-y-3">
         {item.questions.map((q, i) => {
           const options = parseOptions(q.options)
+          const isFlagged = flagged.has(i)
           return (
             <div
               key={i}
@@ -555,6 +633,20 @@ function ReviewView({ item, onBack }) {
                   {q.explanation && (
                     <p className="text-xs text-slate-500 mt-1 italic">{q.explanation}</p>
                   )}
+                  <button
+                    onClick={() => handleFlag(i)}
+                    disabled={flagging !== null}
+                    className={`mt-2 flex items-center gap-1 text-xs transition-colors ${
+                      isFlagged
+                        ? 'text-amber-400 hover:text-amber-300'
+                        : 'text-slate-600 hover:text-slate-400'
+                    }`}
+                  >
+                    <svg className="w-3 h-3" viewBox="0 0 16 16" fill={isFlagged ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 2v12M3 2l9 3-9 3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {isFlagged ? 'Flagged' : 'Report Wrong Answer'}
+                  </button>
                 </div>
               </div>
             </div>

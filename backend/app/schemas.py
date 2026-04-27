@@ -167,6 +167,12 @@ class QuizHistoryQuestion(BaseModel):
     correct_answer: str
     is_correct: bool
     explanation: Optional[str] = None
+    is_flagged: bool = False
+
+
+class FlagQuestionRequest(BaseModel):
+    question_index: int
+    is_flagged: bool
 
 
 class QuizHistorySave(BaseModel):

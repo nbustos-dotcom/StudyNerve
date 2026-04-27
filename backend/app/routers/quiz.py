@@ -19,6 +19,7 @@ from app.schemas import (
     AdaptiveQuizRequest,
     AnswerResult,
     AnswerSubmit,
+    FlagQuestionRequest,
     OverviewStats,
     QuestionResponse,
     QuizGenerateRequest,
@@ -523,6 +524,36 @@ async def get_quiz_history_detail(
         raise HTTPException(status_code=404, detail="Quiz not found")
 
     questions = json.loads(record.questions_json)
+    return QuizHistoryDetail(
+        id=record.id,
+        note_id=record.note_id,
+        note_title=record.note_title,
+        score=record.score,
+        total_questions=record.total_questions,
+        completed_at=record.completed_at,
+        questions=questions,
+    )
+
+
+@router.patch("/history/{quiz_id}/flag-question", response_model=QuizHistoryDetail)
+async def flag_quiz_question(
+    quiz_id: int,
+    body: FlagQuestionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    record = await db.get(QuizResult, quiz_id)
+    if not record or record.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    questions = json.loads(record.questions_json)
+    if body.question_index < 0 or body.question_index >= len(questions):
+        raise HTTPException(status_code=400, detail="Invalid question index")
+
+    questions[body.question_index]["is_flagged"] = body.is_flagged
+    record.questions_json = json.dumps(questions)
+    await db.flush()
+
     return QuizHistoryDetail(
         id=record.id,
         note_id=record.note_id,

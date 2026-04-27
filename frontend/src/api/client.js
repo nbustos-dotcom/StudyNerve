@@ -227,6 +227,10 @@ export const api = {
   /** @param {number} id @returns {Promise<{ id, note_title, score, total_questions, completed_at, questions }>} */
   getQuizHistoryDetail: (id) => req('GET', `/quiz/history/${id}`),
 
+  /** @param {number} quizId @param {number} questionIndex @param {boolean} isFlagged */
+  flagQuizQuestion: (quizId, questionIndex, isFlagged) =>
+    req('PATCH', `/quiz/history/${quizId}/flag-question`, { question_index: questionIndex, is_flagged: isFlagged }),
+
   // ── Stats ───────────────────────────────────────────────────────────────────
   /**
    * @returns {Promise<{ total_notes, total_questions, total_attempts, overall_accuracy, topic_accuracies }>}

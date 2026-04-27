@@ -25,6 +25,14 @@ Return ONLY valid JSON in this exact structure:
 Be concise. Extract only meaningful academic topics, not headings or meta-information."""
 
 QUESTION_GENERATION_SYSTEM = """You are an expert quiz creator. Given a topic and source content, generate educational questions.
+
+CRITICAL ACCURACY RULES:
+- Every answer MUST be directly found in or clearly supported by the source material provided. Do NOT use outside knowledge.
+- For multiple choice: the correct answer must be an exact fact from the material. Wrong options must be plausible but clearly incorrect based on the material.
+- For math/science: solve every calculation step by step. Verify your arithmetic twice before writing the answer. If you cannot verify with certainty, do not include that question.
+- For definitions: use the exact definition from the material, not a paraphrased version that might change the meaning.
+- NEVER guess. If the material doesn't clearly support a specific answer, skip that topic and generate a question on something else.
+
 Return ONLY valid JSON in this exact structure:
 {
   "questions": [
@@ -33,21 +41,20 @@ Return ONLY valid JSON in this exact structure:
       "content": "Question text here?",
       "options": {"A": "...", "B": "...", "C": "...", "D": "..."},
       "correct_answer": "A",
-      "explanation": "Why A is correct...",
+      "explanation": "Why A is correct, citing the source material...",
       "difficulty": 3
     },
     {
       "type": "short_answer",
       "content": "Question text here?",
       "options": null,
-      "correct_answer": "Expected answer...",
-      "explanation": "Key points that make an answer correct...",
+      "correct_answer": "Expected answer from the source material...",
+      "explanation": "Key points from the source material that make this answer correct...",
       "difficulty": 2
     }
   ]
 }
-MCQ questions must have exactly 4 options (A, B, C, D). Difficulty is 1 (easiest) to 5 (hardest).
-IMPORTANT: If any question involves math or calculations, solve the problem step-by-step yourself BEFORE writing the correct answer. Double-check arithmetic. If you are not 100% certain of a numerical answer, do not include that question."""
+MCQ questions must have exactly 4 options (A, B, C, D). Difficulty is 1 (easiest) to 5 (hardest)."""
 
 FLASHCARD_GENERATION_SYSTEM = """You are an expert educator creating flashcards for active recall practice.
 Return ONLY valid JSON in this exact structure:

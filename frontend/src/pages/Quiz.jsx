@@ -59,7 +59,7 @@ export default function Quiz() {
   const [config, setConfig] = useState({
     note_id: '',
     num_questions: 10,
-    question_types: ['mcq', 'short_answer'],
+    question_types: [],
   })
   const [generateError, setGenerateError] = useState(null)
 
@@ -104,9 +104,9 @@ export default function Quiz() {
   }, [phase, currentIdx, results, questions, sessionId])
 
   function toggleType(type) {
+    setGenerateError(null)
     setConfig((c) => {
       const has = c.question_types.includes(type)
-      if (has && c.question_types.length === 1) return c // keep at least one
       return {
         ...c,
         question_types: has
@@ -137,6 +137,10 @@ export default function Quiz() {
 
   async function handleGenerate() {
     if (!config.note_id) return
+    if (mode === 'standard' && config.question_types.length === 0) {
+      setGenerateError('Pick a question type first.')
+      return
+    }
     setGenerateError(null)
     setPhase(PHASES.GENERATING)
 
@@ -699,7 +703,7 @@ function QuestionCountInput({ config, setConfig }) {
 // ── Configure view ────────────────────────────────────────────────────────────
 
 function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error, mode, setMode, savedProgress, onResume, onDismissResume, history, historyLoading, onOpenReview }) {
-  const canGenerate = config.note_id && (mode === 'adaptive' || config.question_types.length > 0)
+  const canGenerate = !!config.note_id
 
   return (
     <div className="p-4 sm:p-8 max-w-xl mx-auto fade-in-up">

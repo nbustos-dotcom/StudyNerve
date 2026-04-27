@@ -12,6 +12,7 @@ from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
 from app.schemas import NoteCreate, NoteResponse, StudyGuideUpdate
+from app.services.subjects import normalize_subject
 
 _MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
 
@@ -26,7 +27,10 @@ async def create_note(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    note = Note(**body.model_dump(), user_id=current_user.id)
+    data = body.model_dump()
+    if data.get("subject"):
+        data["subject"] = normalize_subject(data["subject"])
+    note = Note(**data, user_id=current_user.id)
     db.add(note)
     await db.flush()
     await db.refresh(note)
@@ -67,10 +71,11 @@ async def upload_note(
             raise HTTPException(status_code=422, detail="Could not extract text from PDF.")
 
     note_title = (title.strip() if title and title.strip() else None) or os.path.splitext(filename)[0]
+    raw_subject = subject.strip() if subject and subject.strip() else None
     note = Note(
         title=note_title,
         content=content,
-        subject=subject.strip() if subject and subject.strip() else None,
+        subject=normalize_subject(raw_subject) if raw_subject else None,
         user_id=current_user.id,
     )
     db.add(note)

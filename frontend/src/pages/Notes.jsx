@@ -26,6 +26,9 @@ export default function Notes() {
   const [uploadError, setUploadError] = useState(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef(null)
+  const [subjectList, setSubjectList] = useState([])
+  const [normalizeBanner, setNormalizeBanner] = useState(false)
+  const [normalizing, setNormalizing] = useState(false)
 
   // Per-note topic state: noteId → { loading, topics, error, count }
   const [topicState, setTopicState] = useState({})
@@ -36,14 +39,31 @@ export default function Notes() {
 
   useEffect(() => {
     fetchNotes()
+    api.getSubjectList().then(setSubjectList).catch(() => {})
   }, [])
 
   async function fetchNotes() {
     try {
       const data = await api.getNotes()
       setNotes(data)
+      api.checkSubjectNormalization()
+        .then(r => setNormalizeBanner(r.needs))
+        .catch(() => {})
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  async function handleNormalizeAll() {
+    setNormalizing(true)
+    try {
+      await api.normalizeAllSubjects()
+      setNormalizeBanner(false)
+      await fetchNotes()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setNormalizing(false)
     }
   }
 
@@ -155,10 +175,32 @@ export default function Notes() {
 
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto fade-in-up">
+      <datalist id="subject-options">
+        {subjectList.map(s => <option key={s} value={s} />)}
+      </datalist>
+
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Notes</h1>
         <p className="text-sm text-slate-500 mt-1">Paste study material and extract topics for quizzing</p>
       </div>
+
+      {normalizeBanner && (
+        <div
+          className="mb-6 flex items-center justify-between gap-4 rounded-xl px-4 py-3"
+          style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}
+        >
+          <p className="text-sm text-indigo-300">
+            Some of your subjects look similar. Click here to organize them.
+          </p>
+          <button
+            onClick={handleNormalizeAll}
+            disabled={normalizing}
+            className="flex-shrink-0 btn-primary text-xs"
+          >
+            {normalizing ? <span className="flex items-center gap-1.5"><Spinner /> Organizing…</span> : 'Organize'}
+          </button>
+        </div>
+      )}
 
       {/* Create form */}
       <div className="card p-6 mb-8">
@@ -195,6 +237,7 @@ export default function Notes() {
                 <label className="label">Subject</label>
                 <input
                   className="input"
+                  list="subject-options"
                   placeholder="e.g. Biology"
                   value={form.subject}
                   onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
@@ -281,6 +324,7 @@ export default function Notes() {
                 <label className="label">Subject</label>
                 <input
                   className="input"
+                  list="subject-options"
                   placeholder="e.g. Biology"
                   value={uploadForm.subject}
                   onChange={(e) => setUploadForm((f) => ({ ...f, subject: e.target.value }))}

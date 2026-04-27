@@ -12,6 +12,7 @@ from app.routers.auth import get_current_user
 from app.schemas import LearningStyleResponse, StudentInsightResponse
 from app.services.learning_style import detect_learning_style
 from app.services.memory import get_insights
+from app.services.subjects import normalize_subject
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -84,31 +85,32 @@ async def study_universe(
     # ── Subjects ───────────────────────────────────────────────────────────────
     # note_count per subject
 
-    note_by_subj = {
-        (r.subject or ""): r.cnt
-        for r in (await db.execute(
-            select(Note.subject, func.count(Note.id).label("cnt"))
-            .where(Note.user_id == uid)
-            .group_by(Note.subject)
-        )).all()
-    }
+    note_by_subj: dict[str, int] = {}
+    for r in (await db.execute(
+        select(Note.subject, func.count(Note.id).label("cnt"))
+        .where(Note.user_id == uid)
+        .group_by(Note.subject)
+    )).all():
+        key = normalize_subject(r.subject) if r.subject else ""
+        note_by_subj[key] = note_by_subj.get(key, 0) + r.cnt
 
     # questions_answered + correct per subject (via Note.subject on each question's note)
-    acc_by_subj = {
-        (r.subject or ""): (r.total, int(r.correct or 0))
-        for r in (await db.execute(
-            select(
-                Note.subject,
-                func.count(Attempt.id).label("total"),
-                func.sum(cast(Attempt.is_correct, Integer)).label("correct"),
-            )
-            .join(Question, Attempt.question_id == Question.id)
-            .join(Note, Question.note_id == Note.id)
-            .where(Attempt.user_id == uid)
-            .where(Note.user_id == uid)
-            .group_by(Note.subject)
-        )).all()
-    }
+    acc_by_subj: dict[str, tuple[int, int]] = {}
+    for r in (await db.execute(
+        select(
+            Note.subject,
+            func.count(Attempt.id).label("total"),
+            func.sum(cast(Attempt.is_correct, Integer)).label("correct"),
+        )
+        .join(Question, Attempt.question_id == Question.id)
+        .join(Note, Question.note_id == Note.id)
+        .where(Attempt.user_id == uid)
+        .where(Note.user_id == uid)
+        .group_by(Note.subject)
+    )).all():
+        key = normalize_subject(r.subject) if r.subject else ""
+        prev_total, prev_correct = acc_by_subj.get(key, (0, 0))
+        acc_by_subj[key] = (prev_total + r.total, prev_correct + int(r.correct or 0))
 
     all_subjects = set(note_by_subj) | set(acc_by_subj)
     subjects = []
@@ -130,7 +132,7 @@ async def study_universe(
         .order_by(Note.id)
     )).all()
     notes_list = [
-        {"id": r.id, "subject": r.subject or "General", "content_length": r.cl or 0}
+        {"id": r.id, "subject": normalize_subject(r.subject) if r.subject else "General", "content_length": r.cl or 0}
         for r in notes_rows
     ]
 

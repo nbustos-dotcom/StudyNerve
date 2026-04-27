@@ -164,6 +164,16 @@ export const api = {
 
   deleteNote: (id) => req('DELETE', `/notes/${id}`),
 
+  // ── Subjects ─────────────────────────────────────────────────────────────────
+  /** @returns {Promise<string[]>} canonical subject names */
+  getSubjectList: () => req('GET', '/subjects/list'),
+
+  /** @returns {Promise<{ count: number, needs: boolean }>} */
+  checkSubjectNormalization: () => req('GET', '/subjects/needs-normalization'),
+
+  /** @returns {Promise<{ updated: number }>} */
+  normalizeAllSubjects: () => req('POST', '/subjects/normalize-all'),
+
   /** @returns {Promise<{ created: number }>} */
   extractTopics: (id) => req('POST', `/notes/${id}/extract-topics`),
 

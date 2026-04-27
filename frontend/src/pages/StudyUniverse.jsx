@@ -64,7 +64,6 @@ function computeSunPositions(n, cx, cy, W, H) {
     })
   }
 
-  // n >= 7: two concentric circles
   const innerCount = 4
   const outerCount = n - innerCount
   const r1 = Math.min(W, H) * 0.16
@@ -86,14 +85,34 @@ function computeSunPositions(n, cx, cy, W, H) {
 function generateScene(data, W, H) {
   console.log('[StudyUniverse] raw data:', JSON.stringify(data, null, 2))
 
-  const {
-    total_flashcards_reviewed = 0,
-    subjects = [],
-  } = data
+  const { total_flashcards_reviewed = 0, subjects = [] } = data
   const notes = data.notes || []
-
   const cx = W / 2
   const cy = H / 2
+  const dofMax = Math.min(W, H) * 0.55
+
+  // ── Nebula gas clouds — 3 large faint background blobs
+  const nebulae = [
+    { cx: W * 0.20, cy: H * 0.28, r: 270, rgb: '65,28,145',  alpha: 0.026, da: 0.0055, db: 0.0038 },
+    { cx: W * 0.78, cy: H * 0.65, r: 340, rgb: '14,42,112',  alpha: 0.021, da: -0.004, db: -0.003 },
+    { cx: W * 0.52, cy: H * 0.16, r: 210, rgb: '7,82,92',    alpha: 0.023, da: 0.0035, db: 0.006  },
+  ]
+
+  // ── Background star field — 220 stars scattered across the full canvas
+  const bgStars = []
+  const bgRng = seededRng(hashStr(`bg${W}x${H}`))
+  const STAR_COLORS = ['rgba(210,225,255,1)', 'rgba(255,245,200,1)', 'rgba(190,210,255,1)', 'rgba(255,220,180,1)']
+  for (let i = 0; i < 220; i++) {
+    bgStars.push({
+      x: bgRng() * W,
+      y: bgRng() * H,
+      size:   0.3 + bgRng() * 1.7,
+      alpha:  0.06 + bgRng() * 0.24,
+      phase:  bgRng() * Math.PI * 2,
+      period: 4 + bgRng() * 9,
+      color:  STAR_COLORS[Math.floor(bgRng() * STAR_COLORS.length)],
+    })
+  }
 
   // ── Suns
   const positions = computeSunPositions(subjects.length, cx, cy, W, H)
@@ -110,7 +129,7 @@ function generateScene(data, W, H) {
     }
   })
 
-  // ── Planets (one per note, orbiting its subject's sun)
+  // ── Planets — one per note, orbiting its subject's sun
   const notesBySun = {}
   for (const note of notes) {
     const key = note.subject || 'General'
@@ -118,29 +137,33 @@ function generateScene(data, W, H) {
     notesBySun[key].push(note)
   }
 
-  const ORBIT_MIN = 50
-  const ORBIT_MAX = 120
+  const ORBIT_MIN = 55
+  const ORBIT_MAX = 130
   const planets = []
 
   for (const sun of suns) {
     const group = notesBySun[sun.name] || []
     const count = group.length
     const colorIdx = SUN_COLORS.indexOf(sun.color)
+    const sunNorm = Math.min(Math.hypot(sun.x - cx, sun.y - cy) / dofMax, 1)
+    const depthBlur = sunNorm > 0.55 ? 0.8 : sunNorm > 0.28 ? 0.4 : 0
 
     group.forEach((note, i) => {
       const rng = seededRng(note.id * 137 + 7)
       const orbitRadius = count === 1
         ? (ORBIT_MIN + ORBIT_MAX) / 2
         : ORBIT_MIN + (i / (count - 1)) * (ORBIT_MAX - ORBIT_MIN)
-      const angle0 = rng() * Math.PI * 2
+      const angle0    = rng() * Math.PI * 2
       const orbitSpeed = 0.04 / Math.sqrt(Math.max(orbitRadius / 60, 1))
-      const bodyRadius = 3 + Math.min((note.content_length || 0) / 500, 5)
+      // Larger planets: 6–14px based on note length
+      const bodyRadius = 6 + Math.min((note.content_length || 0) / 250, 8)
       const color = SUN_COLORS[(colorIdx + 1 + (i % 3)) % SUN_COLORS.length]
-      planets.push({ sunX: sun.x, sunY: sun.y, orbitRadius, angle0, orbitSpeed, bodyRadius, color })
+      planets.push({ sunX: sun.x, sunY: sun.y, orbitRadius, angle0, orbitSpeed, bodyRadius, color, depthBlur })
     })
   }
+  planets.sort((a, b) => a.depthBlur - b.depthBlur)
 
-  // ── Stars (one per correct answer, Gaussian scatter near subject sun)
+  // ── Answer stars — Gaussian scatter near each subject sun
   const scatter = Math.min(W, H) * 0.2
   const stars = []
 
@@ -153,26 +176,29 @@ function generateScene(data, W, H) {
       const u2 = rng()
       const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)
       const z1 = Math.sqrt(-2 * Math.log(u1)) * Math.sin(2 * Math.PI * u2)
+      const sx = sun.x + z0 * scatter
+      const sy = sun.y + z1 * scatter
+      const norm = Math.min(Math.hypot(sx - cx, sy - cy) / dofMax, 1)
       stars.push({
-        x: sun.x + z0 * scatter,
-        y: sun.y + z1 * scatter,
+        x: sx, y: sy,
         size: 0.5 + rng() * 1.5,
         phase: rng() * Math.PI * 2,
         period: 2 + rng() * 5,
         tint: sun.color,
         useTint: rng() < 0.25,
+        depthBlur: norm > 0.65 ? 1.6 : norm > 0.35 ? 0.75 : 0,
       })
     }
   }
+  stars.sort((a, b) => a.depthBlur - b.depthBlur)
 
-  // ── Flashcard sparks (one per 10 reviewed)
+  // ── Flashcard sparks
   const sparkCount = Math.min(Math.floor(total_flashcards_reviewed / 10), 50)
   const sparks = []
   const sparkRng = seededRng(total_flashcards_reviewed * 13 + 99)
   for (let i = 0; i < sparkCount; i++) {
     sparks.push({
-      x: sparkRng() * W,
-      y: sparkRng() * H,
+      x: sparkRng() * W, y: sparkRng() * H,
       color: SUN_COLORS[i % SUN_COLORS.length],
       phase: sparkRng() * Math.PI * 2,
       oscAmp: 8 + sparkRng() * 12,
@@ -180,62 +206,158 @@ function generateScene(data, W, H) {
     })
   }
 
-  return { cx, cy, suns, planets, stars, sparks }
+  return { cx, cy, nebulae, bgStars, suns, planets, stars, sparks }
 }
 
-// ── Draw: sun ─────────────────────────────────────────────────────────────────
+// ── Draw: nebula ──────────────────────────────────────────────────────────────
+
+function drawNebula(ctx, n, t) {
+  // Slow organic drift independent of scene rotation
+  const x = n.cx + Math.sin(t * n.da) * 28
+  const y = n.cy + Math.cos(t * n.db) * 20
+  const g = ctx.createRadialGradient(x, y, 0, x, y, n.r)
+  g.addColorStop(0,   `rgba(${n.rgb},${n.alpha.toFixed(3)})`)
+  g.addColorStop(0.4, `rgba(${n.rgb},${(n.alpha * 0.45).toFixed(3)})`)
+  g.addColorStop(0.75,`rgba(${n.rgb},${(n.alpha * 0.12).toFixed(3)})`)
+  g.addColorStop(1,   `rgba(${n.rgb},0)`)
+  ctx.fillStyle = g
+  ctx.beginPath(); ctx.arc(x, y, n.r, 0, Math.PI * 2); ctx.fill()
+}
+
+// ── Draw: background star ─────────────────────────────────────────────────────
+
+function drawBgStar(ctx, s, t) {
+  const alpha = s.alpha * (0.55 + 0.45 * Math.sin(t * (2 * Math.PI / s.period) + s.phase))
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = s.color
+  ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill()
+  ctx.globalAlpha = 1
+}
+
+// ── Draw: sun (3-layer glow + rotating diffraction spikes) ────────────────────
 
 function drawSun(ctx, sun, t) {
   const { x, y, radius, color, pulsePhase } = sun
-  const pulse = 1 + 0.04 * Math.sin(t * Math.PI * 0.5 + pulsePhase)
+  const pulse = 1 + 0.03 * Math.sin(t * Math.PI * 0.5 + pulsePhase)
   const r = radius * pulse
 
-  // Outer haze
-  const g1 = ctx.createRadialGradient(x, y, r, x, y, r * 5)
-  g1.addColorStop(0, hexToRgba(color, 0.1))
-  g1.addColorStop(0.5, hexToRgba(color, 0.03))
-  g1.addColorStop(1, hexToRgba(color, 0))
-  ctx.beginPath(); ctx.arc(x, y, r * 5, 0, Math.PI * 2)
-  ctx.fillStyle = g1; ctx.fill()
+  // Layer 1 — large soft outer glow, very faint, radiates light outward
+  const glowR = r * 3.2 + 22
+  const glow = ctx.createRadialGradient(x, y, r * 0.4, x, y, glowR)
+  glow.addColorStop(0,    hexToRgba(color, 0.22))
+  glow.addColorStop(0.25, hexToRgba(color, 0.09))
+  glow.addColorStop(0.6,  hexToRgba(color, 0.025))
+  glow.addColorStop(1,    hexToRgba(color, 0))
+  ctx.beginPath(); ctx.arc(x, y, glowR, 0, Math.PI * 2)
+  ctx.fillStyle = glow; ctx.fill()
 
-  // Inner glow
-  const g2 = ctx.createRadialGradient(x, y, 0, x, y, r * 2.5)
-  g2.addColorStop(0, hexToRgba(color, 0.45))
-  g2.addColorStop(0.4, hexToRgba(color, 0.18))
-  g2.addColorStop(1, hexToRgba(color, 0))
-  ctx.beginPath(); ctx.arc(x, y, r * 2.5, 0, Math.PI * 2)
-  ctx.fillStyle = g2; ctx.fill()
-
-  // Core body
-  const core = ctx.createRadialGradient(x - r * 0.25, y - r * 0.25, 0, x, y, r)
-  core.addColorStop(0, '#ffffff')
-  core.addColorStop(0.25, lighten(color, 0.5))
-  core.addColorStop(0.65, color)
-  core.addColorStop(1, darken(color, 0.25))
+  // Layer 2 — saturated colour body, 15–25px
+  const body = ctx.createRadialGradient(x, y, 0, x, y, r)
+  body.addColorStop(0,   lighten(color, 0.55))
+  body.addColorStop(0.45, color)
+  body.addColorStop(0.82, darken(color, 0.18))
+  body.addColorStop(1,   darken(color, 0.38))
   ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2)
+  ctx.fillStyle = body; ctx.fill()
+
+  // Layer 3 — bright white-hot core, ~5px
+  const coreR = Math.min(5.5, r * 0.3)
+  const core = ctx.createRadialGradient(x, y, 0, x, y, coreR * 2.8)
+  core.addColorStop(0,   'rgba(255,255,255,1)')
+  core.addColorStop(0.35,'rgba(255,255,255,0.85)')
+  core.addColorStop(0.7, hexToRgba(color, 0.4))
+  core.addColorStop(1,   hexToRgba(color, 0))
+  ctx.beginPath(); ctx.arc(x, y, coreR * 2.8, 0, Math.PI * 2)
   ctx.fillStyle = core; ctx.fill()
+
+  // Diffraction spikes — cross shape, slowly rotating, replaces cheap lens flare
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.rotate(t * 0.05 + pulsePhase)
+  ctx.globalAlpha = 0.08
+  const spikeLen = 20 + r * 0.55
+  for (let i = 0; i < 2; i++) {
+    const ang = i * Math.PI / 2  // 0° and 90° give a 4-point cross
+    const ax = Math.cos(ang)
+    const ay = Math.sin(ang)
+    const sg = ctx.createLinearGradient(-ax * spikeLen, -ay * spikeLen, ax * spikeLen, ay * spikeLen)
+    sg.addColorStop(0,    'rgba(255,255,255,0)')
+    sg.addColorStop(0.38, hexToRgba(color, 0.55))
+    sg.addColorStop(0.5,  'rgba(255,255,255,1)')
+    sg.addColorStop(0.62, hexToRgba(color, 0.55))
+    sg.addColorStop(1,    'rgba(255,255,255,0)')
+    ctx.strokeStyle = sg
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(-ax * spikeLen, -ay * spikeLen)
+    ctx.lineTo( ax * spikeLen,  ay * spikeLen)
+    ctx.stroke()
+  }
+  ctx.restore()
 }
 
-// ── Draw: planet ──────────────────────────────────────────────────────────────
+// ── Draw: planet (sphere shading with shadow + specular highlight) ─────────────
 
 function drawPlanet(ctx, p, px, py) {
-  const { bodyRadius: r, color } = p
-  const g = ctx.createRadialGradient(px - r * 0.3, py - r * 0.3, 0, px, py, r)
-  g.addColorStop(0, lighten(color, 0.45))
-  g.addColorStop(0.5, color)
-  g.addColorStop(1, darken(color, 0.35))
+  const { bodyRadius: r, color, sunX, sunY } = p
+
+  // Vector toward sun (lit direction)
+  const dx  = sunX - px
+  const dy  = sunY - py
+  const len = Math.hypot(dx, dy) || 1
+  const lx  = dx / len   // toward sun
+  const ly  = dy / len
+  const nx  = -lx         // away from sun (shadow direction)
+  const ny  = -ly
+
+  // Lit body — radial gradient offset toward sun for sphere feel
+  const litX = px + lx * r * 0.38
+  const litY = py + ly * r * 0.38
+  const g = ctx.createRadialGradient(litX, litY, 0, px, py, r)
+  g.addColorStop(0,   lighten(color, 0.55))
+  g.addColorStop(0.4, color)
+  g.addColorStop(1,   darken(color, 0.42))
   ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2)
   ctx.fillStyle = g; ctx.fill()
+
+  // Shadow + specular highlight — both drawn inside one clipped region
+  ctx.save()
+  ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.clip()
+
+  // Dark side shadow
+  const shg = ctx.createLinearGradient(
+    px + lx * r, py + ly * r,   // lit pole
+    px + nx * r, py + ny * r    // dark pole
+  )
+  shg.addColorStop(0,    'rgba(0,0,0,0)')
+  shg.addColorStop(0.45, 'rgba(0,0,0,0.06)')
+  shg.addColorStop(1,    'rgba(0,0,0,0.76)')
+  ctx.fillStyle = shg
+  ctx.fillRect(px - r - 1, py - r - 1, r * 2 + 2, r * 2 + 2)
+
+  // Specular highlight — small bright spot on the lit side
+  const hlX = px + lx * r * 0.52
+  const hlY = py + ly * r * 0.52
+  const hlg = ctx.createRadialGradient(hlX, hlY, 0, hlX, hlY, r * 0.42)
+  hlg.addColorStop(0, 'rgba(255,255,255,0.62)')
+  hlg.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = hlg
+  ctx.fillRect(px - r - 1, py - r - 1, r * 2 + 2, r * 2 + 2)
+
+  ctx.restore()
 }
 
-// ── Draw: star ────────────────────────────────────────────────────────────────
+// ── Draw: answer star (DoF bloom via shadowBlur) ──────────────────────────────
 
 function drawStar(ctx, star, t) {
-  const { x, y, size, phase, period, tint, useTint } = star
+  const { x, y, size, phase, period, tint, useTint, depthBlur } = star
   const alpha = 0.15 + 0.25 * (0.5 + 0.5 * Math.sin(t * (2 * Math.PI / period) + phase))
+  const color = useTint ? tint : 'rgba(220,235,255,1)'
   ctx.globalAlpha = alpha
-  ctx.fillStyle = useTint ? tint : 'rgba(220,235,255,1)'
+  ctx.fillStyle = color
+  if (depthBlur > 0) { ctx.shadowBlur = depthBlur * 3; ctx.shadowColor = color }
   ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI * 2); ctx.fill()
+  if (depthBlur > 0) { ctx.shadowBlur = 0; ctx.shadowColor = 'transparent' }
   ctx.globalAlpha = 1
 }
 
@@ -248,57 +370,89 @@ function drawSpark(ctx, spark, t) {
   const tw = 0.3 + 0.3 * Math.sin(t * 1.4 + phase)
 
   ctx.globalAlpha = tw
-
   ctx.fillStyle = color
   ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI * 2); ctx.fill()
 
   const len = 5 + 4 * tw
   ctx.strokeStyle = color
   ctx.lineWidth = 0.8
-  // 4-line cross-shaped diffraction spike
-  ctx.beginPath(); ctx.moveTo(sx - len, sy); ctx.lineTo(sx + len, sy); ctx.stroke()
-  ctx.beginPath(); ctx.moveTo(sx, sy - len); ctx.lineTo(sx, sy + len); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(sx - len, sy);           ctx.lineTo(sx + len, sy);           ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(sx, sy - len);           ctx.lineTo(sx, sy + len);           ctx.stroke()
   ctx.beginPath(); ctx.moveTo(sx - len * 0.6, sy - len * 0.6); ctx.lineTo(sx + len * 0.6, sy + len * 0.6); ctx.stroke()
   ctx.beginPath(); ctx.moveTo(sx + len * 0.6, sy - len * 0.6); ctx.lineTo(sx - len * 0.6, sy + len * 0.6); ctx.stroke()
 
   ctx.globalAlpha = 1
 }
 
+// ── Draw: colour grading (vignette + cinematic tint) ─────────────────────────
+
+function drawColorGrading(ctx, W, H, cx, cy) {
+  const vg = ctx.createRadialGradient(cx, cy, Math.min(W, H) * 0.22, cx, cy, Math.max(W, H) * 0.78)
+  vg.addColorStop(0,    'rgba(0,0,0,0)')
+  vg.addColorStop(0.62, 'rgba(0,0,0,0)')
+  vg.addColorStop(1,    'rgba(0,0,8,0.8)')
+  ctx.fillStyle = vg
+  ctx.fillRect(0, 0, W, H)
+
+  ctx.save()
+  ctx.globalCompositeOperation = 'screen'
+  ctx.globalAlpha = 0.03
+  const wash = ctx.createRadialGradient(cx * 0.55, cy * 0.45, 0, cx, cy, Math.max(W, H) * 0.72)
+  wash.addColorStop(0,    'rgba(90,55,190,1)')
+  wash.addColorStop(0.55, 'rgba(35,18,100,1)')
+  wash.addColorStop(1,    'rgba(8,5,45,1)')
+  ctx.fillStyle = wash
+  ctx.fillRect(0, 0, W, H)
+  ctx.restore()
+}
+
 // ── Main frame render ─────────────────────────────────────────────────────────
 
 function drawFrame(ctx, W, H, scene, ts) {
   ctx.clearRect(0, 0, W, H)
-  const { cx, cy, suns, planets, stars, sparks } = scene
+  const { cx, cy, nebulae, bgStars, suns, planets, stars, sparks } = scene
   const t = ts / 1000
-  const angle = t * (0.3 * Math.PI / 180)
+  const baseAngle = t * (0.3 * Math.PI / 180)
 
+  // ── Layer 0 — nebulae + star field: 0.3× rotation (slowest) ─────────────────
   ctx.save()
-  ctx.translate(cx, cy)
-  ctx.rotate(angle)
-  ctx.translate(-cx, -cy)
+  ctx.translate(cx, cy); ctx.rotate(baseAngle * 0.3); ctx.translate(-cx, -cy)
 
-  // 1. Stars
+  for (const n of nebulae) drawNebula(ctx, n, t)
+  for (const s of bgStars) drawBgStar(ctx, s, t)
   for (const star of stars) drawStar(ctx, star, t)
 
-  // 2. Flashcard sparks
-  for (const spark of sparks) drawSpark(ctx, spark, t)
+  ctx.restore()
 
-  // 3. Planets
+  // ── Layer 1 — planets: 0.7× rotation (mid) ───────────────────────────────────
+  ctx.save()
+  ctx.translate(cx, cy); ctx.rotate(baseAngle * 0.7); ctx.translate(-cx, -cy)
+
+  let curBlur = -1
   for (const p of planets) {
     const pa = p.angle0 + t * p.orbitSpeed
     const px = p.sunX + Math.cos(pa) * p.orbitRadius
     const py = p.sunY + Math.sin(pa) * p.orbitRadius
+    if (p.depthBlur !== curBlur) {
+      ctx.filter = p.depthBlur > 0 ? `blur(${p.depthBlur}px)` : 'none'
+      curBlur = p.depthBlur
+    }
     drawPlanet(ctx, p, px, py)
   }
-
-  // 4. Suns
-  for (const sun of suns) drawSun(ctx, sun, t)
+  if (curBlur > 0) ctx.filter = 'none'
 
   ctx.restore()
 
-  // 5. Labels drawn post-restore so text stays upright
-  const cosA = Math.cos(angle)
-  const sinA = Math.sin(angle)
+  // ── Layer 2 — sparks + suns: 1.0× rotation (foreground) ─────────────────────
+  ctx.save()
+  ctx.translate(cx, cy); ctx.rotate(baseAngle); ctx.translate(-cx, -cy)
+  for (const spark of sparks) drawSpark(ctx, spark, t)
+  for (const sun of suns) drawSun(ctx, sun, t)
+  ctx.restore()
+
+  // ── Screen-space: labels + post-processing ────────────────────────────────────
+  const cosA = Math.cos(baseAngle)
+  const sinA = Math.sin(baseAngle)
   ctx.font = '11px system-ui, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
@@ -308,6 +462,8 @@ function drawFrame(ctx, W, H, scene, ts) {
     const ry = cy + (sun.x - cx) * sinA + (sun.y - cy) * cosA
     ctx.fillText(sun.name, rx, ry + sun.radius + 6)
   }
+
+  drawColorGrading(ctx, W, H, cx, cy)
 }
 
 // ── Stats card ────────────────────────────────────────────────────────────────
@@ -408,7 +564,6 @@ export default function StudyUniverse() {
         style={{
           minHeight: '70vh',
           background: 'radial-gradient(ellipse at 48% 35%, rgba(16,12,44,1) 0%, rgba(5,4,16,1) 65%, rgba(2,2,8,1) 100%)',
-          border: '1px solid rgba(255,255,255,0.06)',
         }}
       >
         {loading && (

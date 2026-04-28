@@ -55,24 +55,24 @@ function solveKepler(M, e) {
 function computeSunLayout(n) {
   if (n === 0) return []
   if (n === 1) return [{ nx: 0, ny: 0 }]
-  if (n === 2) return [{ nx: -0.28, ny: 0 }, { nx: 0.28, ny: 0 }]
+  if (n === 2) return [{ nx: -0.33, ny: 0 }, { nx: 0.33, ny: 0 }]
   if (n === 3) return [0, 1, 2].map(i => {
     const a = -Math.PI / 2 + (i / 3) * Math.PI * 2
-    return { nx: Math.cos(a) * 0.28, ny: Math.sin(a) * 0.22 }
+    return { nx: Math.cos(a) * 0.33, ny: Math.sin(a) * 0.27 }
   })
   if (n <= 6) return Array.from({ length: n }, (_, i) => {
     const a = -Math.PI / 2 + (i / n) * Math.PI * 2
-    return { nx: Math.cos(a) * 0.30, ny: Math.sin(a) * 0.25 }
+    return { nx: Math.cos(a) * 0.36, ny: Math.sin(a) * 0.30 }
   })
   const inner = 4, outer = n - inner
   const positions = []
   for (let i = 0; i < inner; i++) {
     const a = -Math.PI / 2 + (i / inner) * Math.PI * 2
-    positions.push({ nx: Math.cos(a) * 0.15, ny: Math.sin(a) * 0.15 })
+    positions.push({ nx: Math.cos(a) * 0.20, ny: Math.sin(a) * 0.18 })
   }
   for (let i = 0; i < outer; i++) {
     const a = -Math.PI / 2 + (i / outer) * Math.PI * 2
-    positions.push({ nx: Math.cos(a) * 0.30, ny: Math.sin(a) * 0.30 })
+    positions.push({ nx: Math.cos(a) * 0.38, ny: Math.sin(a) * 0.34 })
   }
   return positions
 }
@@ -238,16 +238,12 @@ function buildSunTexture(sub, idx) {
     g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, rad, 0, TAU); g.fill()
   }
 
-  // Corona streamers
-  for (let i = 0; i < 26; i++) {
-    const ang = rng() * TAU, len = R * (3 + rng() * 2.5), w = R * (0.18 + rng() * 0.5)
-    g.save(); g.translate(cx, cy); g.rotate(ang)
-    const lg = g.createLinearGradient(0, 0, len, 0)
-    lg.addColorStop(0, hexA(sub.accent, 0.18)); lg.addColorStop(0.4, hexA(sub.color, 0.06)); lg.addColorStop(1, 'rgba(0,0,0,0)')
-    g.fillStyle = lg
-    g.beginPath(); g.moveTo(0, -w * 0.5); g.lineTo(len, -w * 0.05); g.lineTo(len, w * 0.05); g.lineTo(0, w * 0.5); g.closePath(); g.fill()
-    g.restore()
-  }
+  // Soft corona shell (no directional rays)
+  const softShell = g.createRadialGradient(cx, cy, R * 1.0, cx, cy, R * 4.8)
+  softShell.addColorStop(0, hexA(sub.accent, 0.10))
+  softShell.addColorStop(0.5, hexA(sub.color, 0.05))
+  softShell.addColorStop(1, 'rgba(0,0,0,0)')
+  g.fillStyle = softShell; g.beginPath(); g.arc(cx, cy, R * 4.8, 0, TAU); g.fill()
 
   // Solar flares
   for (let i = 0; i < 5; i++) {
@@ -516,11 +512,11 @@ export default function StudyUniverse() {
       ctx.drawImage(tex.canvas, -drawSize / 2, -drawSize / 2, drawSize, drawSize)
       ctx.restore()
       ctx.save()
-      ctx.globalCompositeOperation = 'lighter'
+      ctx.globalCompositeOperation = 'screen'
       const R = sub.radius * pulse
-      const bloom = ctx.createRadialGradient(x, y, 0, x, y, R * 9)
-      bloom.addColorStop(0, hexA(sub.accent, 0.18)); bloom.addColorStop(0.25, hexA(sub.color, 0.10)); bloom.addColorStop(1, 'rgba(0,0,0,0)')
-      ctx.fillStyle = bloom; ctx.beginPath(); ctx.arc(x, y, R * 9, 0, TAU); ctx.fill()
+      const bloom = ctx.createRadialGradient(x, y, 0, x, y, R * 6.5)
+      bloom.addColorStop(0, hexA(sub.accent, 0.22)); bloom.addColorStop(0.35, hexA(sub.color, 0.10)); bloom.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = bloom; ctx.beginPath(); ctx.arc(x, y, R * 6.5, 0, TAU); ctx.fill()
       ctx.restore()
     }
 
@@ -693,14 +689,15 @@ export default function StudyUniverse() {
 
       // Subject labels (projected from world space to screen space)
       ctx.save()
-      ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'
-      ctx.fillStyle = 'rgba(255,255,255,0.55)'
+      ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'
+      ctx.shadowColor = 'rgba(0,0,8,0.95)'; ctx.shadowBlur = 8
+      ctx.fillStyle = 'rgba(255,255,255,0.88)'
       const cosR = Math.cos(rot), sinR = Math.sin(rot)
       sunData.forEach((sub, i) => {
         if (!sunPos[i]) return
         const wx = sunPos[i].x, wy = sunPos[i].y
         const rx = wx * cosR - wy * sinR, ry = wx * sinR + wy * cosR
-        ctx.fillText(sub.name, (cxW + driftX) + rx * breathe, (cyW + driftY) + ry * breathe + sub.radius + 10)
+        ctx.fillText(sub.name, (cxW + driftX) + rx * breathe, (cyW + driftY) + ry * breathe + sub.radius + 12)
       })
       ctx.restore()
 

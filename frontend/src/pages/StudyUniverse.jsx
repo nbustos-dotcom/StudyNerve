@@ -6,14 +6,14 @@ import { api } from '../api/client'
 const TAU = Math.PI * 2
 
 const SUN_PALETTES = [
-  { color: '#fbbf24', deep: '#b45309', halo: '#f59e0b', accent: '#fff8e1' },
-  { color: '#f97316', deep: '#9a3412', halo: '#ea580c', accent: '#ffe4cc' },
-  { color: '#a78bfa', deep: '#5b21b6', halo: '#8b5cf6', accent: '#ede9fe' },
-  { color: '#22d3ee', deep: '#155e75', halo: '#06b6d4', accent: '#cffafe' },
-  { color: '#f43f5e', deep: '#9f1239', halo: '#e11d48', accent: '#ffe4e6' },
-  { color: '#10b981', deep: '#065f46', halo: '#059669', accent: '#d1fae5' },
-  { color: '#6366f1', deep: '#3730a3', halo: '#4f46e5', accent: '#e0e7ff' },
-  { color: '#ec4899', deep: '#9d174d', halo: '#db2777', accent: '#fce7f3' },
+  { color: '#d4a056', deep: '#7a4a18', halo: '#c89040', accent: '#f5e8d0' }, // warm amber
+  { color: '#c06030', deep: '#6a2c10', halo: '#b05020', accent: '#f0d0b8' }, // deep coral
+  { color: '#7060b8', deep: '#302858', halo: '#6050a8', accent: '#d8d4f0' }, // blue-violet
+  { color: '#6898b8', deep: '#284058', halo: '#5888a8', accent: '#cce0f0' }, // icy blue
+  { color: '#508878', deep: '#1e3c34', halo: '#407868', accent: '#c8e4dc' }, // soft teal
+  { color: '#9060a0', deep: '#482858', halo: '#805090', accent: '#e4d0f0' }, // dusty violet
+  { color: '#6070a8', deep: '#283058', halo: '#5060a0', accent: '#d0d8f0' }, // steel blue
+  { color: '#a86870', deep: '#583038', halo: '#986068', accent: '#f0d4d8' }, // dusty rose
 ]
 
 // ── Math helpers ──────────────────────────────────────────────────────────────

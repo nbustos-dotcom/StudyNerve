@@ -21,6 +21,7 @@ from app.schemas import (
 from app.services.gap_detector import calculate_gap_scores
 from app.services.learning_style import LearningProfile, detect_learning_style
 from app.services.memory import generate_insights, get_insights
+from app.services.user_context import build_user_context
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -136,6 +137,7 @@ async def _build_system_prompt(
     style_hint: str,
     learning_profile: LearningProfile,
     insights: list[StudentInsight],
+    user_context: str = "",
 ) -> str:
     lines: list[str] = [
         "You are StudyNerve AI. You talk like a real person, not an AI. No corporate tone. "
@@ -307,6 +309,11 @@ async def _build_system_prompt(
                     flush=True,
                 )
 
+    if user_context:
+        lines.append("## Student Context Snapshot (use this — do not recite it verbatim):")
+        lines.append(user_context)
+        lines.append("")
+
     lines += [
         "EVERY SINGLE RESPONSE MUST:",
         "- Start with a direct answer to what was asked. No preamble.",
@@ -374,10 +381,12 @@ async def send_message(
 
     learning_profile = await detect_learning_style(db, user_id=current_user.id)
     stored_insights = await get_insights(db, user_id=current_user.id)
+    user_ctx = await build_user_context(current_user.id, db)
 
     system = await _build_system_prompt(
         db, current_user.id, note_id, question_id,
         style_hint, learning_profile, stored_insights,
+        user_context=user_ctx,
     )
 
     if file_text:

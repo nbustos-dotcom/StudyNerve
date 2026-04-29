@@ -90,6 +90,7 @@ async def ai_vision(
     description: str,
     provider_name: Optional[str] = None,
     api_key: Optional[str] = None,
+    context_hint: str = "",
 ) -> Optional[dict]:
     """
     Given a free-form project description, return a spatial mind map layout.
@@ -101,7 +102,10 @@ async def ai_vision(
         "Create a visual mind map layout for this. "
         "Think carefully about the logical flow and what steps depend on each other."
     )
-    return await generate_json(prompt, _VISION_SYSTEM, provider_name, api_key)
+    system = _VISION_SYSTEM
+    if context_hint:
+        system = system + f"\n\n{context_hint}"
+    return await generate_json(prompt, system, provider_name, api_key)
 
 async def ai_organize(
     nodes: list[dict],

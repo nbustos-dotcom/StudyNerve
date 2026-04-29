@@ -47,6 +47,7 @@ from app.schemas import (
     UpdateNodePositionRequest,
     UpdateNodeRequest,
 )
+from app.services.user_context import build_user_context
 from app.services.vision import ai_ask, ai_breakdown, ai_organize, ai_vision
 
 router = APIRouter(prefix="/vision", tags=["vision"])
@@ -352,8 +353,20 @@ async def ai_vision_board(
     _owned_board_or_404(board, current_user.id)
 
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+
     try:
-        result = await ai_vision(body.description, **llm_kwargs)
+        _raw_ctx = await build_user_context(current_user.id, db)
+        ctx_hint = (
+            "## Student Context Snapshot"
+            " (connect new nodes to concepts from the student's recent notes when relevant;"
+            " surface upcoming deadlines as priority steps)\n"
+            + _raw_ctx
+        ) if _raw_ctx else ""
+    except Exception:
+        ctx_hint = ""
+
+    try:
+        result = await ai_vision(body.description, context_hint=ctx_hint, **llm_kwargs)
     except LLMTokenLimitError as exc:
         raise HTTPException(status_code=422, detail=exc.message)
 

@@ -7,6 +7,7 @@ from app.llm import generate_flashcards as llm_generate_flashcards
 from app.models import Flashcard, Note, User, utcnow
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
+from app.services.user_context import build_user_context
 from app.schemas import (
     FlashcardGenerateRequest,
     FlashcardGroupResponse,
@@ -32,7 +33,18 @@ async def generate(
 
     content = note.content[:_MAX_CONTENT_CHARS]
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
-    result = await llm_generate_flashcards(content, body.count, **llm_kwargs)
+
+    try:
+        _raw_ctx = await build_user_context(current_user.id, db)
+        ctx_hint = (
+            "## Student Context Snapshot"
+            " (weight card selection toward weak topics and concepts the student recently got wrong)\n"
+            + _raw_ctx
+        ) if _raw_ctx else ""
+    except Exception:
+        ctx_hint = ""
+
+    result = await llm_generate_flashcards(content, body.count, context_hint=ctx_hint, **llm_kwargs)
     if result is None:
         raise HTTPException(status_code=502, detail="LLM unavailable or failed to generate flashcards")
 

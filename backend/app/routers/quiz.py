@@ -31,6 +31,7 @@ from app.schemas import (
     TopicGapScoreResponse,
 )
 from app.services.gap_detector import calculate_gap_scores
+from app.services.user_context import build_user_context
 
 router = APIRouter(prefix="/quiz", tags=["quiz"])
 
@@ -69,6 +70,16 @@ async def generate_quiz(
     note_content = note.content[:_MAX_NOTE_CHARS]
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
 
+    try:
+        _raw_ctx = await build_user_context(current_user.id, db)
+        ctx_hint = (
+            "## Student Context Snapshot"
+            " (prioritize weak topics; avoid questions on material the student already aces)\n"
+            + _raw_ctx
+        ) if _raw_ctx else ""
+    except Exception:
+        ctx_hint = ""
+
     for q_type in question_types:
         remaining = body.num_questions - len(saved)
         if remaining <= 0:
@@ -86,6 +97,7 @@ async def generate_quiz(
                     topic_name=topic.name,
                     count=batch,
                     question_type=q_type,
+                    context_hint=ctx_hint,
                     **llm_kwargs,
                 )
             except LLMTokenLimitError as exc:
@@ -359,6 +371,16 @@ async def generate_adaptive_quiz(
     adaptive_note_content = note.content[:_MAX_NOTE_CHARS]
     adaptive_llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
 
+    try:
+        _raw_ctx = await build_user_context(current_user.id, db)
+        adaptive_ctx_hint = (
+            "## Student Context Snapshot"
+            " (prioritize weak topics; avoid questions on material the student already aces)\n"
+            + _raw_ctx
+        ) if _raw_ctx else ""
+    except Exception:
+        adaptive_ctx_hint = ""
+
     if not note_gaps:
         topic_result = await db.execute(
             select(Topic).where(Topic.note_id == body.note_id).limit(1)
@@ -375,6 +397,7 @@ async def generate_adaptive_quiz(
                 topic_name=topic.name,
                 count=body.count,
                 question_type="mcq",
+                context_hint=adaptive_ctx_hint,
                 **adaptive_llm_kwargs,
             )
         except LLMTokenLimitError as exc:
@@ -428,6 +451,7 @@ async def generate_adaptive_quiz(
                 topic_name=gap.topic_name,
                 count=topic_count,
                 question_type="mcq",
+                context_hint=adaptive_ctx_hint,
                 **adaptive_llm_kwargs,
             )
         except LLMTokenLimitError as exc:

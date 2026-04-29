@@ -251,6 +251,7 @@ async def generate_questions(
     question_type: str,
     provider_name: Optional[str] = None,
     api_key: Optional[str] = None,
+    context_hint: str = "",
 ) -> Optional[dict]:
     type_instruction = (
         "Generate only multiple-choice (MCQ) questions."
@@ -274,7 +275,10 @@ async def generate_questions(
         f"writing the answer. Show your work in the explanation. If you cannot verify the answer "
         f"is correct, skip that question and generate a different one. Never guess at numerical answers."
     )
-    return await generate_json(prompt, QUESTION_GENERATION_SYSTEM, provider_name, api_key)
+    system = QUESTION_GENERATION_SYSTEM
+    if context_hint:
+        system = system + f"\n\n{context_hint}"
+    return await generate_json(prompt, system, provider_name, api_key)
 
 
 async def extract_insights(
@@ -314,11 +318,15 @@ async def generate_flashcards(
     count: int,
     provider_name: Optional[str] = None,
     api_key: Optional[str] = None,
+    context_hint: str = "",
 ) -> Optional[dict]:
     prompt = (
         f"Generate exactly {count} flashcards from this study material:\n\n{note_content}"
     )
-    return await generate_json(prompt, FLASHCARD_GENERATION_SYSTEM, provider_name, api_key)
+    system = FLASHCARD_GENERATION_SYSTEM
+    if context_hint:
+        system = system + f"\n\n{context_hint}"
+    return await generate_json(prompt, system, provider_name, api_key)
 
 
 async def summarize_note(

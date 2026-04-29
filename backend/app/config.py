@@ -26,6 +26,7 @@ class Settings:
     MAX_LLM_RETRIES: int = int(os.getenv("MAX_LLM_RETRIES", "3"))
     CANVAS_API_URL: str = os.getenv("CANVAS_API_URL", "https://mtu.instructure.com/api/v1")
     CANVAS_API_TOKEN: str = os.getenv("CANVAS_API_TOKEN", "")
+    ENABLE_USER_CONTEXT: bool = os.getenv("ENABLE_USER_CONTEXT", "false").lower() == "true"
 
 
 settings = Settings()

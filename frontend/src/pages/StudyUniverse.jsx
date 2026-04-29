@@ -687,20 +687,6 @@ export default function StudyUniverse() {
       ctx.restore()
       drawVignette()
 
-      // Subject labels (projected from world space to screen space)
-      ctx.save()
-      ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'
-      ctx.shadowColor = 'rgba(0,0,8,0.95)'; ctx.shadowBlur = 8
-      ctx.fillStyle = 'rgba(255,255,255,0.88)'
-      const cosR = Math.cos(rot), sinR = Math.sin(rot)
-      sunData.forEach((sub, i) => {
-        if (!sunPos[i]) return
-        const wx = sunPos[i].x, wy = sunPos[i].y
-        const rx = wx * cosR - wy * sinR, ry = wx * sinR + wy * cosR
-        ctx.fillText(sub.name, (cxW + driftX) + rx * breathe, (cyW + driftY) + ry * breathe + sub.radius + 12)
-      })
-      ctx.restore()
-
       raf = requestAnimationFrame(frame)
     }
     raf = requestAnimationFrame(frame)
@@ -725,8 +711,8 @@ export default function StudyUniverse() {
     <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto fade-in-up">
       <div className="mb-5">
         <h1 className="text-xl font-semibold text-slate-100">My Universe</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Every planet is a note. Every sun is a subject. Drag to rotate.
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.50)', marginTop: 4 }}>
+          Every star is a correct answer. Every planet is a note. Every sun is a subject.
         </p>
       </div>
 
@@ -766,6 +752,35 @@ export default function StudyUniverse() {
           ref={canvasRef}
           style={{ display: 'block', width: '100%', height: '100%', cursor: 'grab' }}
         />
+        {data && !loading && data.subjects.length > 0 && (
+          <div style={{
+            position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)',
+            background: 'rgba(0,0,0,0.40)', backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12,
+            padding: 16, zIndex: 10, minWidth: 148, maxWidth: 210, pointerEvents: 'none',
+          }}>
+            {data.subjects.map((sub, i) => {
+              const color = SUN_PALETTES[i % SUN_PALETTES.length].color
+              const hasStats = sub.note_count > 0 || sub.accuracy !== undefined
+              return (
+                <div key={sub.name} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: i < data.subjects.length - 1 ? 10 : 0 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0, boxShadow: `0 0 6px ${color}88` }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.80)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {sub.name}
+                    </span>
+                    {hasStats && (
+                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', display: 'block' }}>
+                        {sub.note_count} {sub.note_count === 1 ? 'note' : 'notes'}
+                        {sub.accuracy !== undefined && ` · ${sub.accuracy}%`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {data && !loading && (

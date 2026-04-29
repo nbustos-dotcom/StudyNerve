@@ -37,51 +37,51 @@ Rules:
 - Be specific to the student's actual content — no generic advice"""
 
 
-_VISION_SYSTEM = """You are an expert visual thinking assistant. A student described a project or assignment. Create a spatial mind map layout for it.
+_VISION_SYSTEM = """You are an expert visual thinking assistant. Break this project into clear, logical steps as a spatial mind map.
 
-Break it into 6 to 12 main nodes with clear, short titles. For each node include a brief 1-sentence description.
+RULES — read carefully before generating:
+1. Each step must be specific and actionable, not vague.
+2. Steps must be in correct logical order — what must happen first comes first.
+3. If the task involves a sequence (counting, listing, ordering), get every item exactly right. Do not skip, repeat, or mis-order items.
+4. Double-check your output before responding. If a step is out of order or doesn't make sense, fix it first.
+5. Keep step titles short: 3–8 words. Descriptions can be 1–2 sentences, specific to the student's content.
 
-Arrange them so the flow reads left to right:
-- Starting steps get LOW x values (100-300)
-- Middle steps get MID x values (400-800)
-- Final steps get HIGH x values (900-1200)
-- Group related nodes vertically with similar y values
-- Spread nodes out so they do not overlap (each node is ~180px wide, ~52px tall — keep at least 200px horizontal gap and 100px vertical gap)
+SPATIAL LAYOUT:
+- 6 to 12 nodes total
+- Arrange left-to-right by phase: starting steps x=100–300, middle steps x=400–800, final steps x=900–1200
+- y ranges 80–580; spread nodes so they don't overlap (nodes are ~180×52px — keep 200px horizontal gap, 100px vertical gap)
+- Group related nodes at similar y values
 
 Return ONLY valid JSON with no commentary:
 {
   "nodes": [
-    {"title": "Short title", "description": "One sentence about what this involves.", "x": 100, "y": 250}
+    {"title": "Short title", "description": "One specific sentence.", "x": 100, "y": 250}
   ],
   "connections": [
     {"from_index": 0, "to_index": 1}
   ]
 }
 
-Rules:
-- 6 to 12 nodes exactly
-- x ranges 100 to 1200, y ranges 80 to 580
-- connections show logical flow or dependency (from_index → to_index)
+Additional rules:
 - from_index and to_index are 0-based indices into the nodes array
-- A node may have at most one parent connection (one connection pointing to it)
-- titles must be 2 to 5 words — concise
-- descriptions must be a single sentence — specific to the student's content"""
+- A node may have at most one parent connection (one connection pointing to it)"""
 
 
-_BREAKDOWN_SYSTEM = """You are a study planner. Break one task into 2-4 concrete, actionable sub-tasks.
+_BREAKDOWN_SYSTEM = """You are a study planner. Break one task into 2–4 smaller, concrete sub-tasks.
 
-Return ONLY valid JSON in this exact structure:
+RULES — read carefully before generating:
+1. Each sub-task must be a concrete, actionable step — not a restatement of the parent task.
+2. Sub-tasks must be in correct logical order (what comes first goes first).
+3. Verify your output is accurate and correctly ordered before responding.
+4. 2 to 4 sub-tasks only.
+5. Descriptions are optional but preferred; keep them to one sentence.
+
+Return ONLY valid JSON:
 {
   "subtasks": [
     {"title": "Sub-task title", "description": "What specifically to do"}
   ]
-}
-
-Rules:
-- 2 to 4 sub-tasks only
-- Each sub-task must be specific and actionable — not vague
-- description is optional but preferred; keep it to one sentence
-- Do not re-state the parent task as a sub-task"""
+}"""
 
 
 # ── Public API ────────────────────────────────────────────────────────────────

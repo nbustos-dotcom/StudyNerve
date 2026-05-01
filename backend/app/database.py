@@ -1,7 +1,7 @@
 import re
 import sys
 
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -39,6 +39,17 @@ try:
 except Exception as _exc:
     print(f"[database] ERROR creating engine: {_exc}", flush=True)
     sys.exit(1)
+
+# SQLite: enable WAL mode and a 5-second busy timeout so background tasks
+# and HTTP request sessions can read/write concurrently without "database is
+# locked" errors. WAL is a no-op on Postgres.
+if _db_url.startswith("sqlite"):
+    @event.listens_for(engine.sync_engine, "connect")
+    def _set_sqlite_pragmas(dbapi_conn, _record):
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA busy_timeout=5000")
+        cur.close()
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

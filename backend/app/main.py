@@ -15,7 +15,7 @@ from slowapi.util import get_remote_address
 from app.database import init_db
 from app.llm import check_health
 from app.models import User
-from app.routers import canvas, chat, flashcards, notes, profile, quiz, subjects, topics, vision
+from app.routers import canvas, chat, flashcards, notes, profile, quiz, subjects, topics, vision, workflow
 from app.routers.auth import get_current_user, router as auth_router
 from app.routers.settings import router as settings_router
 
@@ -58,6 +58,7 @@ app.include_router(canvas.router, prefix="/api")
 app.include_router(vision.router, prefix="/api")
 app.include_router(flashcards.router, prefix="/api")
 app.include_router(subjects.router, prefix="/api")
+app.include_router(workflow.router, prefix="/api")
 
 
 def assert_user_owns(obj, authenticated_user_id: int, label: str = "") -> None:

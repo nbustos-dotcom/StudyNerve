@@ -43,24 +43,4 @@ git push origin cloud-deploy
 if ($LASTEXITCODE -ne 0) { Die "git push origin cloud-deploy" }
 
 Write-Host ""
-Write-Host "git checkout main" -ForegroundColor Cyan
-git checkout main
-if ($LASTEXITCODE -ne 0) { Die "git checkout main" }
-
-Write-Host ""
-Write-Host "git merge cloud-deploy" -ForegroundColor Cyan
-git merge cloud-deploy --no-edit
-if ($LASTEXITCODE -ne 0) { Die "git merge cloud-deploy" }
-
-Write-Host ""
-Write-Host "git push main" -ForegroundColor Cyan
-git push origin main
-if ($LASTEXITCODE -ne 0) { Die "git push origin main" }
-
-Write-Host ""
-Write-Host "git checkout cloud-deploy" -ForegroundColor Cyan
-git checkout cloud-deploy
-if ($LASTEXITCODE -ne 0) { Die "git checkout cloud-deploy" }
-
-Write-Host ""
 Write-Host "Shipped." -ForegroundColor Green

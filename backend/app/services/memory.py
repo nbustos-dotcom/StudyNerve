@@ -9,7 +9,6 @@ get_insights() accepts an existing session for use inside request handlers.
 """
 
 import logging
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +26,7 @@ _MAX_MESSAGES = 20
 async def generate_insights(session_id: str, user_id: int) -> int:
     """
     Pull the last _MAX_MESSAGES messages from session_id, send to the LLM for
-    insight extraction, then upsert the results into StudentInsight.
+    insight extraction, then insert the results into StudentInsight.
 
     Uses the user's saved LLM provider + API key from UserSettings so background
     tasks honour the same provider the user chose in Settings.
@@ -75,7 +74,6 @@ async def generate_insights(session_id: str, user_id: int) -> int:
                 return 0
 
             saved = 0
-            now = datetime.now(timezone.utc)
 
             for item in llm_result["insights"]:
                 insight_text = (item.get("insight") or "").strip()
@@ -85,31 +83,17 @@ async def generate_insights(session_id: str, user_id: int) -> int:
                 if not insight_text:
                     continue
 
-                existing = None
-                if topic_name:
-                    existing_result = await db.execute(
-                        select(StudentInsight)
-                        .where(
-                            StudentInsight.topic_name == topic_name,
-                            StudentInsight.category == category,
-                            StudentInsight.user_id == user_id,
-                        )
-                        .limit(1)
-                    )
-                    existing = existing_result.scalar_one_or_none()
-
-                if existing:
-                    existing.insight = insight_text
-                    existing.session_id = session_id
-                    existing.updated_at = now
-                else:
-                    db.add(StudentInsight(
-                        insight=insight_text,
-                        category=category,
-                        topic_name=topic_name,
-                        user_id=user_id,
-                        session_id=session_id,
-                    ))
+                # Always insert a new row per session so that session_id reliably
+                # identifies the originating session. Dedup happens at read time in
+                # get_insights() — this keeps deletion clean: deleting a session
+                # removes exactly its derived insight rows.
+                db.add(StudentInsight(
+                    insight=insight_text,
+                    category=category,
+                    topic_name=topic_name,
+                    user_id=user_id,
+                    session_id=session_id,
+                ))
                 saved += 1
 
             await db.commit()
@@ -123,10 +107,18 @@ async def generate_insights(session_id: str, user_id: int) -> int:
 
 
 async def get_insights(db: AsyncSession, user_id: int) -> list[StudentInsight]:
-    """Return all stored insights for a user, most recently updated first."""
+    """Return the freshest insight per (topic_name, category) for a user."""
     result = await db.execute(
         select(StudentInsight)
         .where(StudentInsight.user_id == user_id)
         .order_by(StudentInsight.updated_at.desc())
     )
-    return result.scalars().all()
+    rows = result.scalars().all()
+    seen: set[tuple] = set()
+    deduped: list[StudentInsight] = []
+    for ins in rows:
+        key = (ins.topic_name, ins.category)
+        if key not in seen:
+            seen.add(key)
+            deduped.append(ins)
+    return deduped

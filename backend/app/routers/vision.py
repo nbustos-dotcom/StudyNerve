@@ -21,7 +21,9 @@ Endpoints:
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database import get_db
 from app.models import User, VisionBoard, VisionStep
@@ -51,6 +53,7 @@ from app.services.user_context import build_user_context
 from app.services.vision import ai_ask, ai_breakdown, ai_organize, ai_vision
 
 router = APIRouter(prefix="/vision", tags=["vision"])
+_limiter = Limiter(key_func=get_remote_address)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -336,7 +339,9 @@ async def disconnect_nodes(
 # ── AI endpoints ──────────────────────────────────────────────────────────────
 
 @router.post("/boards/{board_id}/ai-vision", response_model=AiVisionResponse, status_code=201)
+@_limiter.limit("10/minute")
 async def ai_vision_board(
+    request: Request,
     board_id: int,
     body: AiVisionRequest,
     current_user: User = Depends(get_current_user),
@@ -430,7 +435,9 @@ async def ai_vision_board(
 
 
 @router.post("/boards/{board_id}/ai-organize", response_model=AiOrganizeResponse)
+@_limiter.limit("10/minute")
 async def ai_organize_board(
+    request: Request,
     board_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -480,7 +487,9 @@ async def ai_organize_board(
 
 
 @router.post("/boards/{board_id}/ai-breakdown", response_model=AiBreakdownResponse)
+@_limiter.limit("10/minute")
 async def ai_breakdown_node(
+    request: Request,
     board_id: int,
     body: dict,
     current_user: User = Depends(get_current_user),
@@ -545,7 +554,9 @@ async def ai_breakdown_node(
 
 
 @router.post("/nodes/{node_id}/ask")
+@_limiter.limit("20/minute")
 async def ask_about_node(
+    request: Request,
     node_id: int,
     body: AskNodeRequest,
     current_user: User = Depends(get_current_user),

@@ -5,6 +5,8 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +26,7 @@ from app.services.memory import generate_insights, get_insights
 from app.services.user_context import build_user_context
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+_limiter = Limiter(key_func=get_remote_address)
 
 _NOTE_CONTENT_LIMIT = 3000
 _HISTORY_LIMIT = 30
@@ -331,6 +334,7 @@ async def _build_system_prompt(
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/send", response_model=ChatSendResponse)
+@_limiter.limit("30/minute")
 async def send_message(
     request: Request,
     background_tasks: BackgroundTasks,

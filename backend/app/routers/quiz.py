@@ -2,7 +2,9 @@ import json
 import math
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import Integer, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,12 +36,15 @@ from app.services.gap_detector import calculate_gap_scores
 from app.services.user_context import build_user_context
 
 router = APIRouter(prefix="/quiz", tags=["quiz"])
+_limiter = Limiter(key_func=get_remote_address)
 
 
 # ── Question generation ───────────────────────────────────────────────────────
 
 @router.post("/generate", response_model=list[QuestionResponse])
+@_limiter.limit("10/minute")
 async def generate_quiz(
+    request: Request,
     body: QuizGenerateRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -350,7 +355,9 @@ async def get_gaps(
 
 
 @router.post("/generate-adaptive", response_model=list[QuestionResponse])
+@_limiter.limit("10/minute")
 async def generate_adaptive_quiz(
+    request: Request,
     body: AdaptiveQuizRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -429,6 +436,11 @@ async def generate_adaptive_quiz(
     weakest = note_gaps[:3]
     total_gap = sum(g.gap_score for g in weakest) or 1.0
 
+    # Load all needed topics in one query instead of one per loop iteration
+    topic_ids = [g.topic_id for g in weakest]
+    topics_result = await db.execute(select(Topic).where(Topic.id.in_(topic_ids)))
+    topic_map: dict[int, Topic] = {t.id: t for t in topics_result.scalars().all()}
+
     saved: list[Question] = []
     for i, gap in enumerate(weakest):
         remaining_budget = body.count - len(saved)
@@ -441,7 +453,7 @@ async def generate_adaptive_quiz(
             topic_count = max(1, round(body.count * gap.gap_score / total_gap))
             topic_count = min(topic_count, remaining_budget)
 
-        topic = await db.get(Topic, gap.topic_id)
+        topic = topic_map.get(gap.topic_id)
         if topic is None:
             continue
 

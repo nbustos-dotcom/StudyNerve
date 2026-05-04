@@ -30,3 +30,12 @@ class Settings:
 
 
 settings = Settings()
+
+if (
+    settings.SECRET_KEY == "dev-secret-key-change-in-prod"
+    and settings.DATABASE_URL.startswith("postgresql")
+):
+    raise RuntimeError(
+        "SECRET_KEY must be explicitly set in production. "
+        "The default value is publicly known and makes all JWTs forgeable."
+    )

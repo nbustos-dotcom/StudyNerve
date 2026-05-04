@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { api } from '../api/client'
-import { wf } from '../api/workflow.js'
-import WorkflowNode from '../components/VisionBoard/WorkflowNode.jsx'
-import WorkflowPanel from '../components/VisionBoard/WorkflowPanel.jsx'
 
 // ── CSS Animations ────────────────────────────────────────────────────────────
 
@@ -501,13 +498,7 @@ function BoardCanvas({ boardId, onBack }) {
   const [revealDelays, setRevealDelays]   = useState({})
   const [connsVisible, setConnsVisible]   = useState(true)
 
-  // Workflow mode
-  const [wfEnabled, setWfEnabled] = useState(false)
-  const [wfMode, setWfMode]       = useState(false)
-  const [wfNodes, setWfNodes]     = useState([])
-
   const innerRef     = useRef(null)
-  const scrollRef    = useRef(null)
   const nodesRef     = useRef([])
   const boardIdRef   = useRef(boardId)
   const dragRef      = useRef(null)
@@ -531,14 +522,6 @@ function BoardCanvas({ boardId, onBack }) {
       })
       .catch(err => setError(err.message || 'Failed to load'))
       .finally(() => setLoading(false))
-  }, [boardId])
-
-  // ── Load workflow nodes ───────────────────────────────────────────────────
-
-  useEffect(() => {
-    wf.listNodes(boardId)
-      .then(ns => { setWfNodes(ns); setWfEnabled(true) })
-      .catch(err => { if (err.status !== 403) console.error('[wf] listNodes:', err) })
   }, [boardId])
 
   // ── Coordinate helper ─────────────────────────────────────────────────────
@@ -708,18 +691,7 @@ function BoardCanvas({ boardId, onBack }) {
     confirmingRef.current = false
   }
 
-  function toggleWfMode() {
-    setWfMode(prev => {
-      const next = !prev
-      if (scrollRef.current) {
-        scrollRef.current.scrollTo({ left: next ? 2640 : 0, top: 0, behavior: 'smooth' })
-      }
-      return next
-    })
-  }
-
   function handleCanvasDblClick(e) {
-    if (wfMode) return
     if (
       e.target.closest('[data-node]') ||
       e.target.closest('button') ||
@@ -997,22 +969,6 @@ function BoardCanvas({ boardId, onBack }) {
           </div>
         )}
 
-        {wfEnabled && (
-          <button
-            onClick={toggleWfMode}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-              background: wfMode ? 'rgba(245,158,11,.14)' : 'rgba(255,255,255,.05)',
-              border: `1px solid ${wfMode ? 'rgba(245,158,11,.38)' : 'rgba(255,255,255,.1)'}`,
-              color: wfMode ? 'rgba(253,230,138,.9)' : 'rgba(255,255,255,.45)',
-              cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 150ms',
-            }}
-          >
-            ⚡ Workflow
-          </button>
-        )}
-
         <button
           onClick={() => setAiVisionOpen(true)}
           style={{
@@ -1072,7 +1028,7 @@ function BoardCanvas({ boardId, onBack }) {
       </div>
 
       {/* ── Scroll wrapper ── */}
-      <div ref={scrollRef} style={{
+      <div style={{
         flex: 1, overflow: 'auto', minHeight: 0, position: 'relative', zIndex: 1,
         background: '#04000e',
         backgroundImage: [
@@ -1511,25 +1467,6 @@ function BoardCanvas({ boardId, onBack }) {
             </div>
           )}
 
-          {/* ── Workflow nodes ── */}
-          {wfMode && wfNodes.map((node, index) => (
-            <WorkflowNode
-              key={node.id}
-              node={node}
-              index={index}
-              onDelete={nodeId => setWfNodes(prev => prev.filter(n => n.id !== nodeId))}
-            />
-          ))}
-          {wfMode && wfNodes.length === 0 && (
-            <div style={{
-              position: 'absolute', left: 2700, top: 80,
-              width: 240, textAlign: 'center', pointerEvents: 'none',
-            }}>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,.15)', lineHeight: 1.5 }}>
-                Add a workflow node<br />using the panel →
-              </p>
-            </div>
-          )}
         </div>
       </div>
 
@@ -1562,14 +1499,6 @@ function BoardCanvas({ boardId, onBack }) {
         />
       )}
 
-      {/* ── Workflow panel ── */}
-      {wfMode && wfEnabled && (
-        <WorkflowPanel
-          boardId={boardId}
-          nodes={wfNodes}
-          setNodes={setWfNodes}
-        />
-      )}
     </div>
   )
 }

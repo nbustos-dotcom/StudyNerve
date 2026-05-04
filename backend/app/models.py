@@ -1,8 +1,7 @@
-import enum
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -328,85 +327,4 @@ class VisionBoardSnapshot(Base):
     action_description: Mapped[str] = mapped_column(String(500), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
-    )
-
-
-# ── Workflow nodes ─────────────────────────────────────────────────────────────
-
-class NodeType(str, enum.Enum):
-    chatgpt_text = "chatgpt_text"
-    chatgpt_image = "chatgpt_image"
-    claude_text = "claude_text"
-    gemini_text = "gemini_text"
-    gemini_image = "gemini_image"
-    meshy_3d = "meshy_3d"
-    stability_image = "stability_image"
-    internal_quiz = "internal_quiz"
-    internal_flashcard = "internal_flashcard"
-    internal_summary = "internal_summary"
-
-
-class NodeStatus(str, enum.Enum):
-    pending = "pending"
-    running = "running"
-    done = "done"
-    failed = "failed"
-    skipped = "skipped"
-
-
-class RunStatus(str, enum.Enum):
-    planning = "planning"
-    awaiting_confirmation = "awaiting_confirmation"
-    running = "running"
-    done = "done"
-    failed = "failed"
-
-
-class WorkflowNode(Base):
-    __tablename__ = "workflow_nodes"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    vision_board_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("vision_boards.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    node_order: Mapped[int] = mapped_column(Integer, nullable=False)
-    # One of the NodeType enum values stored as a plain string
-    node_type: Mapped[str] = mapped_column(String(30), nullable=False)
-    prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    provider: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
-    model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    # Optional FK to the upstream node whose output feeds into this node
-    input_from_node_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("workflow_nodes.id", ondelete="SET NULL"), nullable=True
-    )
-    # Stores the provider result: {"type": "text"|"image"|"3d", "content": ..., "metadata": {...}}
-    output_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    # One of the NodeStatus enum values
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, onupdate=utcnow
-    )
-
-
-class WorkflowRun(Base):
-    __tablename__ = "workflow_runs"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    vision_board_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("vision_boards.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    # JSON plan produced by plan_workflow — see workflow_engine.py for shape
-    plan: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    # One of the RunStatus enum values
-    status: Mapped[str] = mapped_column(String(30), nullable=False, default="planning")
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
     )

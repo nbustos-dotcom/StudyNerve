@@ -27,9 +27,6 @@ class Settings:
     CANVAS_API_URL: str = os.getenv("CANVAS_API_URL", "https://mtu.instructure.com/api/v1")
     CANVAS_API_TOKEN: str = os.getenv("CANVAS_API_TOKEN", "")
     ENABLE_USER_CONTEXT: bool = os.getenv("ENABLE_USER_CONTEXT", "false").lower() == "true"
-    ENABLE_WORKFLOW_NODES: bool = os.getenv("ENABLE_WORKFLOW_NODES", "false").lower() == "true"
-    MESHY_API_KEY: str = os.getenv("MESHY_API_KEY", "")
-    STABILITY_API_KEY: str = os.getenv("STABILITY_API_KEY", "")
 
 
 settings = Settings()

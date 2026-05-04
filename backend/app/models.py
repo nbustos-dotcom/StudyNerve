@@ -221,6 +221,7 @@ class VisionBoard(Base):
     # Cached progress 0–100, updated whenever steps are toggled
     progress: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_ai_generated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    tldraw_state: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )

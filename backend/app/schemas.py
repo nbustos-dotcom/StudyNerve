@@ -300,11 +300,16 @@ class BoardDetail(BaseModel):
     id: int
     title: str
     is_ai_generated: bool
+    tldraw_state: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     nodes: list[NodeResponse] = []
 
     model_config = {"from_attributes": True}
+
+
+class SaveTldrawStateRequest(BaseModel):
+    tldraw_state: str
 
 
 class CreateNodeRequest(BaseModel):

@@ -334,6 +334,10 @@ export const api = {
   /** @param {number} id @returns {Promise} BoardDetail with all nodes */
   visionBoard: (id) => req('GET', `/vision/boards/${id}`),
 
+  /** @param {number} id @param {string} tldrawState JSON string from editor.getSnapshot() */
+  visionSaveTldrawState: (id, tldrawState) =>
+    req('PUT', `/vision/boards/${id}/tldraw-state`, { tldraw_state: tldrawState }),
+
   /** @param {number} id */
   visionDeleteBoard: (id) => req('DELETE', `/vision/boards/${id}`),
 

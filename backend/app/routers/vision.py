@@ -46,6 +46,7 @@ from app.schemas import (
     CreateBoardRequest,
     CreateNodeRequest,
     NodeResponse,
+    SaveTldrawStateRequest,
     UpdateNodePositionRequest,
     UpdateNodeRequest,
 )
@@ -100,6 +101,7 @@ async def _board_detail(board: VisionBoard, db: AsyncSession) -> BoardDetail:
         id=board.id,
         title=board.title,
         is_ai_generated=board.is_ai_generated,
+        tldraw_state=board.tldraw_state,
         created_at=board.created_at,
         updated_at=board.updated_at,
         nodes=[_node_resp(n) for n in nodes],
@@ -169,6 +171,20 @@ async def get_board(
 ):
     board = await db.get(VisionBoard, board_id)
     _owned_board_or_404(board, current_user.id)
+    return await _board_detail(board, db)
+
+
+@router.put("/boards/{board_id}/tldraw-state", response_model=BoardDetail)
+async def save_tldraw_state(
+    board_id: int,
+    body: SaveTldrawStateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    board = await db.get(VisionBoard, board_id)
+    _owned_board_or_404(board, current_user.id)
+    board.tldraw_state = body.tldraw_state
+    await db.flush()
     return await _board_detail(board, db)
 
 

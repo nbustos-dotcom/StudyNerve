@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import Spinner from '../components/Spinner'
@@ -59,23 +59,74 @@ function ImportIcon() {
   )
 }
 
+// ── Toggle switch ─────────────────────────────────────────────────────────────
+
+function Toggle({ on, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      aria-checked={on}
+      role="switch"
+      style={{
+        width: 34,
+        height: 18,
+        borderRadius: 9,
+        background: on ? '#6366f1' : 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.10)',
+        position: 'relative',
+        cursor: 'pointer',
+        flexShrink: 0,
+        transition: 'background 0.18s ease',
+      }}
+    >
+      <span style={{
+        position: 'absolute',
+        top: 2,
+        left: on ? 16 : 2,
+        width: 12,
+        height: 12,
+        borderRadius: '50%',
+        background: 'white',
+        transition: 'left 0.18s ease',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+      }} />
+    </button>
+  )
+}
+
 // ── Course accent color from name hash ────────────────────────────────────────
 
 const COURSE_ACCENTS = [
-  'rgba(var(--indigo-500-rgb),0.5)',   // indigo
-  'rgba(168,85,247,0.5)',   // purple
-  'rgba(59,130,246,0.5)',   // blue
-  'rgba(20,184,166,0.5)',   // teal
-  'rgba(234,179,8,0.5)',    // yellow
-  'rgba(239,68,68,0.5)',    // red
-  'rgba(34,197,94,0.5)',    // green
-  'rgba(249,115,22,0.5)',   // orange
+  'rgba(var(--indigo-500-rgb),0.5)',
+  'rgba(168,85,247,0.5)',
+  'rgba(59,130,246,0.5)',
+  'rgba(20,184,166,0.5)',
+  'rgba(234,179,8,0.5)',
+  'rgba(239,68,68,0.5)',
+  'rgba(34,197,94,0.5)',
+  'rgba(249,115,22,0.5)',
 ]
 
 function courseAccent(name = '') {
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
   return COURSE_ACCENTS[h % COURSE_ACCENTS.length]
+}
+
+const LS_KEY = 'hidden_canvas_courses'
+
+function readHidden() {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    return raw ? new Set(JSON.parse(raw)) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function writeHidden(set) {
+  localStorage.setItem(LS_KEY, JSON.stringify([...set]))
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -96,6 +147,14 @@ export default function Canvas() {
 
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState(null)
+
+  // Feature 1: hide/show courses
+  const [hiddenCourses, setHiddenCourses] = useState(readHidden)
+  const [showManage, setShowManage] = useState(false)
+
+  // Feature 2: assignment filters
+  const [dueDateFilter, setDueDateFilter] = useState('upcoming')
+  const [assignmentSort, setAssignmentSort] = useState('soonest')
 
   useEffect(() => { checkStatus() }, [])
 
@@ -128,6 +187,8 @@ export default function Canvas() {
     setSelectedCourse(course)
     setAssignments([])
     setAssignmentsLoading(true)
+    setDueDateFilter('upcoming')
+    setAssignmentSort('soonest')
     try {
       const data = await api.canvasAssignments(course.id)
       setAssignments(data)
@@ -164,6 +225,60 @@ export default function Canvas() {
     }
   }
 
+  // Toggle a course's hidden state and persist
+  function toggleHideCourse(courseId) {
+    setHiddenCourses(prev => {
+      const next = new Set(prev)
+      if (next.has(courseId)) next.delete(courseId)
+      else next.add(courseId)
+      writeHidden(next)
+      return next
+    })
+  }
+
+  function showAllCourses() {
+    setHiddenCourses(new Set())
+    writeHidden(new Set())
+  }
+
+  // Filtered courses (Feature 1)
+  const visibleCourses = useMemo(
+    () => courses.filter(c => !hiddenCourses.has(c.id)),
+    [courses, hiddenCourses]
+  )
+
+  // Filtered + sorted assignments (Feature 2)
+  const filteredAssignments = useMemo(() => {
+    let result = [...assignments]
+    const now = Date.now()
+
+    if (dueDateFilter === 'upcoming') {
+      result = result.filter(a => !a.due_at || new Date(a.due_at).getTime() > now)
+    } else if (dueDateFilter === 'past') {
+      result = result.filter(a => a.due_at && new Date(a.due_at).getTime() <= now)
+    }
+
+    if (assignmentSort === 'soonest') {
+      result.sort((a, b) => {
+        if (!a.due_at && !b.due_at) return 0
+        if (!a.due_at) return 1
+        if (!b.due_at) return -1
+        return new Date(a.due_at) - new Date(b.due_at)
+      })
+    } else if (assignmentSort === 'latest') {
+      result.sort((a, b) => {
+        if (!a.due_at && !b.due_at) return 0
+        if (!a.due_at) return 1
+        if (!b.due_at) return -1
+        return new Date(b.due_at) - new Date(a.due_at)
+      })
+    } else if (assignmentSort === 'az') {
+      result.sort((a, b) => a.name.localeCompare(b.name))
+    }
+
+    return result
+  }, [assignments, dueDateFilter, assignmentSort])
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -176,19 +291,96 @@ export default function Canvas() {
           <p className="text-sm text-slate-500 mt-1">Michigan Technological University</p>
         </div>
         {status?.connected && (
-          <button onClick={handleSyncAll} disabled={syncing} className="btn-primary">
-            {syncing ? (
-              <><Spinner size="sm" />Syncing…</>
-            ) : (
-              <>
-                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M2 8a6 6 0 0110.5-4M14 8a6 6 0 01-10.5 4" />
-                  <path d="M12.5 4H14.5V2M3.5 12H1.5v2" strokeLinejoin="round" />
-                </svg>
-                Sync All
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Manage Courses */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowManage(v => !v)}
+                className="btn-secondary text-sm"
+              >
+                Manage Courses
+              </button>
+
+              {showManage && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+                    onClick={() => setShowManage(false)}
+                  />
+                  {/* Dropdown panel */}
+                  <div
+                    className="card-solid"
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 8px)',
+                      right: 0,
+                      width: 300,
+                      maxHeight: 380,
+                      overflowY: 'auto',
+                      zIndex: 50,
+                      padding: '0.75rem',
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">
+                        Courses
+                      </span>
+                      {hiddenCourses.size > 0 && (
+                        <button
+                          onClick={showAllCourses}
+                          className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                        >
+                          Show All
+                        </button>
+                      )}
+                    </div>
+                    {coursesLoading ? (
+                      <p className="text-xs text-white/30 py-2">Loading…</p>
+                    ) : courses.length === 0 ? (
+                      <p className="text-xs text-white/30 py-2">No courses found.</p>
+                    ) : (
+                      <div className="flex flex-col">
+                        {courses.map((course, i) => (
+                          <div
+                            key={course.id}
+                            className="flex items-center justify-between gap-3 py-2"
+                            style={{ borderBottom: i < courses.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
+                          >
+                            <span
+                              className="text-sm flex-1 min-w-0 truncate"
+                              style={{ color: hiddenCourses.has(course.id) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.85)' }}
+                            >
+                              {course.name}
+                            </span>
+                            <Toggle
+                              on={!hiddenCourses.has(course.id)}
+                              onChange={() => toggleHideCourse(course.id)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Sync All */}
+            <button onClick={handleSyncAll} disabled={syncing} className="btn-primary">
+              {syncing ? (
+                <><Spinner size="sm" />Syncing…</>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                    <path d="M2 8a6 6 0 0110.5-4M14 8a6 6 0 01-10.5 4" />
+                    <path d="M12.5 4H14.5V2M3.5 12H1.5v2" strokeLinejoin="round" />
+                  </svg>
+                  Sync All
+                </>
+              )}
+            </button>
+          </div>
         )}
       </div>
 
@@ -237,10 +429,7 @@ export default function Canvas() {
               </p>
             </div>
           </div>
-          <Link
-            to="/settings"
-            className="btn-ghost text-xs"
-          >
+          <Link to="/settings" className="btn-ghost text-xs">
             Manage in Settings
           </Link>
         </div>
@@ -269,20 +458,36 @@ export default function Canvas() {
       {/* ── Courses grid ────────────────────────────────────────────────────── */}
       {status?.connected && !selectedCourse && (
         <section>
-          <h2 className="text-sm font-medium text-slate-300 mb-4">Your Courses</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-medium text-slate-300">Your Courses</h2>
+            {!coursesLoading && courses.length > 0 && (
+              <span className="text-xs text-white/30">
+                Showing {visibleCourses.length} of {courses.length} course{courses.length !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
 
           {coursesLoading ? (
             <div className="flex items-center gap-2 text-slate-500 text-sm">
               <Spinner size="sm" />Loading courses…
             </div>
-          ) : courses.length === 0 ? (
+          ) : visibleCourses.length === 0 ? (
             <div className="card p-10 flex flex-col items-center gap-3 text-center">
               <svg className="w-8 h-8 text-white/10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M4 19V6a2 2 0 012-2h12a2 2 0 012 2v13"/><path d="M9 22H5a2 2 0 01-2-2v-1h18v1a2 2 0 01-2 2h-4"/></svg>
-              <p className="text-sm text-white/30">No active courses found.</p>
+              {courses.length > 0 ? (
+                <>
+                  <p className="text-sm text-white/30">All courses are hidden.</p>
+                  <button onClick={showAllCourses} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                    Show All
+                  </button>
+                </>
+              ) : (
+                <p className="text-sm text-white/30">No active courses found.</p>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {courses.map((course) => {
+              {visibleCourses.map((course) => {
                 const accent = courseAccent(course.name)
                 return (
                   <button
@@ -315,7 +520,7 @@ export default function Canvas() {
       {/* ── Assignments panel ───────────────────────────────────────────────── */}
       {status?.connected && selectedCourse && (
         <section>
-          <div className="flex items-center gap-2 mb-6">
+          <div className="flex items-center gap-2 mb-5">
             <button
               onClick={() => { setSelectedCourse(null); setAssignments([]) }}
               className="btn-ghost text-xs flex items-center gap-1"
@@ -331,18 +536,57 @@ export default function Canvas() {
             </span>
           </div>
 
+          {/* Filter bar */}
+          {!assignmentsLoading && assignments.length > 0 && (
+            <div className="card p-3 mb-5 flex flex-col sm:flex-row gap-2.5">
+              <select
+                className="input sm:w-44"
+                value={dueDateFilter}
+                onChange={e => setDueDateFilter(e.target.value)}
+              >
+                <option value="upcoming">Upcoming</option>
+                <option value="past">Past due</option>
+                <option value="all">All</option>
+              </select>
+              <select
+                className="input sm:w-44"
+                value={assignmentSort}
+                onChange={e => setAssignmentSort(e.target.value)}
+              >
+                <option value="soonest">Due soonest</option>
+                <option value="latest">Due latest</option>
+                <option value="az">A–Z</option>
+              </select>
+              <span className="self-center text-xs text-white/25 sm:ml-auto">
+                {filteredAssignments.length} of {assignments.length}
+              </span>
+            </div>
+          )}
+
           {assignmentsLoading ? (
             <div className="flex items-center gap-2 text-slate-500 text-sm">
               <Spinner size="sm" />Loading assignments…
             </div>
-          ) : assignments.length === 0 ? (
+          ) : filteredAssignments.length === 0 ? (
             <div className="card p-10 flex flex-col items-center gap-3 text-center">
               <svg className="w-8 h-8 text-white/10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
-              <p className="text-sm text-white/30">No assignments found for this course.</p>
+              {assignments.length > 0 ? (
+                <>
+                  <p className="text-sm text-white/30">No assignments match the current filter.</p>
+                  <button
+                    onClick={() => { setDueDateFilter('all'); setAssignmentSort('soonest') }}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
+                    Show all assignments
+                  </button>
+                </>
+              ) : (
+                <p className="text-sm text-white/30">No assignments found for this course.</p>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
-              {assignments.map((a) => {
+              {filteredAssignments.map((a) => {
                 const urgency = dueUrgency(a.due_at)
                 const u = U[urgency]
                 const isImported = imported.has(a.id)

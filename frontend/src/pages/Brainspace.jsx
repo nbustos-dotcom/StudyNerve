@@ -128,7 +128,7 @@ function BrainspaceList({ onOpen }) {
         letterSpacing: '0.01em',
         textShadow: '0 0 16px rgba(86, 207, 225, 0.35)',
       }}>
-        Brainspace
+        Vision Board
       </h1>
 
       <form onSubmit={handleCreate} style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem' }}>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import Spinner from '../components/Spinner'
@@ -30,6 +30,30 @@ export default function Notes() {
 
   const [deletingId, setDeletingId] = useState(null)
   const [notesLoading, setNotesLoading] = useState(true)
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortOrder, setSortOrder] = useState('newest')
+  const [subjectFilter, setSubjectFilter] = useState('all')
+
+  const uniqueSubjects = useMemo(() => {
+    const seen = new Set()
+    return notes.map(n => n.subject).filter(s => s && !seen.has(s) && seen.add(s))
+  }, [notes])
+
+  const filteredNotes = useMemo(() => {
+    let result = notes
+    if (subjectFilter !== 'all') result = result.filter(n => n.subject === subjectFilter)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(n => n.title.toLowerCase().includes(q))
+    }
+    result = [...result]
+    if (sortOrder === 'newest') result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    else if (sortOrder === 'oldest') result.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    else if (sortOrder === 'az') result.sort((a, b) => a.title.localeCompare(b.title))
+    else if (sortOrder === 'za') result.sort((a, b) => b.title.localeCompare(a.title))
+    return result
+  }, [notes, searchQuery, sortOrder, subjectFilter])
 
   useEffect(() => {
     fetchNotes()
@@ -349,6 +373,37 @@ export default function Notes() {
         )}
       </div>
 
+      {/* Filter bar */}
+      {!notesLoading && notes.length > 0 && (
+        <div className="card p-3 mb-6 flex flex-col sm:flex-row gap-2.5">
+          <input
+            className="input flex-1 min-w-0"
+            type="search"
+            placeholder="Search notes…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          <select
+            className="input sm:w-44"
+            value={sortOrder}
+            onChange={e => setSortOrder(e.target.value)}
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="az">A–Z</option>
+            <option value="za">Z–A</option>
+          </select>
+          <select
+            className="input sm:w-44"
+            value={subjectFilter}
+            onChange={e => setSubjectFilter(e.target.value)}
+          >
+            <option value="all">All subjects</option>
+            {uniqueSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      )}
+
       {/* Notes list */}
       {notesLoading ? (
         <div className="space-y-4">
@@ -369,9 +424,16 @@ export default function Notes() {
             <p className="text-sm text-slate-500">Paste text or upload a file to get started.</p>
           </div>
         </div>
+      ) : filteredNotes.length === 0 ? (
+        <div className="card p-8 flex flex-col items-center gap-2 text-center">
+          <p className="text-slate-400 font-medium">No notes match your filters</p>
+          <button className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors" onClick={() => { setSearchQuery(''); setSortOrder('newest'); setSubjectFilter('all') }}>
+            Clear filters
+          </button>
+        </div>
       ) : (
         <div className="space-y-4">
-          {notes.map((note, noteIdx) => {
+          {filteredNotes.map((note, noteIdx) => {
             const ts = topicState[note.id]
             const ss = summaryState[note.id]
             return (

@@ -1,10 +1,19 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Tldraw } from '@tldraw/tldraw'
+import {
+  Tldraw,
+  DefaultToolbar,
+  SelectToolbarItem,
+  DrawToolbarItem,
+  NoteToolbarItem,
+  ArrowToolbarItem,
+  EraserToolbarItem,
+} from '@tldraw/tldraw'
+import { DefaultColorStyle, DefaultFontStyle } from '@tldraw/tlschema'
 import '@tldraw/tldraw/tldraw.css'
+import '../styles/brainspace.css'
 import { api } from '../api/client'
 
-// Tools available in Brainspace — all geometry/frame tools hidden
-const ALLOWED_TOOLS = new Set(['select', 'draw', 'text', 'note', 'arrow', 'eraser'])
+const ALLOWED_TOOLS = new Set(['select', 'draw', 'note', 'arrow', 'eraser'])
 
 const tlOverrides = {
   tools(_editor, tools) {
@@ -14,17 +23,23 @@ const tlOverrides = {
   },
 }
 
-// Custom background: warm paper + subtle noise grain
 function BrainspaceBackground() {
   return (
-    <div style={{ position: 'absolute', inset: 0, background: '#FBF7F0' }}>
+    <div style={{ position: 'absolute', inset: 0, background: '#0A1F2E' }}>
+      {/* Radial center glow */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'radial-gradient(ellipse 70% 60% at 50% 50%, #0F3A4A 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
+      {/* Cyan-tinted noise grain */}
       <svg
         aria-hidden="true"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.04 }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.6 }}
       >
         <filter id="bs-noise">
           <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" stitchTiles="stitch" />
-          <feColorMatrix type="saturate" values="0" />
+          <feColorMatrix type="matrix" values="0 0 0 0 0.34  0 0 0 0 0.81  0 0 0 0 0.88  0 0 0 0.03 0" />
         </filter>
         <rect width="100%" height="100%" filter="url(#bs-noise)" />
       </svg>
@@ -32,10 +47,32 @@ function BrainspaceBackground() {
   )
 }
 
+function BrainspaceToolbar() {
+  return (
+    <DefaultToolbar>
+      <SelectToolbarItem />
+      <DrawToolbarItem />
+      <NoteToolbarItem />
+      <ArrowToolbarItem />
+      <EraserToolbarItem />
+    </DefaultToolbar>
+  )
+}
+
 const tlComponents = {
   Background: BrainspaceBackground,
+  Toolbar: BrainspaceToolbar,
+  MenuPanel: null,
   MainMenu: null,
   HelpMenu: null,
+  StylePanel: null,
+  PageMenu: null,
+  NavigationPanel: null,
+  SharePanel: null,
+  DebugPanel: null,
+  DebugMenu: null,
+  Minimap: null,
+  ZoomMenu: null,
 }
 
 // ── Board list ────────────────────────────────────────────────────────────────
@@ -81,7 +118,17 @@ function BrainspaceList({ onOpen }) {
 
   return (
     <div style={{ padding: '2rem', maxWidth: 700, margin: '0 auto' }}>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>Brainspace</h1>
+      <h1 style={{
+        fontFamily: "'Fraunces', Georgia, serif",
+        fontWeight: 400,
+        fontSize: '1.75rem',
+        marginBottom: '1.5rem',
+        color: '#56CFE1',
+        letterSpacing: '0.01em',
+        textShadow: '0 0 16px rgba(86, 207, 225, 0.35)',
+      }}>
+        Brainspace
+      </h1>
 
       <form onSubmit={handleCreate} style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem' }}>
         <input
@@ -92,10 +139,12 @@ function BrainspaceList({ onOpen }) {
           style={{
             flex: 1,
             padding: '0.5rem 0.75rem',
-            border: '1px solid #d1cdc7',
+            border: '1px solid #1F4A5C',
             borderRadius: 6,
             fontSize: '0.95rem',
-            background: '#FFFDF9',
+            background: 'rgba(15, 58, 74, 0.6)',
+            color: '#E8F8FB',
+            outline: 'none',
           }}
         />
         <button
@@ -103,9 +152,9 @@ function BrainspaceList({ onOpen }) {
           disabled={creating || !newTitle.trim()}
           style={{
             padding: '0.5rem 1rem',
-            background: '#2D2D2D',
-            color: '#fff',
-            border: 'none',
+            background: 'rgba(86, 207, 225, 0.12)',
+            color: '#56CFE1',
+            border: '1px solid #1F4A5C',
             borderRadius: 6,
             cursor: 'pointer',
             fontSize: '0.95rem',
@@ -116,13 +165,13 @@ function BrainspaceList({ onOpen }) {
       </form>
 
       {error && (
-        <p style={{ color: '#c0392b', marginBottom: '1rem' }}>{error}</p>
+        <p style={{ color: '#ff6b6b', marginBottom: '1rem' }}>{error}</p>
       )}
 
       {loading ? (
-        <p style={{ color: '#888' }}>Loading…</p>
+        <p style={{ color: 'rgba(86,207,225,0.45)' }}>Loading…</p>
       ) : boards.length === 0 ? (
-        <p style={{ color: '#888' }}>No boards yet. Create one above.</p>
+        <p style={{ color: 'rgba(86,207,225,0.45)' }}>No boards yet. Create one above.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {boards.map(board => (
@@ -134,15 +183,15 @@ function BrainspaceList({ onOpen }) {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '0.75rem 1rem',
-                border: '1px solid #e5e0d8',
+                border: '1px solid #1F4A5C',
                 borderRadius: 8,
-                background: '#FFFDF9',
+                background: 'rgba(15, 58, 74, 0.4)',
                 cursor: 'pointer',
               }}
             >
               <div>
-                <div style={{ fontWeight: 600, marginBottom: 2 }}>{board.title}</div>
-                <div style={{ fontSize: '0.8rem', color: '#888' }}>
+                <div style={{ fontWeight: 500, marginBottom: 2, color: '#E8F8FB' }}>{board.title}</div>
+                <div style={{ fontSize: '0.8rem', color: 'rgba(86,207,225,0.5)' }}>
                   {new Date(board.updated_at).toLocaleDateString()}
                 </div>
               </div>
@@ -150,12 +199,12 @@ function BrainspaceList({ onOpen }) {
                 onClick={e => handleDelete(e, board.id)}
                 style={{
                   padding: '0.25rem 0.6rem',
-                  border: '1px solid #ddd',
+                  border: '1px solid #1F4A5C',
                   borderRadius: 4,
                   background: 'transparent',
                   cursor: 'pointer',
                   fontSize: '0.8rem',
-                  color: '#888',
+                  color: 'rgba(86,207,225,0.5)',
                 }}
               >
                 Delete
@@ -173,8 +222,8 @@ function BrainspaceList({ onOpen }) {
 function BrainspaceCanvas({ boardId, onBack }) {
   const [snapshot, setSnapshot] = useState(undefined)
   const [boardTitle, setBoardTitle] = useState('')
-  const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
-  const [saveStatus, setSaveStatus] = useState('saved') // 'saved' | 'saving' | 'error'
+  const [status, setStatus] = useState('loading')
+  const [saveStatus, setSaveStatus] = useState('saved')
   const saveTimer = useRef(null)
 
   useEffect(() => {
@@ -194,6 +243,10 @@ function BrainspaceCanvas({ boardId, onBack }) {
   }, [boardId])
 
   const handleMount = useCallback((editor) => {
+    editor.setStyleForNextShapes(DefaultColorStyle, 'black')
+    editor.setStyleForNextShapes(DefaultFontStyle, 'draw')
+    editor.updateInstanceState({ isGridMode: false })
+
     const cleanup = editor.store.listen(
       () => {
         setSaveStatus('saving')
@@ -232,16 +285,17 @@ function BrainspaceCanvas({ boardId, onBack }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 100 }}>
-      {/* Thin header bar */}
+      {/* Header bar */}
       <div style={{
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         height: 44,
-        background: 'rgba(251,247,240,0.92)',
-        backdropFilter: 'blur(8px)',
-        borderBottom: '1px solid #e5e0d8',
+        background: 'rgba(10, 31, 46, 0.92)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderBottom: '1px solid #1F4A5C',
         display: 'flex',
         alignItems: 'center',
         paddingInline: '0.75rem',
@@ -252,17 +306,27 @@ function BrainspaceCanvas({ boardId, onBack }) {
           onClick={onBack}
           style={{
             padding: '0.25rem 0.6rem',
-            border: '1px solid #d1cdc7',
+            border: '1px solid #1F4A5C',
             borderRadius: 4,
-            background: 'transparent',
+            background: 'rgba(86, 207, 225, 0.06)',
             cursor: 'pointer',
             fontSize: '0.85rem',
+            color: '#56CFE1',
           }}
         >
           ← Boards
         </button>
-        <span style={{ fontWeight: 600, fontSize: '0.9rem', flex: 1 }}>{boardTitle}</span>
-        <span style={{ fontSize: '0.75rem', color: saveStatus === 'error' ? '#c0392b' : '#aaa' }}>
+        <span style={{
+          fontFamily: "'Fraunces', Georgia, serif",
+          fontWeight: 400,
+          fontSize: '0.9rem',
+          flex: 1,
+          color: '#E8F8FB',
+          letterSpacing: '0.01em',
+        }}>
+          {boardTitle}
+        </span>
+        <span style={{ fontSize: '0.75rem', color: saveStatus === 'error' ? '#ff6b6b' : 'rgba(86,207,225,0.45)' }}>
           {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'error' ? 'Save failed' : 'Saved'}
         </span>
       </div>
@@ -274,6 +338,8 @@ function BrainspaceCanvas({ boardId, onBack }) {
           onMount={handleMount}
           overrides={tlOverrides}
           components={tlComponents}
+          inferDarkMode={false}
+          licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
         />
       </div>
     </div>

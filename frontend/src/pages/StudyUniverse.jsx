@@ -4,26 +4,24 @@ import { api } from '../api/client'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TAU = Math.PI * 2
-const RING_GAP = 160   // scene-space px between subject rings
-const ORBIT_MIN = 45   // planet orbit radius min (scene-space, from sun)
-const ORBIT_MAX = 85   // planet orbit radius max
+const RING_GAP = 160
+const MAX_PLANETS = 6
 
 const SUN_PALETTES = [
-  { color: '#d4a056', deep: '#7a4a18', halo: '#c89040', accent: '#f5e8d0' },
-  { color: '#c06030', deep: '#6a2c10', halo: '#b05020', accent: '#f0d0b8' },
-  { color: '#7060b8', deep: '#302858', halo: '#6050a8', accent: '#d8d4f0' },
-  { color: '#6898b8', deep: '#284058', halo: '#5888a8', accent: '#cce0f0' },
-  { color: '#508878', deep: '#1e3c34', halo: '#407868', accent: '#c8e4dc' },
-  { color: '#9060a0', deep: '#482858', halo: '#805090', accent: '#e4d0f0' },
-  { color: '#6070a8', deep: '#283058', halo: '#5060a0', accent: '#d0d8f0' },
-  { color: '#a86870', deep: '#583038', halo: '#986068', accent: '#f0d4d8' },
+  { color: '#d4a056', accent: '#f5e8d0' },
+  { color: '#c06030', accent: '#f0d0b8' },
+  { color: '#7060b8', accent: '#d8d4f0' },
+  { color: '#6898b8', accent: '#cce0f0' },
+  { color: '#508878', accent: '#c8e4dc' },
+  { color: '#9060a0', accent: '#e4d0f0' },
+  { color: '#6070a8', accent: '#d0d8f0' },
+  { color: '#a86870', accent: '#f0d4d8' },
 ]
 
-// ── Math helpers ──────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function hexA(hex, a) {
   if (typeof hex !== 'string') return `rgba(255,255,255,${a})`
-  if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex
   let h = hex.replace('#', '')
   if (h.length === 3) h = h.split('').map(c => c + c).join('')
   const r = parseInt(h.substr(0, 2), 16)
@@ -47,16 +45,9 @@ function hashStr(str) {
   return Math.abs(h)
 }
 
-function solveKepler(M, e) {
-  let E = M
-  for (let i = 0; i < 5; i++) E = E - (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E))
-  return { x: Math.cos(E) - e, y: Math.sqrt(1 - e * e) * Math.sin(E) }
-}
-
-// ── Galaxy layout: each subject on its own concentric ring ────────────────────
+// ── Layout ────────────────────────────────────────────────────────────────────
 
 function computeGalaxyLayout(n) {
-  // Returns scene-space positions (zoom=1 units). Ring i is at RING_GAP*(i+1) from center.
   if (n === 0) return []
   const angleOffset = Math.PI * 0.15
   return Array.from({ length: n }, (_, i) => {
@@ -66,26 +57,11 @@ function computeGalaxyLayout(n) {
   })
 }
 
-// ── API data → scene objects ──────────────────────────────────────────────────
+// ── Scene builder ─────────────────────────────────────────────────────────────
 
 function mapApiToScene(data) {
   const sunData = []
   const planetData = []
-
-  ;(data.subjects || []).forEach((sub, i) => {
-    const pal = SUN_PALETTES[i % SUN_PALETTES.length]
-    const rng = mulberry32(hashStr(sub.name))
-    sunData.push({
-      name: sub.name,
-      noteCount: sub.note_count || 0,
-      accuracy: sub.accuracy,
-      color: pal.color, deep: pal.deep, halo: pal.halo, accent: pal.accent,
-      radius: Math.round((28 + Math.min((sub.note_count || 0) * 2, 18)) * 0.5),
-      mass: 0.8 + rng() * 0.8,
-      surfTemp: 0.5 + rng() * 0.5,
-      pulseT: rng() * 15,
-    })
-  })
 
   const notesBySubject = {}
   for (const note of (data.notes || [])) {
@@ -94,30 +70,33 @@ function mapApiToScene(data) {
     notesBySubject[key].push(note)
   }
 
-  const MAX_PLANETS = 8
-  const kinds = ['rocky', 'gas', 'icy']
+  ;(data.subjects || []).forEach((sub, i) => {
+    const pal = SUN_PALETTES[i % SUN_PALETTES.length]
+    const noteCount = sub.note_count || 0
+    sunData.push({
+      name: sub.name,
+      noteCount,
+      accuracy: sub.accuracy,
+      color: pal.color,
+      accent: pal.accent,
+      radius: 12 + Math.min(noteCount * 0.8, 8),
+      overflowCount: 0,
+    })
 
-  sunData.forEach((sun, sunIdx) => {
-    const group = notesBySubject[sun.name] || []
-    const visibleGroup = group.slice(0, MAX_PLANETS)
-    sun.overflowCount = group.length - visibleGroup.length
-    const count = visibleGroup.length
-    visibleGroup.forEach((note, pos) => {
+    const group = notesBySubject[sub.name] || []
+    const visible = group.slice(0, MAX_PLANETS)
+    sunData[i].overflowCount = group.length - visible.length
+
+    visible.forEach((note, pos) => {
       const rng = mulberry32(note.id * 137 + 7)
-      const a = count === 1 ? 65 : ORBIT_MIN + (pos / (count - 1)) * (ORBIT_MAX - ORBIT_MIN)
-      const size = Math.max(8, Math.min(6 + Math.floor((note.content_length || 0) / 250), 18))
-      const kind = kinds[Math.floor(rng() * 3)]
-      const hasRing = rng() > 0.72
-      const pPal = SUN_PALETTES[(sunIdx + pos + 1) % SUN_PALETTES.length]
+      const orbitRadius = 38 + pos * (42 / Math.max(visible.length - 1, 1))
       planetData.push({
-        sun: sunIdx, a,
-        e: 0.05 + rng() * 0.22,
-        w: rng() * TAU,
-        inc: 0.5 + rng() * 0.4,
-        M0: rng() * TAU,
-        size, kind,
-        hue: pPal.color, deep: pPal.deep,
-        ring: hasRing, ringColor: pPal.color,
+        sun: i,
+        orbitRadius: Math.max(38, orbitRadius),
+        orbitPeriod: 30 + rng() * 30,
+        orbitOffset: rng() * TAU,
+        radius: 3 + rng() * 2,
+        color: pal.accent,
       })
     })
   })
@@ -125,257 +104,7 @@ function mapApiToScene(data) {
   return { sunData, planetData }
 }
 
-// ── Pre-render: nebula canvas ─────────────────────────────────────────────────
-
-function buildNebula(W, H) {
-  const c = document.createElement('canvas')
-  c.width = W; c.height = H
-  const cx = c.getContext('2d')
-  const rng = mulberry32(7)
-  const clouds = [
-    { x: W * 0.30, y: H * 0.32, r: Math.max(W, H) * 0.65, color: 'rgba(99,102,241,1)',  a: 0.045 },
-    { x: W * 0.78, y: H * 0.62, r: Math.max(W, H) * 0.60, color: 'rgba(167,139,250,1)', a: 0.040 },
-    { x: W * 0.55, y: H * 0.18, r: Math.max(W, H) * 0.45, color: 'rgba(34,211,238,1)',  a: 0.022 },
-    { x: W * 0.20, y: H * 0.78, r: Math.max(W, H) * 0.40, color: 'rgba(244,114,182,1)', a: 0.018 },
-  ]
-  clouds.forEach(cl => {
-    const g = cx.createRadialGradient(cl.x, cl.y, 0, cl.x, cl.y, cl.r)
-    g.addColorStop(0,    cl.color.replace('1)', cl.a + ')'))
-    g.addColorStop(0.45, cl.color.replace('1)', (cl.a * 0.45) + ')'))
-    g.addColorStop(1,    'rgba(0,0,0,0)')
-    cx.fillStyle = g; cx.fillRect(0, 0, W, H)
-  })
-  cx.globalCompositeOperation = 'lighter'
-  for (let i = 0; i < 28; i++) {
-    const x = rng() * W, y = rng() * H
-    const len = 80 + rng() * 260, ang = rng() * TAU
-    const grad = cx.createLinearGradient(x, y, x + Math.cos(ang) * len, y + Math.sin(ang) * len)
-    const col = ['99,102,241', '167,139,250', '34,211,238', '244,114,182'][Math.floor(rng() * 4)]
-    grad.addColorStop(0, `rgba(${col},0)`)
-    grad.addColorStop(0.5, `rgba(${col},0.04)`)
-    grad.addColorStop(1, `rgba(${col},0)`)
-    cx.strokeStyle = grad; cx.lineWidth = 18 + rng() * 40
-    cx.beginPath()
-    cx.moveTo(x, y)
-    cx.quadraticCurveTo(x + Math.cos(ang) * len * 0.5 + (rng() - 0.5) * 120, y + Math.sin(ang) * len * 0.5 + (rng() - 0.5) * 120, x + Math.cos(ang) * len, y + Math.sin(ang) * len)
-    cx.stroke()
-  }
-  cx.globalCompositeOperation = 'source-over'
-  cx.globalAlpha = 0.05
-  for (let i = 0; i < 900; i++) {
-    cx.fillStyle = ['rgba(167,139,250,1)', 'rgba(99,102,241,1)', 'rgba(255,255,255,1)'][Math.floor(rng() * 3)]
-    cx.fillRect(rng() * W, rng() * H, 1, 1)
-  }
-  cx.globalAlpha = 1
-  return c
-}
-
-// ── Pre-render: star layers ───────────────────────────────────────────────────
-
-function makeStarLayer(count, sizeMul, biasPow, W, H) {
-  const list = []
-  for (let i = 0; i < count; i++) {
-    const b = Math.pow(Math.random(), biasPow)
-    list.push({
-      x: Math.random() * W, y: Math.random() * H,
-      r: (0.4 + Math.random() * 1.4) * sizeMul,
-      b: 0.20 + b * 0.80,
-      tw: Math.random() * TAU,
-      tws: 0.4 + Math.random() * 1.2,
-      tint: Math.random() < 0.14 ? (Math.random() < 0.5 ? '#c7d2fe' : '#fde68a') : '#ffffff',
-    })
-  }
-  return list
-}
-
-function buildStars(W, H) {
-  const area = W * H
-  const starsBackData = makeStarLayer(Math.max(180, Math.floor(area / 5800)), 0.7, 2.6, W, H)
-  const starsFrontData = makeStarLayer(Math.max(80, Math.floor(area / 12000)), 1.3, 1.6, W, H)
-  const constellations = []
-  const bright = starsFrontData.map((s, i) => ({ s, i })).filter(o => o.s.b > 0.6)
-  for (let k = 0; k < 5; k++) {
-    const seed = bright[Math.floor(Math.random() * bright.length)]
-    if (!seed) break
-    const radius = Math.min(W, H) * 0.18
-    const near = bright
-      .map(o => ({ i: o.i, d: Math.hypot(o.s.x - seed.s.x, o.s.y - seed.s.y) }))
-      .filter(o => o.d < radius)
-      .sort((a, b) => a.d - b.d)
-      .slice(0, 4 + Math.floor(Math.random() * 4))
-      .map(o => o.i)
-    if (near.length >= 3) constellations.push(near)
-  }
-  return { starsBackData, starsFrontData, constellations }
-}
-
-// ── Pre-render: sun texture ───────────────────────────────────────────────────
-
-function buildSunTexture(sub, idx) {
-  const R = Math.round(sub.radius)
-  const size = R * 5
-  const c = document.createElement('canvas')
-  c.width = c.height = size
-  const cx = size / 2, cy = size / 2
-  const g = c.getContext('2d')
-  const rng = mulberry32(idx * 9173 + 13)
-
-  g.globalCompositeOperation = 'lighter'
-  for (let layer = 0; layer < 3; layer++) {
-    const rad = R * (2.0 + layer * 0.5)
-    const gr = g.createRadialGradient(cx, cy, R * 0.6, cx, cy, rad)
-    gr.addColorStop(0, hexA(sub.halo, 0.10 - layer * 0.025))
-    gr.addColorStop(0.4, hexA(sub.color, 0.04 - layer * 0.01))
-    gr.addColorStop(1, 'rgba(0,0,0,0)')
-    g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, rad, 0, TAU); g.fill()
-  }
-
-  const softShell = g.createRadialGradient(cx, cy, R * 1.0, cx, cy, R * 2.2)
-  softShell.addColorStop(0, hexA(sub.accent, 0.05))
-  softShell.addColorStop(0.5, hexA(sub.color, 0.025))
-  softShell.addColorStop(1, 'rgba(0,0,0,0)')
-  g.fillStyle = softShell; g.beginPath(); g.arc(cx, cy, R * 2.2, 0, TAU); g.fill()
-
-  for (let i = 0; i < 5; i++) {
-    const ang = rng() * TAU, baseR = R, peakR = R * (1.25 + rng() * 0.55), span = 0.18 + rng() * 0.35
-    g.save(); g.translate(cx, cy); g.rotate(ang)
-    const flare = g.createRadialGradient(peakR, 0, 0, peakR, 0, R * 0.6)
-    flare.addColorStop(0, hexA(sub.accent, 0.55)); flare.addColorStop(0.4, hexA(sub.color, 0.25)); flare.addColorStop(1, 'rgba(0,0,0,0)')
-    g.fillStyle = flare
-    g.beginPath()
-    g.moveTo(Math.cos(-span) * baseR, Math.sin(-span) * baseR)
-    g.quadraticCurveTo(peakR * 1.1, 0, Math.cos(span) * baseR, Math.sin(span) * baseR)
-    g.lineTo(Math.cos(span * 0.7) * (baseR * 0.85), Math.sin(span * 0.7) * (baseR * 0.85))
-    g.quadraticCurveTo(peakR * 0.6, 0, Math.cos(-span * 0.7) * (baseR * 0.85), Math.sin(-span * 0.7) * (baseR * 0.85))
-    g.closePath(); g.fill(); g.restore()
-  }
-
-  g.globalCompositeOperation = 'source-over'
-  g.save(); g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.clip()
-  const base = g.createRadialGradient(cx - R * 0.15, cy - R * 0.15, R * 0.1, cx, cy, R * 1.05)
-  base.addColorStop(0, '#ffffff'); base.addColorStop(0.4, sub.accent); base.addColorStop(0.85, sub.color); base.addColorStop(1, sub.deep)
-  g.fillStyle = base; g.fillRect(cx - R, cy - R, R * 2, R * 2)
-  g.globalCompositeOperation = 'overlay'
-  const cells = Math.floor(R * R * 0.55)
-  for (let i = 0; i < cells; i++) {
-    const r = Math.sqrt(rng()) * R * 0.98, a = rng() * TAU
-    const sz = 0.8 + rng() * 2.4
-    g.fillStyle = rng() > 0.55 ? hexA(sub.accent, 0.08 + rng() * 0.18) : hexA(sub.deep, 0.06 + rng() * 0.18)
-    g.beginPath(); g.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, sz, 0, TAU); g.fill()
-  }
-  g.globalCompositeOperation = 'multiply'
-  const spots = 3 + Math.floor(rng() * 3)
-  for (let i = 0; i < spots; i++) {
-    const r = Math.sqrt(rng()) * R * 0.7, a = rng() * TAU
-    const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r, sz = R * (0.05 + rng() * 0.10)
-    const sg = g.createRadialGradient(x, y, 0, x, y, sz)
-    sg.addColorStop(0, hexA(sub.deep, 0.85)); sg.addColorStop(0.6, hexA(sub.deep, 0.35)); sg.addColorStop(1, 'rgba(0,0,0,0)')
-    g.fillStyle = sg; g.beginPath(); g.arc(x, y, sz, 0, TAU); g.fill()
-  }
-  g.globalCompositeOperation = 'source-over'
-  const limb = g.createRadialGradient(cx, cy, R * 0.85, cx, cy, R)
-  limb.addColorStop(0, 'rgba(0,0,0,0)'); limb.addColorStop(1, hexA(sub.deep, 0.55))
-  g.fillStyle = limb; g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.fill()
-  const hi = g.createRadialGradient(cx - R * 0.5, cy - R * 0.5, 0, cx - R * 0.3, cy - R * 0.3, R * 0.9)
-  hi.addColorStop(0, 'rgba(255,255,255,0.55)'); hi.addColorStop(0.5, 'rgba(255,255,255,0)')
-  g.fillStyle = hi; g.fillRect(cx - R, cy - R, R * 2, R * 2)
-  g.restore()
-
-  g.globalCompositeOperation = 'lighter'
-  const core = g.createRadialGradient(cx, cy, 0, cx, cy, R * 0.55)
-  core.addColorStop(0, 'rgba(255,255,255,0.95)'); core.addColorStop(0.5, 'rgba(255,255,255,0.25)'); core.addColorStop(1, 'rgba(255,255,255,0)')
-  g.fillStyle = core; g.beginPath(); g.arc(cx, cy, R * 0.55, 0, TAU); g.fill()
-  g.globalCompositeOperation = 'source-over'
-
-  return { canvas: c, R, size }
-}
-
-// ── Pre-render: planet surface texture ────────────────────────────────────────
-
-function buildPlanetTexture(p, idx) {
-  const R = Math.max(8, Math.round(p.size * 4))
-  const stripW = R * 4, stripH = R * 2
-  const surface = document.createElement('canvas')
-  surface.width = stripW; surface.height = stripH
-  const sg = surface.getContext('2d')
-  const rng = mulberry32(idx * 7919 + 31)
-
-  sg.fillStyle = p.deep; sg.fillRect(0, 0, stripW, stripH)
-
-  if (p.kind === 'gas') {
-    const bands = 14 + Math.floor(rng() * 6)
-    for (let i = 0; i < bands; i++) {
-      const y = (i / bands) * stripH, bh = (stripH / bands) * (0.7 + rng() * 0.6)
-      const tone = rng()
-      sg.fillStyle = tone < 0.45 ? hexA(p.hue, 0.55 + rng() * 0.25) : tone < 0.8 ? hexA(p.deep, 0.4 + rng() * 0.3) : hexA('#ffffff', 0.06 + rng() * 0.08)
-      sg.beginPath(); sg.moveTo(0, y)
-      for (let s = 0; s <= 48; s++) sg.lineTo((s / 48) * stripW, y + Math.sin(s * 0.4 + i * 1.3) * 0.8)
-      for (let s = 48; s >= 0; s--) sg.lineTo((s / 48) * stripW, y + bh + Math.sin(s * 0.4 + i * 1.3 + 1.1) * 0.8)
-      sg.closePath(); sg.fill()
-    }
-    if (rng() > 0.4) {
-      const sx = rng() * stripW, sy = stripH * (0.35 + rng() * 0.3), sw = R * 0.5, sh = R * 0.22
-      const sgr = sg.createRadialGradient(sx, sy, 0, sx, sy, sw)
-      sgr.addColorStop(0, hexA('#ffffff', 0.45)); sgr.addColorStop(0.4, hexA(p.hue, 0.55)); sgr.addColorStop(1, hexA(p.deep, 0))
-      sg.fillStyle = sgr; sg.beginPath(); sg.ellipse(sx, sy, sw, sh, 0, 0, TAU); sg.fill()
-    }
-  } else if (p.kind === 'icy') {
-    const bg = sg.createLinearGradient(0, 0, stripW, stripH)
-    bg.addColorStop(0, hexA(p.hue, 0.95)); bg.addColorStop(1, hexA(p.deep, 0.95))
-    sg.fillStyle = bg; sg.fillRect(0, 0, stripW, stripH)
-    const polar = sg.createLinearGradient(0, 0, 0, stripH)
-    polar.addColorStop(0, 'rgba(255,255,255,0.55)'); polar.addColorStop(0.18, 'rgba(255,255,255,0)')
-    polar.addColorStop(0.82, 'rgba(255,255,255,0)'); polar.addColorStop(1, 'rgba(255,255,255,0.55)')
-    sg.fillStyle = polar; sg.fillRect(0, 0, stripW, stripH)
-    for (let i = 0; i < 30 + Math.floor(rng() * 20); i++) {
-      const x = rng() * stripW, y = stripH * (0.18 + rng() * 0.64), sz = 0.8 + rng() * 2.6
-      sg.fillStyle = hexA(p.deep, 0.4 + rng() * 0.3); sg.beginPath(); sg.arc(x, y, sz, 0, TAU); sg.fill()
-      sg.fillStyle = hexA('#ffffff', 0.18 + rng() * 0.25); sg.beginPath(); sg.arc(x - sz * 0.3, y - sz * 0.3, sz * 0.5, 0, TAU); sg.fill()
-    }
-  } else {
-    sg.fillStyle = hexA(p.hue, 0.95); sg.fillRect(0, 0, stripW, stripH)
-    for (let i = 0; i < 10 + Math.floor(rng() * 6); i++) {
-      const x = rng() * stripW, y = stripH * (0.15 + rng() * 0.7), sz = R * (0.18 + rng() * 0.28)
-      sg.fillStyle = hexA(p.deep, 0.5 + rng() * 0.3)
-      sg.beginPath()
-      for (let k = 0; k <= 10; k++) {
-        const ang = (k / 10) * TAU, rr = sz * (0.6 + rng() * 0.7)
-        if (k === 0) sg.moveTo(x + Math.cos(ang) * rr, y + Math.sin(ang) * rr * 0.7)
-        else sg.lineTo(x + Math.cos(ang) * rr, y + Math.sin(ang) * rr * 0.7)
-      }
-      sg.closePath(); sg.fill()
-    }
-    for (let i = 0; i < stripW * stripH * 0.12; i++) {
-      sg.fillStyle = rng() > 0.5 ? hexA('#ffffff', 0.05 + rng() * 0.06) : hexA('#000000', 0.05 + rng() * 0.06)
-      sg.fillRect(rng() * stripW, rng() * stripH, 1, 1)
-    }
-  }
-
-  {
-    const sx1 = stripW * 0.18, sy1 = stripH * (0.42 + rng() * 0.16), sw1 = R * 0.7, sh1 = R * 0.32
-    const g1 = sg.createRadialGradient(sx1, sy1, 0, sx1, sy1, sw1)
-    g1.addColorStop(0, hexA('#ffffff', 0.85)); g1.addColorStop(0.35, hexA(p.hue, 0.85)); g1.addColorStop(0.75, hexA(p.deep, 0.6)); g1.addColorStop(1, hexA(p.deep, 0))
-    sg.fillStyle = g1; sg.beginPath(); sg.ellipse(sx1, sy1, sw1, sh1, 0, 0, TAU); sg.fill()
-
-    const sx2 = stripW * 0.68, sy2 = stripH * (0.38 + rng() * 0.24), sw2 = R * 0.55, sh2 = R * 0.28
-    const g2 = sg.createRadialGradient(sx2, sy2, 0, sx2, sy2, sw2)
-    g2.addColorStop(0, hexA(p.deep, 0.95)); g2.addColorStop(0.5, hexA(p.deep, 0.55)); g2.addColorStop(1, hexA(p.deep, 0))
-    sg.fillStyle = g2; sg.beginPath(); sg.ellipse(sx2, sy2, sw2, sh2, 0, 0, TAU); sg.fill()
-
-    const mx = stripW * 0.42
-    const mg = sg.createLinearGradient(mx - R * 0.25, 0, mx + R * 0.25, 0)
-    mg.addColorStop(0, hexA(p.hue, 0)); mg.addColorStop(0.5, hexA('#ffffff', 0.45)); mg.addColorStop(1, hexA(p.hue, 0))
-    sg.fillStyle = mg; sg.fillRect(mx - R * 0.25, stripH * 0.15, R * 0.5, stripH * 0.7)
-  }
-
-  const pad = Math.round(R * 0.6)
-  const size = (R + pad) * 2
-  const c = document.createElement('canvas')
-  c.width = c.height = size
-  return { canvas: c, surface, stripW, stripH, R, size }
-}
-
-// ── Stat card ─────────────────────────────────────────────────────────────────
+// ── StatCard ──────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value }) {
   return (
@@ -396,12 +125,13 @@ export default function StudyUniverse() {
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
 
-  // Pan / zoom in refs — no re-render needed for canvas state
   const panRef = useRef({ x: 0, y: 0 })
   const panVelRef = useRef({ x: 0, y: 0 })
   const zoomRef = useRef(1)
   const draggingRef = useRef(false)
   const lastPosRef = useRef({ x: 0, y: 0 })
+  const dragMovedRef = useRef(false)
+  const selectedSunRef = useRef(-1)
 
   useEffect(() => {
     api.studyUniverse()
@@ -414,267 +144,128 @@ export default function StudyUniverse() {
     const canvas = canvasRef.current
     const container = containerRef.current
     if (!canvas || !container) return
-
-    const DPR = Math.min(window.devicePixelRatio || 1, 2)
-    let W = 0, H = 0, ctx = null
-
-    let nebulaCanvas = null
-    let starsBackData = [], starsFrontData = [], constellations = []
-    const sunTextures = [], planetTextures = []
-    const meteors = []
-    let globalStarRot = 0
-    let zoomInitialized = false
+    const ctx = canvas.getContext('2d')
 
     const { sunData, planetData } = mapApiToScene(data)
-    const galaxyLayout = computeGalaxyLayout(sunData.length)
+    const n = sunData.length
+    const galaxyLayout = computeGalaxyLayout(n)
+
+    // Stars: built once as data, drawn each frame
+    const stars = Array.from({ length: 120 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      r: 0.5 + Math.random() * 1.2,
+      baseAlpha: 0.2 + Math.random() * 0.6,
+      phase: Math.random() * TAU,
+      speed: 0.4 + Math.random() * 1.2,
+    }))
+
+    let W = 0, H = 0
 
     function initFitZoom() {
-      const n = sunData.length
       if (n === 0) { zoomRef.current = 1; return }
-      const maxExtent = RING_GAP * n + ORBIT_MAX + 40
+      const maxExtent = RING_GAP * n + 80
       const available = Math.min(W, H) * 0.44
       zoomRef.current = Math.min(1.2, available / maxExtent)
     }
 
     function rebuild() {
+      const dpr = Math.min(window.devicePixelRatio, 2)
       const rect = container.getBoundingClientRect()
-      W = Math.max(rect.width || container.clientWidth, 1)
-      H = Math.max(container.clientHeight, 400)
-      canvas.width = Math.round(W * DPR)
-      canvas.height = Math.round(H * DPR)
+      W = rect.width
+      H = rect.height || window.innerHeight * 0.7
+      canvas.width = W * dpr
+      canvas.height = H * dpr
       canvas.style.width = W + 'px'
       canvas.style.height = H + 'px'
-      ctx = canvas.getContext('2d', { alpha: true })
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0)
-
-      nebulaCanvas = buildNebula(W, H)
-      const stars = buildStars(W, H)
-      starsBackData = stars.starsBackData
-      starsFrontData = stars.starsFrontData
-      constellations = stars.constellations
-
-      sunTextures.length = 0
-      sunData.forEach((sub, i) => sunTextures.push(buildSunTexture(sub, i)))
-      planetTextures.length = 0
-      planetData.forEach((p, i) => planetTextures.push(buildPlanetTexture(p, i)))
-
-      if (!zoomInitialized) { initFitZoom(); zoomInitialized = true }
+      ctx.scale(dpr, dpr)
+      panRef.current = { x: 0, y: 0 }
+      initFitZoom()
     }
 
-    // ── Draw functions ───────────────────────────────────────────────────────
+    // ── Draw helpers ─────────────────────────────────────────────────────────
 
-    function drawNebula() {
-      if (nebulaCanvas) ctx.drawImage(nebulaCanvas, 0, 0)
-    }
-
-    function drawStarLayer(list, t) {
-      for (const s of list) {
-        const tw = 0.7 + 0.3 * Math.sin(t * s.tws + s.tw)
-        ctx.fillStyle = hexA(s.tint, s.b * tw)
-        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill()
-        if (s.b > 0.85 && s.r > 1.1) {
-          ctx.strokeStyle = hexA(s.tint, s.b * tw * 0.45); ctx.lineWidth = 0.6
-          ctx.beginPath()
-          ctx.moveTo(s.x - s.r * 3.5, s.y); ctx.lineTo(s.x + s.r * 3.5, s.y)
-          ctx.moveTo(s.x, s.y - s.r * 3.5); ctx.lineTo(s.x, s.y + s.r * 3.5)
-          ctx.stroke()
-        }
+    function drawStars(t) {
+      for (const s of stars) {
+        const alpha = s.baseAlpha * (0.6 + 0.4 * Math.sin(t * s.speed + s.phase))
+        ctx.beginPath()
+        ctx.arc(s.x * W, s.y * H, s.r, 0, TAU)
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`
+        ctx.fill()
       }
     }
 
-    function drawConstellations() {
-      ctx.strokeStyle = 'rgba(255,255,255,0.035)'; ctx.lineWidth = 0.7
-      constellations.forEach(chain => {
+    function drawOrbitRing(cx, cy, r) {
+      ctx.beginPath()
+      ctx.arc(cx, cy, r, 0, TAU)
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)'
+      ctx.lineWidth = 1
+      ctx.stroke()
+    }
+
+    function drawSun(sx, sy, sun, selected) {
+      const R = sun.radius
+      // Glow
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, R * 3)
+      g.addColorStop(0, hexA(sun.color, selected ? 0.28 : 0.15))
+      g.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.beginPath()
+      ctx.arc(sx, sy, R * 3, 0, TAU)
+      ctx.fillStyle = g
+      ctx.fill()
+      // Core
+      const core = ctx.createRadialGradient(sx - R * 0.25, sy - R * 0.25, 0, sx, sy, R)
+      core.addColorStop(0, sun.accent)
+      core.addColorStop(1, sun.color)
+      ctx.beginPath()
+      ctx.arc(sx, sy, R, 0, TAU)
+      ctx.fillStyle = core
+      ctx.fill()
+      // Selection ring
+      if (selected) {
         ctx.beginPath()
-        chain.forEach((i, k) => {
-          const s = starsFrontData[i]
-          if (k === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y)
-        })
+        ctx.arc(sx, sy, R + 4, 0, TAU)
+        ctx.strokeStyle = hexA(sun.color, 0.7)
+        ctx.lineWidth = 1.5
         ctx.stroke()
-      })
+      }
     }
 
-    // Drawn in scene space at (0,0) — the galactic core
-    function drawGalacticCore() {
-      const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, 38)
-      gr.addColorStop(0, 'rgba(255,255,255,0.07)')
-      gr.addColorStop(0.4, 'rgba(200,190,255,0.025)')
-      gr.addColorStop(1, 'rgba(0,0,0,0)')
-      ctx.fillStyle = gr
-      ctx.beginPath(); ctx.arc(0, 0, 38, 0, TAU); ctx.fill()
-    }
-
-    // Dotted orbit rings for each subject's path around the galactic core
-    function drawSubjectRings(totalScale) {
-      const invS = 1 / totalScale
+    function drawSunLabel(sx, sy, sun, invS) {
       ctx.save()
-      ctx.strokeStyle = 'rgba(255,255,255,0.030)'
-      ctx.lineWidth = invS
-      ctx.setLineDash([3 * invS, 9 * invS])
-      galaxyLayout.forEach(pos => {
-        ctx.beginPath()
-        ctx.arc(0, 0, pos.ringRadius, 0, TAU)
-        ctx.stroke()
-      })
-      ctx.setLineDash([])
-      ctx.restore()
-    }
-
-    function drawOrbitEllipse(ocx, ocy, a, e, w, inc, totalScale) {
-      const b = a * Math.sqrt(1 - e * e)
-      const invS = 1 / totalScale
-      ctx.save()
-      ctx.translate(ocx, ocy); ctx.rotate(w); ctx.translate(-a * e, 0)
-      ctx.strokeStyle = 'rgba(199,210,254,0.055)'; ctx.lineWidth = invS
-      ctx.setLineDash([2 * invS, 4 * invS])
-      ctx.beginPath(); ctx.ellipse(0, 0, a, b * inc, 0, 0, TAU); ctx.stroke()
-      ctx.setLineDash([]); ctx.restore()
-    }
-
-    function drawSun(x, y, sub, tex, t) {
-      if (!tex) return
-      const pulse = 1 + Math.sin(t * 0.5 + sub.pulseT) * 0.04
-      const drawSize = tex.size * pulse
-      ctx.save()
-      ctx.globalCompositeOperation = 'source-over'
-      ctx.translate(x, y); ctx.rotate(t * 0.02 + sub.pulseT * 0.1)
-      ctx.drawImage(tex.canvas, -drawSize / 2, -drawSize / 2, drawSize, drawSize)
-      ctx.restore()
-      ctx.save()
-      ctx.globalCompositeOperation = 'source-over'
-      const R = sub.radius * pulse
-      const bloom = ctx.createRadialGradient(x, y, 0, x, y, R * 4.0)
-      bloom.addColorStop(0, hexA(sub.accent, 0.11))
-      bloom.addColorStop(0.35, hexA(sub.color, 0.05))
-      bloom.addColorStop(1, 'rgba(0,0,0,0)')
-      ctx.fillStyle = bloom; ctx.beginPath(); ctx.arc(x, y, R * 4.0, 0, TAU); ctx.fill()
-      ctx.restore()
-    }
-
-    // Draw subject name below the sun at a fixed screen-size (cancels totalScale)
-    function drawSunLabel(x, y, sub, totalScale) {
-      const invS = 1 / totalScale
-      ctx.save()
-      ctx.translate(x, y + sub.radius + 10)
+      ctx.translate(sx, sy + sun.radius + 8)
       ctx.scale(invS, invS)
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
-      ctx.font = '11px system-ui, -apple-system, sans-serif'
-      ctx.shadowColor = 'rgba(0,0,0,0.9)'
-      ctx.shadowBlur = 6
-      ctx.fillStyle = 'rgba(255,255,255,0.62)'
-      ctx.fillText(sub.name, 0, 0)
+      ctx.font = '11px system-ui, sans-serif'
+      ctx.fillStyle = 'rgba(255,255,255,0.65)'
+      ctx.fillText(sun.name, 0, 0)
       ctx.restore()
     }
 
-    function drawPlanet(p, tex, sunX, sunY, px, py, t, planetIdx) {
-      if (!tex) return
-      const angToSun = Math.atan2(sunY - py, sunX - px)
-      const R = p.size
-      const ringTilt = 0.3 + planetIdx * 0.17
-
-      ctx.save(); ctx.globalCompositeOperation = 'source-over'
-      const glow = ctx.createRadialGradient(px, py, 0, px, py, R * 2.5)
-      glow.addColorStop(0, hexA(p.hue, 0.09)); glow.addColorStop(1, 'rgba(0,0,0,0)')
-      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(px, py, R * 2.5, 0, TAU); ctx.fill()
-      ctx.restore()
-
-      if (p.ring) {
-        ctx.save(); ctx.translate(px, py); ctx.rotate(ringTilt); ctx.scale(1, 0.32)
-        const rg = ctx.createRadialGradient(0, 0, R * 1.45, 0, 0, R * 2.2)
-        rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(0.4, hexA(p.ringColor, 0.55)); rg.addColorStop(0.65, hexA(p.ringColor, 0.7)); rg.addColorStop(0.9, hexA(p.ringColor, 0.25)); rg.addColorStop(1, 'rgba(0,0,0,0)')
-        ctx.strokeStyle = rg; ctx.lineWidth = R * 0.9
-        ctx.beginPath(); ctx.arc(0, 0, R * 1.85, Math.PI, TAU); ctx.stroke()
-        ctx.strokeStyle = hexA('#ffffff', 0.18); ctx.lineWidth = 0.8
-        ctx.beginPath(); ctx.arc(0, 0, R * 1.85, Math.PI, TAU); ctx.stroke()
-        ctx.restore()
-      }
-
-      const spinRate = 0.09 + 0.55 / p.size
-      const drawH = R * 2, drawW = drawH * 2
-      const sx = ((t * spinRate + planetIdx * 0.9) % 1) * drawW
-      ctx.save(); ctx.beginPath(); ctx.arc(px, py, R, 0, TAU); ctx.clip()
-      ctx.fillStyle = p.deep; ctx.fillRect(px - R, py - R, R * 2, R * 2)
-      if (p.ring) { ctx.translate(px, py); ctx.rotate(ringTilt); ctx.translate(-px, -py) }
-      const x0 = px - R - sx, y0 = py - drawH / 2
-      for (let copy = -1; copy <= 3; copy++) ctx.drawImage(tex.surface, x0 + copy * drawW, y0, drawW, drawH)
-      if (p.ring) { ctx.translate(px, py); ctx.rotate(-ringTilt); ctx.translate(-px, -py) }
-
-      const lx = Math.cos(angToSun), ly = Math.sin(angToSun)
-      const lit = ctx.createRadialGradient(px + lx * R * 0.45, py + ly * R * 0.45, R * 0.05, px, py, R * 1.1)
-      lit.addColorStop(0, 'rgba(255,255,255,0.45)'); lit.addColorStop(0.4, 'rgba(255,255,255,0)')
-      ctx.fillStyle = lit; ctx.fillRect(px - R, py - R, R * 2, R * 2)
-
-      const dark = ctx.createLinearGradient(px + lx * R, py + ly * R, px - lx * R, py - ly * R)
-      dark.addColorStop(0, 'rgba(0,0,0,0)'); dark.addColorStop(0.45, 'rgba(0,0,0,0)'); dark.addColorStop(0.55, 'rgba(0,0,0,0.55)'); dark.addColorStop(1, 'rgba(0,0,0,0.92)')
-      ctx.fillStyle = dark; ctx.fillRect(px - R, py - R, R * 2, R * 2)
-      ctx.restore()
-
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'
-      const atmoCx = px + lx * R * 0.3, atmoCy = py + ly * R * 0.3
-      const atmo = ctx.createRadialGradient(atmoCx, atmoCy, R * 0.7, atmoCx, atmoCy, R * 1.45)
-      atmo.addColorStop(0, hexA(p.hue, 0)); atmo.addColorStop(0.55, hexA(p.hue, 0.20)); atmo.addColorStop(1, hexA(p.hue, 0))
-      ctx.fillStyle = atmo; ctx.beginPath(); ctx.arc(px, py, R * 1.45, 0, TAU); ctx.arc(px, py, R, 0, TAU, true); ctx.fill('evenodd')
-      ctx.restore()
-
-      if (p.ring) {
-        ctx.save(); ctx.translate(px, py); ctx.rotate(ringTilt); ctx.scale(1, 0.32)
-        const rg = ctx.createRadialGradient(0, 0, R * 1.45, 0, 0, R * 2.2)
-        rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(0.4, hexA(p.ringColor, 0.7)); rg.addColorStop(0.65, hexA(p.ringColor, 0.85)); rg.addColorStop(0.9, hexA(p.ringColor, 0.3)); rg.addColorStop(1, 'rgba(0,0,0,0)')
-        ctx.strokeStyle = rg; ctx.lineWidth = R * 0.9
-        ctx.beginPath(); ctx.arc(0, 0, R * 1.85, 0, Math.PI); ctx.stroke()
-        ctx.strokeStyle = hexA('#ffffff', 0.25); ctx.lineWidth = 0.8
-        ctx.beginPath(); ctx.arc(0, 0, R * 1.85, 0, Math.PI); ctx.stroke()
-        ctx.restore()
-      }
-    }
-
-    function drawVignette() {
-      const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.max(W, H) * 0.82)
-      vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(0.65, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,8,0.85)')
-      ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H)
-    }
-
-    // ── Meteor system (screen-space) ─────────────────────────────────────────
-
-    function spawnMeteor() {
-      const ang = Math.random() * TAU
-      const d = Math.max(W, H) * 0.7
-      const x = W / 2 + Math.cos(ang) * d
-      const y = H / 2 + Math.sin(ang) * d
-      const targetAng = ang + Math.PI + (Math.random() - 0.5) * 0.6
-      const speed = 4.5 + Math.random() * 2.5
-      meteors.push({ x, y, vx: Math.cos(targetAng) * speed, vy: Math.sin(targetAng) * speed, life: 0, maxLife: 90 + Math.random() * 40 })
-    }
-
-    function updateMeteors() {
-      if (Math.random() < 0.005 && meteors.length < 2) spawnMeteor()
-      for (let i = meteors.length - 1; i >= 0; i--) {
-        const m = meteors[i]; m.x += m.vx; m.y += m.vy; m.life++
-        if (m.life > m.maxLife || m.x < -120 || m.x > W + 120 || m.y < -120 || m.y > H + 120) meteors.splice(i, 1)
-      }
-    }
-
-    function drawMeteors() {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'
-      for (const m of meteors) {
-        const lifeT = m.life / m.maxLife
-        const fade = lifeT < 0.15 ? lifeT / 0.15 : lifeT > 0.75 ? (1 - lifeT) / 0.25 : 1
-        const spd = Math.hypot(m.vx, m.vy), tailLen = 80
-        const tx = m.x - m.vx * (tailLen / spd), ty = m.y - m.vy * (tailLen / spd)
-        const grad = ctx.createLinearGradient(tx, ty, m.x, m.y)
-        grad.addColorStop(0, 'rgba(199,210,254,0)'); grad.addColorStop(0.7, hexA('#c7d2fe', 0.4 * fade)); grad.addColorStop(1, hexA('#ffffff', 0.95 * fade))
-        ctx.strokeStyle = grad; ctx.lineWidth = 1.6; ctx.lineCap = 'round'
-        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(m.x, m.y); ctx.stroke()
-        ctx.fillStyle = hexA('#ffffff', fade); ctx.beginPath(); ctx.arc(m.x, m.y, 1.6, 0, TAU); ctx.fill()
-      }
-      ctx.restore()
+    function drawPlanet(px, py, planet, dimmed) {
+      const R = planet.radius
+      const alpha = dimmed ? 0.3 : 1
+      // Subtle glow
+      const g = ctx.createRadialGradient(px, py, 0, px, py, R * 2)
+      g.addColorStop(0, hexA(planet.color, 0.08 * alpha))
+      g.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.beginPath()
+      ctx.arc(px, py, R * 2, 0, TAU)
+      ctx.fillStyle = g
+      ctx.fill()
+      // Core
+      ctx.beginPath()
+      ctx.arc(px, py, R, 0, TAU)
+      ctx.fillStyle = hexA(planet.color, alpha)
+      ctx.fill()
     }
 
     // ── Event handlers ───────────────────────────────────────────────────────
 
     const onPointerDown = (e) => {
       draggingRef.current = true
+      dragMovedRef.current = false
       lastPosRef.current = { x: e.clientX, y: e.clientY }
       panVelRef.current = { x: 0, y: 0 }
       setTooltip(null)
@@ -686,6 +277,7 @@ export default function StudyUniverse() {
       if (draggingRef.current) {
         const dx = e.clientX - lastPosRef.current.x
         const dy = e.clientY - lastPosRef.current.y
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMovedRef.current = true
         panRef.current.x += dx
         panRef.current.y += dy
         panVelRef.current.x = dx
@@ -693,7 +285,6 @@ export default function StudyUniverse() {
         lastPosRef.current = { x: e.clientX, y: e.clientY }
         return
       }
-      // Hover: map mouse → scene coords and hit-test suns
       const rect = canvas.getBoundingClientRect()
       const cssX = e.clientX - rect.left
       const cssY = e.clientY - rect.top
@@ -712,9 +303,24 @@ export default function StudyUniverse() {
       setTooltip(found)
     }
 
-    const onPointerUp = () => {
+    const onPointerUp = (e) => {
+      const wasDrag = dragMovedRef.current
       draggingRef.current = false
       canvas.style.cursor = 'grab'
+      if (wasDrag) return
+      // Click: hit-test suns
+      const rect = canvas.getBoundingClientRect()
+      const cssX = e.clientX - rect.left
+      const cssY = e.clientY - rect.top
+      const z = zoomRef.current
+      const sceneX = (cssX - W / 2 - panRef.current.x) / z
+      const sceneY = (cssY - H / 2 - panRef.current.y) / z
+      let hit = -1
+      galaxyLayout.forEach((pos, i) => {
+        const sun = sunData[i]
+        if (Math.hypot(sceneX - pos.x, sceneY - pos.y) < sun.radius * 3.5) hit = i
+      })
+      selectedSunRef.current = selectedSunRef.current === hit ? -1 : hit
     }
 
     const onPointerLeave = () => {
@@ -740,13 +346,11 @@ export default function StudyUniverse() {
 
     rebuild()
     const startTime = performance.now()
-
     let raf = null
+
     function frame(now) {
       const t = (now - startTime) / 1000
-      globalStarRot += 0.00012
 
-      // Pan inertia
       if (!draggingRef.current) {
         panRef.current.x += panVelRef.current.x
         panRef.current.y += panVelRef.current.y
@@ -759,80 +363,76 @@ export default function StudyUniverse() {
       const z = zoomRef.current
       const breathe = 1 + Math.sin(t * 0.18) * 0.008
       const totalScale = z * breathe
+      const invS = 1 / totalScale
+      const sel = selectedSunRef.current
 
-      ctx.clearRect(0, 0, W, H)
-      drawNebula()
+      // Background
+      ctx.fillStyle = '#08001a'
+      ctx.fillRect(0, 0, W, H)
 
-      // Stars: fixed to screen, slow atmosphere rotation
-      ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(globalStarRot * 0.08); ctx.translate(-W / 2, -H / 2)
-      drawStarLayer(starsBackData, t); ctx.restore()
+      // Stars (screen-space)
+      drawStars(t)
 
-      ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(globalStarRot * 0.18); ctx.translate(-W / 2, -H / 2)
-      drawConstellations(); drawStarLayer(starsFrontData, t); ctx.restore()
-
-      // Meteors (screen-space, before scene transform)
-      updateMeteors(); drawMeteors()
-
-      // Scene space: centered + pan + zoom
+      // Scene transform
       ctx.save()
       ctx.translate(W / 2 + panRef.current.x, H / 2 + panRef.current.y)
       ctx.scale(totalScale, totalScale)
 
-      drawGalacticCore()
-      drawSubjectRings(totalScale)
-
-      // Planet orbit ellipses around their suns
-      planetData.forEach(pl => {
-        const sp = galaxyLayout[pl.sun]
-        if (sp) drawOrbitEllipse(sp.x, sp.y, pl.a, pl.e, pl.w, pl.inc, totalScale)
+      // Orbit rings
+      galaxyLayout.forEach((pos) => {
+        planetData
+          .filter(p => galaxyLayout[p.sun] === pos)
+          .forEach(p => drawOrbitRing(pos.x, pos.y, p.orbitRadius))
       })
 
-      // Compute planet positions
-      const planetPositions = planetData.map((pl, idx) => {
-        const sub = sunData[pl.sun], sp = galaxyLayout[pl.sun]
-        if (!sub || !sp) return null
-        const n = 0.075 * Math.sqrt(sub.mass) / Math.pow(pl.a / 60, 1.5)
-        const M = pl.M0 + t * n, k = solveKepler(M, pl.e)
-        const ox = k.x * pl.a, oy = k.y * pl.a * pl.inc
-        const cw = Math.cos(pl.w), sw = Math.sin(pl.w)
-        return { px: sp.x + ox * cw - oy * sw, py: sp.y + ox * sw + oy * cw, sp, pl, idx }
-      }).filter(Boolean)
-
-      planetPositions.sort((a, b) => a.py - b.py)
-      planetPositions.forEach(pp => drawPlanet(pp.pl, planetTextures[pp.idx], pp.sp.x, pp.sp.y, pp.px, pp.py, t, pp.idx))
+      // Planets
+      planetData.forEach((p) => {
+        const pos = galaxyLayout[p.sun]
+        if (!pos) return
+        const angle = (t / p.orbitPeriod) * TAU + p.orbitOffset
+        const px = pos.x + Math.cos(angle) * p.orbitRadius
+        const py = pos.y + Math.sin(angle) * p.orbitRadius
+        const dimmed = sel !== -1 && sel !== p.sun
+        drawPlanet(px, py, p, dimmed)
+      })
 
       // Suns + labels + overflow
-      sunData.forEach((sub, i) => {
-        const sp = galaxyLayout[i]
-        if (!sp) return
-        drawSun(sp.x, sp.y, sub, sunTextures[i], t)
-        drawSunLabel(sp.x, sp.y, sub, totalScale)
-        if (sub.overflowCount > 0) {
-          const invS = 1 / totalScale
+      sunData.forEach((sun, i) => {
+        const pos = galaxyLayout[i]
+        if (!pos) return
+        const selected = sel === i
+        drawSun(pos.x, pos.y, sun, selected)
+        drawSunLabel(pos.x, pos.y, sun, invS)
+        if (sun.overflowCount > 0) {
           ctx.save()
-          ctx.translate(sp.x, sp.y + sub.radius + 22)
+          ctx.translate(pos.x, pos.y + sun.radius + 20)
           ctx.scale(invS, invS)
           ctx.textAlign = 'center'
           ctx.textBaseline = 'top'
           ctx.font = 'bold 10px system-ui, sans-serif'
-          ctx.fillStyle = 'rgba(255,255,255,0.38)'
-          ctx.fillText(`+${sub.overflowCount}`, 0, 0)
+          ctx.fillStyle = 'rgba(255,255,255,0.35)'
+          ctx.fillText(`+${sun.overflowCount}`, 0, 0)
           ctx.restore()
         }
       })
 
-      ctx.restore() // end scene space
-      drawVignette()
+      ctx.restore()
 
       raf = requestAnimationFrame(frame)
     }
+
     raf = requestAnimationFrame(frame)
 
-    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); rebuild(); raf = requestAnimationFrame(frame) })
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf)
+      rebuild()
+      raf = requestAnimationFrame(frame)
+    })
     ro.observe(container)
 
     return () => {
-      cancelAnimationFrame(raf); ro.disconnect()
+      cancelAnimationFrame(raf)
+      ro.disconnect()
       canvas.removeEventListener('pointerdown', onPointerDown)
       canvas.removeEventListener('pointermove', onPointerMove)
       canvas.removeEventListener('pointerup', onPointerUp)
@@ -842,7 +442,7 @@ export default function StudyUniverse() {
     }
   }, [data])
 
-  const isEmpty = !loading && data && data.total_notes === 0 && !(data.total_questions_answered)
+  const isEmpty = !loading && data && data.total_notes === 0 && !data.total_questions_answered
   const accuracy = data && data.total_questions_answered > 0
     ? Math.round((data.total_correct / data.total_questions_answered) * 100) : 0
 
@@ -858,10 +458,7 @@ export default function StudyUniverse() {
       <div
         ref={containerRef}
         className="relative rounded-2xl overflow-hidden mb-5"
-        style={{
-          minHeight: '70vh',
-          background: 'radial-gradient(ellipse at 48% 35%, rgba(10,6,30,1) 0%, rgba(4,3,14,1) 65%, rgba(2,2,8,1) 100%)',
-        }}
+        style={{ minHeight: '70vh', background: '#08001a' }}
       >
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -893,7 +490,6 @@ export default function StudyUniverse() {
           style={{ display: 'block', width: '100%', height: '100%', cursor: 'grab' }}
         />
 
-        {/* Hover tooltip — DOM element for crisp rendering */}
         {tooltip && (
           <div
             style={{
@@ -903,8 +499,6 @@ export default function StudyUniverse() {
               transform: 'translate(-50%, calc(-100% - 14px))',
               zIndex: 20,
               pointerEvents: 'none',
-              transition: 'opacity 120ms',
-              opacity: 1,
               background: 'rgba(10,10,26,0.88)',
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
@@ -924,14 +518,13 @@ export default function StudyUniverse() {
           </div>
         )}
 
-        {/* Zoom hint */}
         {!loading && !isEmpty && data && data.subjects.length > 0 && (
           <div style={{
             position: 'absolute', bottom: 14, right: 16,
             fontSize: 10, color: 'rgba(255,255,255,0.22)',
             pointerEvents: 'none', letterSpacing: '0.04em',
           }}>
-            scroll to zoom · drag to pan
+            scroll to zoom · drag to pan · click to focus
           </div>
         )}
       </div>

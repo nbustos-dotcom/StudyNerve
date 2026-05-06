@@ -192,8 +192,7 @@ export default function Login({ onAuth }) {
               type="submit"
               disabled={loading}
               style={btnPrimary}
-              onMouseEnter={(e) => !loading && (e.target.style.opacity = '0.88')}
-              onMouseLeave={(e) => (e.target.style.opacity = '1')}
+              className="hover:opacity-90 transition-opacity duration-150"
             >
               {loading
                 ? mode === 'login' ? 'Signing in…' : 'Creating account…'

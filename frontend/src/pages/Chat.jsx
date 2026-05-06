@@ -493,7 +493,7 @@ export default function Chat() {
         }
       `}</style>
 
-      <div className="flex" style={{ height: 'calc(100vh - 64px)' }}>
+      <div className="flex fade-in-up" style={{ height: 'calc(100vh - 64px)' }}>
 
         {/* ── Desktop sidebar (always visible on md+) ───────────────────────── */}
         <div className="hidden md:flex">

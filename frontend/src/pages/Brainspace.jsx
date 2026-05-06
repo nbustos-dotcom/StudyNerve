@@ -118,7 +118,7 @@ function BrainspaceList({ onOpen }) {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 700, margin: '0 auto' }}>
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
       <h1 style={{
         fontFamily: "'Fraunces', Georgia, serif",
         fontWeight: 400,
@@ -226,7 +226,10 @@ function BrainspaceCanvas({ boardId, onBack }) {
   const [status, setStatus] = useState('loading')
   const [saveStatus, setSaveStatus] = useState('saved')
   const [editor, setEditor] = useState(null)
+  const [mounted, setMounted] = useState(false)
   const saveTimer = useRef(null)
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     api.visionBoard(boardId)
@@ -287,7 +290,12 @@ function BrainspaceCanvas({ boardId, onBack }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100 }}>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 100,
+      opacity: mounted ? 1 : 0,
+      transform: mounted ? 'scale(1)' : 'scale(0.98)',
+      transition: 'opacity 200ms ease-out, transform 200ms ease-out',
+    }}>
       {/* Header bar */}
       <div style={{
         position: 'absolute',

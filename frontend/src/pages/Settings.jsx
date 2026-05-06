@@ -535,22 +535,7 @@ export default function Settings() {
 
         <button
           onClick={() => { setClearMemoryMsg(null); setShowClearMemoryModal(true) }}
-          className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
-          style={{
-            background: 'rgba(239,68,68,0.06)',
-            border: '1px solid rgba(239,68,68,0.15)',
-            color: 'rgba(252,165,165,0.7)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(239,68,68,0.12)'
-            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.28)'
-            e.currentTarget.style.color = 'rgb(252,165,165)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(239,68,68,0.06)'
-            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'
-            e.currentTarget.style.color = 'rgba(252,165,165,0.7)'
-          }}
+          className="px-4 py-2.5 rounded-xl text-sm font-medium bg-red-500/[0.06] border border-red-500/[0.15] text-red-300/70 hover:bg-red-500/12 hover:border-red-500/28 hover:text-red-300 transition-colors duration-150"
         >
           Clear AI Memory
         </button>
@@ -573,22 +558,7 @@ export default function Settings() {
 
         <button
           onClick={() => { setDeleteError(null); setShowDeleteModal(true) }}
-          className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
-          style={{
-            background: 'rgba(239,68,68,0.06)',
-            border: '1px solid rgba(239,68,68,0.15)',
-            color: 'rgba(252,165,165,0.7)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(239,68,68,0.12)'
-            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.28)'
-            e.currentTarget.style.color = 'rgb(252,165,165)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(239,68,68,0.06)'
-            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'
-            e.currentTarget.style.color = 'rgba(252,165,165,0.7)'
-          }}
+          className="px-4 py-2.5 rounded-xl text-sm font-medium bg-red-500/[0.06] border border-red-500/[0.15] text-red-300/70 hover:bg-red-500/12 hover:border-red-500/28 hover:text-red-300 transition-colors duration-150"
         >
           Delete Account
         </button>

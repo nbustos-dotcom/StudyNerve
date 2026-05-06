@@ -364,7 +364,7 @@ export default function Notes() {
             const ts = topicState[note.id]
             const ss = summaryState[note.id]
             return (
-              <div key={note.id} className="card p-6 card-lift" style={{ animationDelay: `${noteIdx * 50}ms`, animation: 'fade-in-up 0.4s ease-out both' }}>
+              <div key={note.id} className={`card p-6 card-lift fade-in-up stagger-${Math.min(noteIdx + 1, 6)}`}>
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

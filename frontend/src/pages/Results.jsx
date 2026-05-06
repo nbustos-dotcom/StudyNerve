@@ -119,12 +119,12 @@ export default function Results() {
         <div className="mb-8">
           <h2 className="text-sm font-medium text-slate-300 mb-3">Weak Areas</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {gaps.slice(0, 5).map((g) => {
+            {gaps.slice(0, 5).map((g, idx) => {
               const pct = Math.round(g.accuracy * 100)
               const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
               const textColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
               return (
-                <div key={g.topic_id} className="card p-4">
+                <div key={g.topic_id} className={`card p-4 fade-in-up stagger-${Math.min(idx + 1, 6)}`}>
                   <div className="flex justify-between items-start mb-2">
                     <p className="text-sm text-slate-200 font-medium truncate max-w-[70%]">{g.topic_name}</p>
                     <span className={`text-sm font-semibold tabular-nums ${textColor}`}>{pct}%</span>

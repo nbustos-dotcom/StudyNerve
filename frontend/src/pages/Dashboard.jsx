@@ -143,12 +143,12 @@ function AccuracyRing({ value }) {
   )
 }
 
-function WeakAreaCard({ topic }) {
+function WeakAreaCard({ topic, className = '' }) {
   const pct = Math.round(topic.accuracy * 100)
   const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
   const textColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
   return (
-    <div className="card p-4 card-lift">
+    <div className={`card p-4 card-lift ${className}`}>
       <div className="flex justify-between items-start mb-2">
         <p className="text-sm text-slate-200 font-medium truncate max-w-[70%]">{topic.topic_name}</p>
         <span className={`text-sm font-semibold tabular-nums ${textColor}`}>{pct}%</span>
@@ -226,8 +226,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {gaps.slice(0, 5).map((g) => (
-                  <WeakAreaCard key={g.topic_id} topic={g} />
+                {gaps.slice(0, 5).map((g, idx) => (
+                  <WeakAreaCard key={g.topic_id} topic={g} className={`fade-in-up stagger-${Math.min(idx + 1, 6)}`} />
                 ))}
               </div>
             )}

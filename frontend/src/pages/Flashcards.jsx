@@ -48,10 +48,10 @@ function DecksView({ onStudyDeck, onGenerate }) {
   return (
     <div className="space-y-3">
       {/* Per-note decks */}
-      {groups.map((group) => (
+      {groups.map((group, idx) => (
         <div
           key={group.note_id ?? 'unlinked'}
-          className="card p-4 flex items-center gap-4 cursor-pointer hover:border-slate-600 transition-colors group"
+          className={`card p-4 flex items-center gap-4 cursor-pointer hover:border-slate-600 transition-colors group fade-in-up stagger-${Math.min(idx + 1, 6)}`}
           onClick={() => onStudyDeck(group.flashcards, group.note_title)}
         >
           <div

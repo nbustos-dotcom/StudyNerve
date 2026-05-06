@@ -83,10 +83,10 @@ function StepHowItWorks() {
         Three simple steps to smarter studying.
       </p>
 
-      <div style={{ display: 'flex', gap: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
         {cards.map((card) => (
           <div key={card.title} style={{
-            flex: 1, padding: '20px 14px',
+            padding: '20px 14px',
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: '16px',
@@ -159,7 +159,7 @@ function StepConnectAI({ provider, setProvider, apiKey, setApiKey }) {
 
       {/* API key input */}
       <div>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: 'rgba(255,255,255,0.35)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <label className="label">
           Paste your API key
         </label>
         <input
@@ -206,7 +206,7 @@ function StepCanvas({ canvasUrl, setCanvasUrl, canvasToken, setCanvasToken }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: 'rgba(255,255,255,0.35)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <label className="label">
             Canvas API URL
           </label>
           <input
@@ -232,7 +232,7 @@ function StepCanvas({ canvasUrl, setCanvasUrl, canvasToken, setCanvasToken }) {
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: 'rgba(255,255,255,0.35)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <label className="label">
             Access Token
           </label>
           <input

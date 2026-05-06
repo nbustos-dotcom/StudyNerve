@@ -186,7 +186,7 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, on
     <aside
       className="flex-shrink-0 flex flex-col border-r border-white/[0.06]"
       style={{
-        width: 250,
+        width: 256,
         background: 'rgba(255,255,255,0.025)',
         backdropFilter: 'blur(16px)',
       }}
@@ -514,7 +514,7 @@ export default function Chat() {
               style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
               onClick={() => setShowSidebar(false)}
             />
-            <div className="md:hidden fixed top-16 left-0 bottom-0 z-50" style={{ width: 270 }}>
+            <div className="md:hidden fixed top-16 left-0 bottom-0 z-50" style={{ width: 256 }}>
               <ChatSidebar
                 sessions={sessions}
                 activeSessionId={sessionId}

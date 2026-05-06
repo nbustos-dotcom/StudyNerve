@@ -13,10 +13,9 @@ Endpoints:
   PUT    /api/vision/nodes/{id}/position          — update x,y only (drag moves)
 
   POST   /api/vision/boards/{id}/connect          — connect two nodes (sets parent_step_id)
+  DELETE /api/vision/boards/{id}/disconnect       — remove a connection
 
-  POST   /api/vision/boards/{id}/ai-organize      — LLM suggests ordering/grouping
-  POST   /api/vision/boards/{id}/ai-breakdown     — LLM breaks one node into sub-tasks
-  POST   /api/vision/nodes/{id}/ask               — tutor Q&A about a node
+  POST   /api/vision/boards/{id}/make-sense       — AI: analyze canvas, return one action
 """
 
 from sqlalchemy import func, select
@@ -31,27 +30,21 @@ from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
 from app.schemas import (
-    AiBreakdownResponse,
-    AiMissingStep,
-    AiOrganizeResponse,
-    AiOrganizeSuggestion,
-    AskNodeRequest,
     BoardDetail,
     BoardSummary,
-    AiVisionRequest,
-    AiVisionResponse,
-    AiVisionConnectionResult,
     ConnectNodesRequest,
     DisconnectNodesRequest,
     CreateBoardRequest,
     CreateNodeRequest,
+    MakeSenseRequest,
+    MakeSenseResponse,
     NodeResponse,
     SaveTldrawStateRequest,
     UpdateNodePositionRequest,
     UpdateNodeRequest,
 )
+from app.services.make_sense import make_sense
 from app.services.user_context import build_user_context
-from app.services.vision import ai_ask, ai_breakdown, ai_organize, ai_vision
 
 router = APIRouter(prefix="/vision", tags=["vision"])
 _limiter = Limiter(key_func=get_remote_address)
@@ -352,251 +345,60 @@ async def disconnect_nodes(
     await db.flush()
 
 
-# ── AI endpoints ──────────────────────────────────────────────────────────────
+# ── AI endpoint ───────────────────────────────────────────────────────────────
 
-@router.post("/boards/{board_id}/ai-vision", response_model=AiVisionResponse, status_code=201)
-@_limiter.limit("10/minute")
-async def ai_vision_board(
+@router.post("/boards/{board_id}/make-sense", response_model=MakeSenseResponse)
+@_limiter.limit("5/minute")
+async def make_sense_board(
     request: Request,
     board_id: int,
-    body: AiVisionRequest,
+    body: MakeSenseRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Generate a full visual mind map from a free-form project description.
-    Creates all nodes and connections in the DB, returns them.
+    Analyze the current tldraw canvas and return one AI action:
+    ask (sparse) / cluster (messy) / expand (organized).
+    The frontend renders suggestions as ghost stickies; nothing is written to DB here.
     """
-    if not body.description.strip():
-        raise HTTPException(status_code=422, detail="description must not be empty.")
-
     board = await db.get(VisionBoard, board_id)
     _owned_board_or_404(board, current_user.id)
 
-    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
-
     try:
-        _raw_ctx = await build_user_context(current_user.id, db)
+        raw_ctx = await build_user_context(current_user.id, db)
         ctx_hint = (
-            "## Student Context Snapshot"
-            " (connect new nodes to concepts from the student's recent notes when relevant;"
-            " surface upcoming deadlines as priority steps)\n"
-            + _raw_ctx
-        ) if _raw_ctx else ""
+            "The student's recent study activity:\n" + raw_ctx
+        ) if raw_ctx else ""
     except Exception:
         ctx_hint = ""
 
-    try:
-        result = await ai_vision(body.description, context_hint=ctx_hint, **llm_kwargs)
-    except LLMTokenLimitError as exc:
-        raise HTTPException(status_code=422, detail=exc.message)
-
-    if result is None or not result.get("nodes"):
-        raise HTTPException(status_code=502, detail="LLM unavailable or returned no nodes.")
-
-    raw_nodes = result.get("nodes", [])[:12]  # cap at 12
-    raw_conns = result.get("connections", [])
-
-    # Create all nodes first (no parent yet — avoids forward-reference issues)
-    existing_count = await db.scalar(
-        select(func.count(VisionStep.id)).where(VisionStep.board_id == board_id)
-    )
-    created: list[VisionStep] = []
-    for i, item in enumerate(raw_nodes):
-        node = VisionStep(
-            board_id=board_id,
-            title=str(item.get("title", f"Node {i+1}")).strip()[:120],
-            description=str(item["description"]).strip()[:400] if item.get("description") else None,
-            x_position=float(item.get("x", 100 + i * 220)),
-            y_position=float(item.get("y", 250)),
-            order_index=(existing_count or 0) + i,
-        )
-        db.add(node)
-        created.append(node)
-
-    await db.flush()
-    for n in created:
-        await db.refresh(n)
-
-    # Apply connections — each child node can have at most one parent
-    applied_conns: list[AiVisionConnectionResult] = []
-    child_has_parent: set[int] = set()
-    for conn in raw_conns:
-        fi = conn.get("from_index")
-        ti = conn.get("to_index")
-        if fi is None or ti is None:
-            continue
-        if not (0 <= fi < len(created) and 0 <= ti < len(created)):
-            continue
-        if fi == ti:
-            continue
-        if ti in child_has_parent:
-            continue  # skip duplicate parents
-        created[ti].parent_step_id = created[fi].id
-        child_has_parent.add(ti)
-        applied_conns.append(AiVisionConnectionResult(
-            from_id=created[fi].id,
-            to_id=created[ti].id,
-        ))
-
-    board.is_ai_generated = True
-    await db.flush()
-    for n in created:
-        await db.refresh(n)
-
-    return AiVisionResponse(
-        nodes=[_node_resp(n) for n in created],
-        connections=applied_conns,
-    )
-
-
-@router.post("/boards/{board_id}/ai-organize", response_model=AiOrganizeResponse)
-@_limiter.limit("10/minute")
-async def ai_organize_board(
-    request: Request,
-    board_id: int,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Send all nodes to the LLM. Returns suggested ordering and grouping.
-    Does not automatically apply the suggestion — the frontend decides.
-    """
-    board = await db.get(VisionBoard, board_id)
-    _owned_board_or_404(board, current_user.id)
-
-    nodes = await _load_nodes(board_id, db)
-    if not nodes:
-        raise HTTPException(status_code=422, detail="Board has no nodes to organize.")
-
-    node_dicts = [
-        {"id": n.id, "title": n.title, "description": n.description}
-        for n in nodes
-    ]
-
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+
     try:
-        result = await ai_organize(node_dicts, **llm_kwargs)
+        result = await make_sense(
+            body.tldraw_state,
+            context_hint=ctx_hint,
+            **llm_kwargs,
+        )
     except LLMTokenLimitError as exc:
         raise HTTPException(status_code=422, detail=exc.message)
+    except Exception:
+        raise HTTPException(status_code=502, detail="Couldn't read canvas, try again.")
 
-    if result is None:
-        raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond.")
+    if not result or not isinstance(result.get("items"), list):
+        raise HTTPException(status_code=502, detail="Couldn't read canvas, try again.")
 
-    reordered = [
-        AiOrganizeSuggestion(
-            id=item["id"],
-            suggested_order=item["suggested_order"],
-            group_name=item.get("group_name"),
-        )
-        for item in result.get("reordered", [])
+    items = [
+        {"type": item.get("type", "sticky"),
+         "text": str(item.get("text", ""))[:120],
+         "x": float(item.get("x", 100)),
+         "y": float(item.get("y", 100))}
+        for item in result["items"][:8]
+        if isinstance(item, dict)
     ]
-    missing = [
-        AiMissingStep(
-            title=item["title"],
-            description=item.get("description"),
-            connect_after_id=item.get("connect_after_id"),
-        )
-        for item in result.get("missing_steps", [])
-    ]
-    return AiOrganizeResponse(reordered=reordered, missing_steps=missing)
 
-
-@router.post("/boards/{board_id}/ai-breakdown", response_model=AiBreakdownResponse)
-@_limiter.limit("10/minute")
-async def ai_breakdown_node(
-    request: Request,
-    board_id: int,
-    body: dict,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Break a single node into 2-4 sub-tasks.
-    Body: {node_id: int}
-    Creates new nodes connected to the parent and returns them.
-    """
-    board = await db.get(VisionBoard, board_id)
-    _owned_board_or_404(board, current_user.id)
-
-    node_id = body.get("node_id")
-    if not node_id:
-        raise HTTPException(status_code=422, detail="node_id is required.")
-
-    parent = await db.get(VisionStep, node_id)
-    if not parent or parent.board_id != board_id:
-        raise HTTPException(status_code=404, detail="Node not found on this board.")
-
-    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
-    try:
-        result = await ai_breakdown(parent.title, parent.description, **llm_kwargs)
-    except LLMTokenLimitError as exc:
-        raise HTTPException(status_code=422, detail=exc.message)
-
-    if result is None:
-        raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond.")
-
-    subtasks = result.get("subtasks", [])
-    if not subtasks:
-        raise HTTPException(status_code=502, detail="LLM returned no subtasks.")
-
-    # Space new nodes in a column below the parent
-    start_x = (parent.x_position or 0.0) + 220
-    start_y = (parent.y_position or 0.0) - ((len(subtasks) - 1) * 90 / 2)
-
-    created: list[VisionStep] = []
-    existing_children = await db.scalar(
-        select(func.count(VisionStep.id)).where(VisionStep.parent_step_id == parent.id)
+    return MakeSenseResponse(
+        action=str(result.get("action", "ask")),
+        items=items,
+        explanation=str(result.get("explanation", ""))[:300],
     )
-    for i, sub in enumerate(subtasks):
-        node = VisionStep(
-            board_id=board_id,
-            title=sub.get("title", f"Sub-task {i + 1}"),
-            description=sub.get("description"),
-            parent_step_id=parent.id,
-            order_index=(existing_children or 0) + i,
-            x_position=start_x,
-            y_position=start_y + i * 90,
-        )
-        db.add(node)
-        created.append(node)
-
-    board.is_ai_generated = True
-    await db.flush()
-    for n in created:
-        await db.refresh(n)
-
-    return AiBreakdownResponse(created_nodes=[_node_resp(n) for n in created])
-
-
-@router.post("/nodes/{node_id}/ask")
-@_limiter.limit("20/minute")
-async def ask_about_node(
-    request: Request,
-    node_id: int,
-    body: AskNodeRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    node = await db.get(VisionStep, node_id)
-    if not node:
-        raise HTTPException(status_code=404, detail="Node not found.")
-    board = await db.get(VisionBoard, node.board_id)
-    _owned_node_or_404(node, board, current_user.id)
-
-    all_nodes = await _load_nodes(board.id, db)
-    node_dicts = [
-        {"title": n.title, "is_completed": n.is_completed}
-        for n in all_nodes
-    ]
-
-    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
-    try:
-        answer = await ai_ask(body.question, board.title, node_dicts, **llm_kwargs)
-    except LLMTokenLimitError as exc:
-        raise HTTPException(status_code=422, detail=exc.message)
-
-    if answer is None:
-        raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond.")
-
-    return {"node_id": node_id, "question": body.question, "answer": answer}

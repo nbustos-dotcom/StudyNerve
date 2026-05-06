@@ -377,23 +377,10 @@ export const api = {
   visionDisconnect: (boardId, fromId, toId) => req('DELETE', `/vision/boards/${boardId}/disconnect`, { from_id: fromId, to_id: toId }),
 
   /**
-   * Generate a full visual mind map from a project description.
-   * @param {number} boardId @param {string} description @returns {Promise<AiVisionResponse>}
+   * Analyze the canvas and return one AI action (ask / cluster / expand).
+   * @param {number} boardId @param {string} tldrawState JSON from editor.getSnapshot()
+   * @returns {Promise<{action: string, items: Array, explanation: string}>}
    */
-  visionAiVision: (boardId, description) => req('POST', `/vision/boards/${boardId}/ai-vision`, { description }),
-
-  /** AI: suggest ordering/grouping. @returns {Promise<AiOrganizeResponse>} */
-  visionAiOrganize: (boardId) => req('POST', `/vision/boards/${boardId}/ai-organize`),
-
-  /**
-   * AI: break a node into sub-tasks.
-   * @param {number} boardId @param {number} nodeId @returns {Promise<AiBreakdownResponse>}
-   */
-  visionAiBreakdown: (boardId, nodeId) => req('POST', `/vision/boards/${boardId}/ai-breakdown`, { node_id: nodeId }),
-
-  /**
-   * Tutor Q&A about a node.
-   * @param {number} nodeId @param {string} question
-   */
-  visionAskNode: (nodeId, question) => req('POST', `/vision/nodes/${nodeId}/ask`, { question }),
+  visionMakeSense: (boardId, tldrawState) =>
+    req('POST', `/vision/boards/${boardId}/make-sense`, { tldraw_state: tldrawState }),
 }

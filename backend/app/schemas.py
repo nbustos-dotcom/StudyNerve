@@ -312,6 +312,23 @@ class SaveTldrawStateRequest(BaseModel):
     tldraw_state: str
 
 
+class MakeSenseRequest(BaseModel):
+    tldraw_state: str
+
+
+class MakeSenseItem(BaseModel):
+    type: str
+    text: str
+    x: float
+    y: float
+
+
+class MakeSenseResponse(BaseModel):
+    action: str
+    items: list[MakeSenseItem]
+    explanation: str
+
+
 class CreateNodeRequest(BaseModel):
     title: str
     x: float = 0.0

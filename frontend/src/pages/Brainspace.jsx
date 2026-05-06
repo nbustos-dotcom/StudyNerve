@@ -274,8 +274,9 @@ function BrainspaceCanvas({ boardId, onBack }) {
 
   if (status === 'loading') {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        <span style={{ color: '#888' }}>Loading canvas…</span>
+      <div className="flex flex-col items-center justify-center gap-3 bg-bs-bg" style={{ height: '60vh' }}>
+        <div className="w-3 h-3 rounded-full bg-bs-accent animate-pulse" />
+        <span className="text-bs-text/60 text-sm">Loading canvas…</span>
       </div>
     )
   }

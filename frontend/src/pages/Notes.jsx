@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import Spinner from '../components/Spinner'
+import SkeletonCard from '../components/SkeletonCard'
 
 const EMPTY_FORM = { title: '', content: '', subject: '' }
 const EMPTY_UPLOAD = { title: '', subject: '', file: null }
@@ -28,6 +29,7 @@ export default function Notes() {
   const [summaryState, setSummaryState] = useState({})
 
   const [deletingId, setDeletingId] = useState(null)
+  const [notesLoading, setNotesLoading] = useState(true)
 
   useEffect(() => {
     fetchNotes()
@@ -43,6 +45,8 @@ export default function Notes() {
         .catch(() => {})
     } catch (e) {
       console.error(e)
+    } finally {
+      setNotesLoading(false)
     }
   }
 
@@ -346,7 +350,14 @@ export default function Notes() {
       </div>
 
       {/* Notes list */}
-      {notes.length === 0 ? (
+      {notesLoading ? (
+        <div className="space-y-4">
+          <SkeletonCard className="stagger-1" />
+          <SkeletonCard className="stagger-2" />
+          <SkeletonCard className="stagger-3" />
+          <SkeletonCard className="stagger-4" />
+        </div>
+      ) : notes.length === 0 ? (
         <div className="card p-10 flex flex-col items-center gap-4 text-center">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(var(--indigo-500-rgb),0.08)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}>
             <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

@@ -25,14 +25,7 @@ const PROVIDERS = [
 
 function SectionCard({ title, children }) {
   return (
-    <div
-      className="rounded-2xl mb-6 overflow-hidden"
-      style={{
-        background: 'rgba(15,15,35,0.45)',
-        border: '1px solid rgba(255,255,255,0.07)',
-        backdropFilter: 'blur(12px)',
-      }}
-    >
+    <div className="card-solid mb-6 overflow-hidden">
       <div className="px-6 py-4 border-b border-white/[0.05]" style={{ background: 'rgba(255,255,255,0.02)' }}>
         <h2 className="text-sm font-semibold text-slate-200 tracking-wide">{title}</h2>
       </div>

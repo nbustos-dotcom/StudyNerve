@@ -330,7 +330,7 @@ export default function StudyGuide() {
   }
 
   return (
-    <div className="px-4 sm:px-8 py-6 max-w-6xl mx-auto fade-in-up">
+    <div className="px-4 sm:px-8 py-6 max-w-5xl mx-auto fade-in-up">
 
       {/* Top nav */}
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">

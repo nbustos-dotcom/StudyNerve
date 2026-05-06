@@ -708,7 +708,7 @@ export default function StudyUniverse() {
     ? Math.round((data.total_correct / data.total_questions_answered) * 100) : 0
 
   return (
-    <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto fade-in-up">
+    <div className="px-4 sm:px-6 py-6 max-w-5xl mx-auto fade-in-up">
       <div className="mb-5">
         <h1 className="text-xl font-semibold text-slate-100">My Universe</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.50)', marginTop: 4 }}>

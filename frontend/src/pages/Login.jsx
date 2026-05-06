@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import NeuralNetIcon from '../components/NeuralNetIcon'
-import NeuralBackground from '../components/NeuralBackground'
 
 const glassCard = {
   background: 'rgba(15, 15, 35, 0.6)',
@@ -76,8 +75,6 @@ export default function Login({ onAuth }) {
       className="min-h-screen flex items-center justify-center p-4"
       style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(var(--indigo-500-rgb),0.12) 0%, transparent 70%)' }}
     >
-      <NeuralBackground />
-
       {/* Ambient orbs */}
       <div
         className="fixed pointer-events-none"

@@ -339,7 +339,7 @@ export default function Quiz() {
         </div>
 
         {/* Question */}
-        <div className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-xl p-7 mb-6" style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.3)' }}>
+        <div className="card-solid p-7 mb-6" style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.3)' }}>
           <div className="text-base leading-relaxed">
             <MarkdownRenderer>{question.content}</MarkdownRenderer>
           </div>
@@ -821,7 +821,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
                 <button
                   key={item.id}
                   onClick={() => onOpenReview(item)}
-                  className="w-full text-left rounded-2xl border border-white/10 bg-black/60 backdrop-blur-xl p-4 flex items-center gap-4 hover:border-white/20 transition-colors group"
+                  className="w-full text-left card-solid p-4 flex items-center gap-4 hover:border-white/20 transition-colors group"
                 >
                   <div className={`text-2xl font-bold tabular-nums w-14 flex-shrink-0 ${color}`}>{pct}%</div>
                   <div className="flex-1 min-w-0">

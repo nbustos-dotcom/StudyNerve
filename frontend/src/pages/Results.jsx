@@ -64,7 +64,7 @@ export default function Results() {
   const thCls = 'text-left text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-slate-300 select-none transition-colors'
 
   return (
-    <div className="p-4 sm:p-8 max-w-4xl mx-auto fade-in-up">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto fade-in-up">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Results</h1>
         <p className="text-sm text-slate-500 mt-1">Per-topic accuracy and weak areas from your quiz attempts</p>

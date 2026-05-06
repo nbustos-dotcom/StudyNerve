@@ -479,7 +479,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
           {/* Front */}
           <div
             style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
-            className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center select-none"
+            className="card-solid flex flex-col items-center justify-center p-8 text-center select-none"
           >
             <p className="text-xs text-slate-600 mb-3 uppercase tracking-widest">Question</p>
             <p className="text-base font-medium text-slate-200 leading-relaxed">{card.front}</p>
@@ -577,7 +577,7 @@ export default function Flashcards() {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-4xl mx-auto fade-in-up">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-slate-100">Flashcards</h1>
         <p className="text-sm text-slate-500 mt-1">AI-generated cards for active recall practice</p>

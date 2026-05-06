@@ -166,7 +166,7 @@ export default function Notes() {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-4xl mx-auto fade-in-up">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto fade-in-up">
       <datalist id="subject-options">
         {subjectList.map(s => <option key={s} value={s} />)}
       </datalist>

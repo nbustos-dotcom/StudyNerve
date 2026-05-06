@@ -484,7 +484,7 @@ export default function StudyUniverse() {
       <div className="mb-5">
         <h1 className="text-xl font-semibold text-slate-100">My Universe</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.50)', marginTop: 4 }}>
-          Every star is a correct answer. Every planet is a note. Every sun is a subject.
+          Click a sun to explore a subject. Scroll to zoom. Drag to pan.
         </p>
       </div>
 

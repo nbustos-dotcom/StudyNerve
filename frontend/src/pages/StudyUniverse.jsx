@@ -4,16 +4,19 @@ import { api } from '../api/client'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TAU = Math.PI * 2
+const RING_GAP = 160   // scene-space px between subject rings
+const ORBIT_MIN = 45   // planet orbit radius min (scene-space, from sun)
+const ORBIT_MAX = 85   // planet orbit radius max
 
 const SUN_PALETTES = [
-  { color: '#d4a056', deep: '#7a4a18', halo: '#c89040', accent: '#f5e8d0' }, // warm amber
-  { color: '#c06030', deep: '#6a2c10', halo: '#b05020', accent: '#f0d0b8' }, // deep coral
-  { color: '#7060b8', deep: '#302858', halo: '#6050a8', accent: '#d8d4f0' }, // blue-violet
-  { color: '#6898b8', deep: '#284058', halo: '#5888a8', accent: '#cce0f0' }, // icy blue
-  { color: '#508878', deep: '#1e3c34', halo: '#407868', accent: '#c8e4dc' }, // soft teal
-  { color: '#9060a0', deep: '#482858', halo: '#805090', accent: '#e4d0f0' }, // dusty violet
-  { color: '#6070a8', deep: '#283058', halo: '#5060a0', accent: '#d0d8f0' }, // steel blue
-  { color: '#a86870', deep: '#583038', halo: '#986068', accent: '#f0d4d8' }, // dusty rose
+  { color: '#d4a056', deep: '#7a4a18', halo: '#c89040', accent: '#f5e8d0' },
+  { color: '#c06030', deep: '#6a2c10', halo: '#b05020', accent: '#f0d0b8' },
+  { color: '#7060b8', deep: '#302858', halo: '#6050a8', accent: '#d8d4f0' },
+  { color: '#6898b8', deep: '#284058', halo: '#5888a8', accent: '#cce0f0' },
+  { color: '#508878', deep: '#1e3c34', halo: '#407868', accent: '#c8e4dc' },
+  { color: '#9060a0', deep: '#482858', halo: '#805090', accent: '#e4d0f0' },
+  { color: '#6070a8', deep: '#283058', halo: '#5060a0', accent: '#d0d8f0' },
+  { color: '#a86870', deep: '#583038', halo: '#986068', accent: '#f0d4d8' },
 ]
 
 // ── Math helpers ──────────────────────────────────────────────────────────────
@@ -50,38 +53,17 @@ function solveKepler(M, e) {
   return { x: Math.cos(E) - e, y: Math.sqrt(1 - e * e) * Math.sin(E) }
 }
 
-// ── Sun layout: absolute pixel offsets from scene center, min 220px separation ─
+// ── Galaxy layout: each subject on its own concentric ring ────────────────────
 
-function computeSunLayout(n, W, H) {
+function computeGalaxyLayout(n) {
+  // Returns scene-space positions (zoom=1 units). Ring i is at RING_GAP*(i+1) from center.
   if (n === 0) return []
-  if (n === 1) return [{ x: 0, y: 0 }]
-  const MIN_SEP = 220
-  const ringR = (count) => Math.max(MIN_SEP / (2 * Math.sin(Math.PI / count)), 130)
-  const maxR = Math.min(W * 0.40, H * 0.36)
-  if (n === 2) {
-    const r = Math.min(Math.max(MIN_SEP / 2, 130), maxR)
-    return [{ x: -r, y: 0 }, { x: r, y: 0 }]
-  }
-  if (n <= 6) {
-    const r = Math.min(ringR(n), maxR)
-    return Array.from({ length: n }, (_, i) => {
-      const a = -Math.PI / 2 + (i / n) * TAU
-      return { x: Math.cos(a) * r, y: Math.sin(a) * r * 0.88 }
-    })
-  }
-  const inner = 4, outer = n - inner
-  const rInner = Math.min(ringR(inner), maxR * 0.50)
-  const rOuter = Math.min(Math.max(rInner + MIN_SEP, ringR(outer)), maxR)
-  const positions = []
-  for (let i = 0; i < inner; i++) {
-    const a = -Math.PI / 2 + (i / inner) * TAU
-    positions.push({ x: Math.cos(a) * rInner, y: Math.sin(a) * rInner * 0.88 })
-  }
-  for (let i = 0; i < outer; i++) {
-    const a = -Math.PI / 2 + (i / outer) * TAU
-    positions.push({ x: Math.cos(a) * rOuter, y: Math.sin(a) * rOuter * 0.88 })
-  }
-  return positions
+  const angleOffset = Math.PI * 0.15
+  return Array.from({ length: n }, (_, i) => {
+    const ringRadius = RING_GAP * (i + 1)
+    const angle = angleOffset + (TAU / Math.max(n, 1)) * i
+    return { ringRadius, x: Math.cos(angle) * ringRadius, y: Math.sin(angle) * ringRadius }
+  })
 }
 
 // ── API data → scene objects ──────────────────────────────────────────────────
@@ -95,6 +77,8 @@ function mapApiToScene(data) {
     const rng = mulberry32(hashStr(sub.name))
     sunData.push({
       name: sub.name,
+      noteCount: sub.note_count || 0,
+      accuracy: sub.accuracy,
       color: pal.color, deep: pal.deep, halo: pal.halo, accent: pal.accent,
       radius: Math.round((28 + Math.min((sub.note_count || 0) * 2, 18)) * 0.5),
       mass: 0.8 + rng() * 0.8,
@@ -110,7 +94,6 @@ function mapApiToScene(data) {
     notesBySubject[key].push(note)
   }
 
-  const ORBIT_MIN = 55, ORBIT_MAX = 130
   const MAX_PLANETS = 8
   const kinds = ['rocky', 'gas', 'icy']
 
@@ -121,7 +104,7 @@ function mapApiToScene(data) {
     const count = visibleGroup.length
     visibleGroup.forEach((note, pos) => {
       const rng = mulberry32(note.id * 137 + 7)
-      const a = count === 1 ? 90 : ORBIT_MIN + (pos / (count - 1)) * (ORBIT_MAX - ORBIT_MIN)
+      const a = count === 1 ? 65 : ORBIT_MIN + (pos / (count - 1)) * (ORBIT_MAX - ORBIT_MIN)
       const size = Math.max(8, Math.min(6 + Math.floor((note.content_length || 0) / 250), 18))
       const kind = kinds[Math.floor(rng() * 3)]
       const hasRing = rng() > 0.72
@@ -237,7 +220,6 @@ function buildSunTexture(sub, idx) {
   const g = c.getContext('2d')
   const rng = mulberry32(idx * 9173 + 13)
 
-  // Corona layers — alphas halved, radii fit within R*2.5 texture half-width
   g.globalCompositeOperation = 'lighter'
   for (let layer = 0; layer < 3; layer++) {
     const rad = R * (2.0 + layer * 0.5)
@@ -248,14 +230,12 @@ function buildSunTexture(sub, idx) {
     g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, rad, 0, TAU); g.fill()
   }
 
-  // Soft corona shell
   const softShell = g.createRadialGradient(cx, cy, R * 1.0, cx, cy, R * 2.2)
   softShell.addColorStop(0, hexA(sub.accent, 0.05))
   softShell.addColorStop(0.5, hexA(sub.color, 0.025))
   softShell.addColorStop(1, 'rgba(0,0,0,0)')
   g.fillStyle = softShell; g.beginPath(); g.arc(cx, cy, R * 2.2, 0, TAU); g.fill()
 
-  // Solar flares
   for (let i = 0; i < 5; i++) {
     const ang = rng() * TAU, baseR = R, peakR = R * (1.25 + rng() * 0.55), span = 0.18 + rng() * 0.35
     g.save(); g.translate(cx, cy); g.rotate(ang)
@@ -270,7 +250,6 @@ function buildSunTexture(sub, idx) {
     g.closePath(); g.fill(); g.restore()
   }
 
-  // Photosphere disk with granulation
   g.globalCompositeOperation = 'source-over'
   g.save(); g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.clip()
   const base = g.createRadialGradient(cx - R * 0.15, cy - R * 0.15, R * 0.1, cx, cy, R * 1.05)
@@ -372,7 +351,6 @@ function buildPlanetTexture(p, idx) {
     }
   }
 
-  // Longitude landmark spots so spin reads clearly
   {
     const sx1 = stripW * 0.18, sy1 = stripH * (0.42 + rng() * 0.16), sw1 = R * 0.7, sh1 = R * 0.32
     const g1 = sg.createRadialGradient(sx1, sy1, 0, sx1, sy1, sw1)
@@ -414,8 +392,16 @@ export default function StudyUniverse() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [tooltip, setTooltip] = useState(null)
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
+
+  // Pan / zoom in refs — no re-render needed for canvas state
+  const panRef = useRef({ x: 0, y: 0 })
+  const panVelRef = useRef({ x: 0, y: 0 })
+  const zoomRef = useRef(1)
+  const draggingRef = useRef(false)
+  const lastPosRef = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
     api.studyUniverse()
@@ -432,18 +418,23 @@ export default function StudyUniverse() {
     const DPR = Math.min(window.devicePixelRatio || 1, 2)
     let W = 0, H = 0, ctx = null
 
-    // Cached layer data
     let nebulaCanvas = null
     let starsBackData = [], starsFrontData = [], constellations = []
     const sunTextures = [], planetTextures = []
-
-    // Drag / inertia
-    let dragging = false, lastX = 0, globalRot = 0, dragRot = 0, dragVel = 0
-
-    // Meteors
     const meteors = []
+    let globalStarRot = 0
+    let zoomInitialized = false
 
     const { sunData, planetData } = mapApiToScene(data)
+    const galaxyLayout = computeGalaxyLayout(sunData.length)
+
+    function initFitZoom() {
+      const n = sunData.length
+      if (n === 0) { zoomRef.current = 1; return }
+      const maxExtent = RING_GAP * n + ORBIT_MAX + 40
+      const available = Math.min(W, H) * 0.44
+      zoomRef.current = Math.min(1.2, available / maxExtent)
+    }
 
     function rebuild() {
       const rect = container.getBoundingClientRect()
@@ -466,9 +457,11 @@ export default function StudyUniverse() {
       sunData.forEach((sub, i) => sunTextures.push(buildSunTexture(sub, i)))
       planetTextures.length = 0
       planetData.forEach((p, i) => planetTextures.push(buildPlanetTexture(p, i)))
+
+      if (!zoomInitialized) { initFitZoom(); zoomInitialized = true }
     }
 
-    // ── Drawing functions (close over ctx / W / H) ───────────────────────────
+    // ── Draw functions ───────────────────────────────────────────────────────
 
     function drawNebula() {
       if (nebulaCanvas) ctx.drawImage(nebulaCanvas, 0, 0)
@@ -501,12 +494,39 @@ export default function StudyUniverse() {
       })
     }
 
-    function drawOrbitEllipse(ocx, ocy, a, e, w, inc) {
+    // Drawn in scene space at (0,0) — the galactic core
+    function drawGalacticCore() {
+      const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, 38)
+      gr.addColorStop(0, 'rgba(255,255,255,0.07)')
+      gr.addColorStop(0.4, 'rgba(200,190,255,0.025)')
+      gr.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = gr
+      ctx.beginPath(); ctx.arc(0, 0, 38, 0, TAU); ctx.fill()
+    }
+
+    // Dotted orbit rings for each subject's path around the galactic core
+    function drawSubjectRings(totalScale) {
+      const invS = 1 / totalScale
+      ctx.save()
+      ctx.strokeStyle = 'rgba(255,255,255,0.030)'
+      ctx.lineWidth = invS
+      ctx.setLineDash([3 * invS, 9 * invS])
+      galaxyLayout.forEach(pos => {
+        ctx.beginPath()
+        ctx.arc(0, 0, pos.ringRadius, 0, TAU)
+        ctx.stroke()
+      })
+      ctx.setLineDash([])
+      ctx.restore()
+    }
+
+    function drawOrbitEllipse(ocx, ocy, a, e, w, inc, totalScale) {
       const b = a * Math.sqrt(1 - e * e)
+      const invS = 1 / totalScale
       ctx.save()
       ctx.translate(ocx, ocy); ctx.rotate(w); ctx.translate(-a * e, 0)
-      ctx.strokeStyle = 'rgba(199,210,254,0.055)'; ctx.lineWidth = 1
-      ctx.setLineDash([2, 4])
+      ctx.strokeStyle = 'rgba(199,210,254,0.055)'; ctx.lineWidth = invS
+      ctx.setLineDash([2 * invS, 4 * invS])
       ctx.beginPath(); ctx.ellipse(0, 0, a, b * inc, 0, 0, TAU); ctx.stroke()
       ctx.setLineDash([]); ctx.restore()
     }
@@ -524,8 +544,26 @@ export default function StudyUniverse() {
       ctx.globalCompositeOperation = 'source-over'
       const R = sub.radius * pulse
       const bloom = ctx.createRadialGradient(x, y, 0, x, y, R * 4.0)
-      bloom.addColorStop(0, hexA(sub.accent, 0.11)); bloom.addColorStop(0.35, hexA(sub.color, 0.05)); bloom.addColorStop(1, 'rgba(0,0,0,0)')
+      bloom.addColorStop(0, hexA(sub.accent, 0.11))
+      bloom.addColorStop(0.35, hexA(sub.color, 0.05))
+      bloom.addColorStop(1, 'rgba(0,0,0,0)')
       ctx.fillStyle = bloom; ctx.beginPath(); ctx.arc(x, y, R * 4.0, 0, TAU); ctx.fill()
+      ctx.restore()
+    }
+
+    // Draw subject name below the sun at a fixed screen-size (cancels totalScale)
+    function drawSunLabel(x, y, sub, totalScale) {
+      const invS = 1 / totalScale
+      ctx.save()
+      ctx.translate(x, y + sub.radius + 10)
+      ctx.scale(invS, invS)
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      ctx.font = '11px system-ui, -apple-system, sans-serif'
+      ctx.shadowColor = 'rgba(0,0,0,0.9)'
+      ctx.shadowBlur = 6
+      ctx.fillStyle = 'rgba(255,255,255,0.62)'
+      ctx.fillText(sub.name, 0, 0)
       ctx.restore()
     }
 
@@ -597,23 +635,23 @@ export default function StudyUniverse() {
       ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H)
     }
 
-    // ── Meteor system ────────────────────────────────────────────────────────
+    // ── Meteor system (screen-space) ─────────────────────────────────────────
 
     function spawnMeteor() {
-      const baseDist = Math.min(W, H)
       const ang = Math.random() * TAU
-      const x = Math.cos(ang) * baseDist * 0.85, y = Math.sin(ang) * baseDist * 0.85
+      const d = Math.max(W, H) * 0.7
+      const x = W / 2 + Math.cos(ang) * d
+      const y = H / 2 + Math.sin(ang) * d
       const targetAng = ang + Math.PI + (Math.random() - 0.5) * 0.6
       const speed = 4.5 + Math.random() * 2.5
       meteors.push({ x, y, vx: Math.cos(targetAng) * speed, vy: Math.sin(targetAng) * speed, life: 0, maxLife: 90 + Math.random() * 40 })
     }
 
     function updateMeteors() {
-      if (Math.random() < 0.006 && meteors.length < 2) spawnMeteor()
-      const limit = Math.min(W, H) * 1.1
+      if (Math.random() < 0.005 && meteors.length < 2) spawnMeteor()
       for (let i = meteors.length - 1; i >= 0; i--) {
         const m = meteors[i]; m.x += m.vx; m.y += m.vy; m.life++
-        if (m.life > m.maxLife || Math.hypot(m.x, m.y) > limit) meteors.splice(i, 1)
+        if (m.life > m.maxLife || m.x < -120 || m.x > W + 120 || m.y < -120 || m.y > H + 120) meteors.splice(i, 1)
       }
     }
 
@@ -633,52 +671,125 @@ export default function StudyUniverse() {
       ctx.restore()
     }
 
+    // ── Event handlers ───────────────────────────────────────────────────────
+
+    const onPointerDown = (e) => {
+      draggingRef.current = true
+      lastPosRef.current = { x: e.clientX, y: e.clientY }
+      panVelRef.current = { x: 0, y: 0 }
+      setTooltip(null)
+      canvas.style.cursor = 'grabbing'
+      canvas.setPointerCapture(e.pointerId)
+    }
+
+    const onPointerMove = (e) => {
+      if (draggingRef.current) {
+        const dx = e.clientX - lastPosRef.current.x
+        const dy = e.clientY - lastPosRef.current.y
+        panRef.current.x += dx
+        panRef.current.y += dy
+        panVelRef.current.x = dx
+        panVelRef.current.y = dy
+        lastPosRef.current = { x: e.clientX, y: e.clientY }
+        return
+      }
+      // Hover: map mouse → scene coords and hit-test suns
+      const rect = canvas.getBoundingClientRect()
+      const cssX = e.clientX - rect.left
+      const cssY = e.clientY - rect.top
+      const z = zoomRef.current
+      const sceneX = (cssX - W / 2 - panRef.current.x) / z
+      const sceneY = (cssY - H / 2 - panRef.current.y) / z
+      let found = null
+      galaxyLayout.forEach((pos, i) => {
+        const sun = sunData[i]
+        if (Math.hypot(sceneX - pos.x, sceneY - pos.y) < sun.radius * 3.5) {
+          const screenX = W / 2 + panRef.current.x + pos.x * z
+          const screenY = H / 2 + panRef.current.y + pos.y * z
+          found = { screenX, screenY, name: sun.name, noteCount: sun.noteCount, accuracy: sun.accuracy }
+        }
+      })
+      setTooltip(found)
+    }
+
+    const onPointerUp = () => {
+      draggingRef.current = false
+      canvas.style.cursor = 'grab'
+    }
+
+    const onPointerLeave = () => {
+      draggingRef.current = false
+      canvas.style.cursor = 'grab'
+      setTooltip(null)
+    }
+
+    const onWheel = (e) => {
+      e.preventDefault()
+      const factor = e.deltaY > 0 ? 0.92 : 1.09
+      zoomRef.current = Math.max(0.15, Math.min(4.0, zoomRef.current * factor))
+    }
+
+    canvas.addEventListener('pointerdown', onPointerDown)
+    canvas.addEventListener('pointermove', onPointerMove)
+    canvas.addEventListener('pointerup', onPointerUp)
+    canvas.addEventListener('pointercancel', onPointerUp)
+    canvas.addEventListener('pointerleave', onPointerLeave)
+    canvas.addEventListener('wheel', onWheel, { passive: false })
+
     // ── Frame loop ───────────────────────────────────────────────────────────
 
     rebuild()
     const startTime = performance.now()
 
-    const onPointerDown = (e) => { dragging = true; lastX = e.clientX; dragVel = 0; canvas.setPointerCapture(e.pointerId) }
-    const onPointerMove = (e) => { if (!dragging) return; const dx = e.clientX - lastX; lastX = e.clientX; dragRot += dx * 0.003; dragVel = dx * 0.003 }
-    const onPointerUp = () => { dragging = false }
-    canvas.addEventListener('pointerdown', onPointerDown)
-    canvas.addEventListener('pointermove', onPointerMove)
-    canvas.addEventListener('pointerup', onPointerUp)
-    canvas.addEventListener('pointercancel', onPointerUp)
-
     let raf = null
     function frame(now) {
       const t = (now - startTime) / 1000
-      globalRot += 0.00038
-      if (!dragging) { dragRot += dragVel; dragVel *= 0.96; if (Math.abs(dragVel) < 1e-4) dragVel = 0 }
-      const rot = globalRot + dragRot
-      const breathe = 1 + Math.sin(t * 0.18) * 0.012
-      const driftX = Math.sin(t * 0.07) * 6, driftY = Math.cos(t * 0.05) * 4
+      globalStarRot += 0.00012
+
+      // Pan inertia
+      if (!draggingRef.current) {
+        panRef.current.x += panVelRef.current.x
+        panRef.current.y += panVelRef.current.y
+        panVelRef.current.x *= 0.90
+        panVelRef.current.y *= 0.90
+        if (Math.abs(panVelRef.current.x) < 0.08) panVelRef.current.x = 0
+        if (Math.abs(panVelRef.current.y) < 0.08) panVelRef.current.y = 0
+      }
+
+      const z = zoomRef.current
+      const breathe = 1 + Math.sin(t * 0.18) * 0.008
+      const totalScale = z * breathe
 
       ctx.clearRect(0, 0, W, H)
       drawNebula()
 
-      ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(rot * 0.10); ctx.translate(-W / 2, -H / 2)
+      // Stars: fixed to screen, slow atmosphere rotation
+      ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(globalStarRot * 0.08); ctx.translate(-W / 2, -H / 2)
       drawStarLayer(starsBackData, t); ctx.restore()
 
-      ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(rot * 0.22); ctx.translate(-W / 2, -H / 2)
+      ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(globalStarRot * 0.18); ctx.translate(-W / 2, -H / 2)
       drawConstellations(); drawStarLayer(starsFrontData, t); ctx.restore()
 
-      const cxW = W / 2, cyW = H / 2
+      // Meteors (screen-space, before scene transform)
+      updateMeteors(); drawMeteors()
+
+      // Scene space: centered + pan + zoom
       ctx.save()
-      ctx.translate(cxW + driftX, cyW + driftY)
-      ctx.scale(breathe, breathe)
-      ctx.rotate(rot)
+      ctx.translate(W / 2 + panRef.current.x, H / 2 + panRef.current.y)
+      ctx.scale(totalScale, totalScale)
 
-      const sunPos = computeSunLayout(sunData.length, W, H)
+      drawGalacticCore()
+      drawSubjectRings(totalScale)
 
+      // Planet orbit ellipses around their suns
       planetData.forEach(pl => {
-        const sp = sunPos[pl.sun]
-        if (sp) drawOrbitEllipse(sp.x, sp.y, pl.a, pl.e, pl.w, pl.inc)
+        const sp = galaxyLayout[pl.sun]
+        if (sp) drawOrbitEllipse(sp.x, sp.y, pl.a, pl.e, pl.w, pl.inc, totalScale)
       })
 
+      // Compute planet positions
       const planetPositions = planetData.map((pl, idx) => {
-        const sub = sunData[pl.sun], sp = sunPos[pl.sun]
+        const sub = sunData[pl.sun], sp = galaxyLayout[pl.sun]
         if (!sub || !sp) return null
         const n = 0.075 * Math.sqrt(sub.mass) / Math.pow(pl.a / 60, 1.5)
         const M = pl.M0 + t * n, k = solveKepler(M, pl.e)
@@ -689,22 +800,28 @@ export default function StudyUniverse() {
 
       planetPositions.sort((a, b) => a.py - b.py)
       planetPositions.forEach(pp => drawPlanet(pp.pl, planetTextures[pp.idx], pp.sp.x, pp.sp.y, pp.px, pp.py, t, pp.idx))
-      sunData.forEach((sub, i) => { if (sunPos[i]) drawSun(sunPos[i].x, sunPos[i].y, sub, sunTextures[i], t) })
 
-      ctx.save()
-      ctx.font = 'bold 10px system-ui, sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'top'
-      sunData.forEach((sun, i) => {
-        if (sun.overflowCount > 0 && sunPos[i]) {
-          ctx.fillStyle = 'rgba(255,255,255,0.40)'
-          ctx.fillText(`+${sun.overflowCount}`, sunPos[i].x, sunPos[i].y + sun.radius + 18)
+      // Suns + labels + overflow
+      sunData.forEach((sub, i) => {
+        const sp = galaxyLayout[i]
+        if (!sp) return
+        drawSun(sp.x, sp.y, sub, sunTextures[i], t)
+        drawSunLabel(sp.x, sp.y, sub, totalScale)
+        if (sub.overflowCount > 0) {
+          const invS = 1 / totalScale
+          ctx.save()
+          ctx.translate(sp.x, sp.y + sub.radius + 22)
+          ctx.scale(invS, invS)
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'top'
+          ctx.font = 'bold 10px system-ui, sans-serif'
+          ctx.fillStyle = 'rgba(255,255,255,0.38)'
+          ctx.fillText(`+${sub.overflowCount}`, 0, 0)
+          ctx.restore()
         }
       })
-      ctx.restore()
 
-      updateMeteors(); drawMeteors()
-      ctx.restore()
+      ctx.restore() // end scene space
       drawVignette()
 
       raf = requestAnimationFrame(frame)
@@ -720,6 +837,8 @@ export default function StudyUniverse() {
       canvas.removeEventListener('pointermove', onPointerMove)
       canvas.removeEventListener('pointerup', onPointerUp)
       canvas.removeEventListener('pointercancel', onPointerUp)
+      canvas.removeEventListener('pointerleave', onPointerLeave)
+      canvas.removeEventListener('wheel', onWheel)
     }
   }, [data])
 
@@ -768,37 +887,51 @@ export default function StudyUniverse() {
             </p>
           </div>
         )}
+
         <canvas
           ref={canvasRef}
           style={{ display: 'block', width: '100%', height: '100%', cursor: 'grab' }}
         />
-        {data && !loading && data.subjects.length > 0 && (
+
+        {/* Hover tooltip — DOM element for crisp rendering */}
+        {tooltip && (
+          <div
+            style={{
+              position: 'absolute',
+              left: tooltip.screenX,
+              top: tooltip.screenY,
+              transform: 'translate(-50%, calc(-100% - 14px))',
+              zIndex: 20,
+              pointerEvents: 'none',
+              transition: 'opacity 120ms',
+              opacity: 1,
+              background: 'rgba(10,10,26,0.88)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,0.09)',
+              borderRadius: 10,
+              padding: '8px 12px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <p style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.90)', marginBottom: 2 }}>
+              {tooltip.name}
+            </p>
+            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)' }}>
+              {tooltip.noteCount} {tooltip.noteCount === 1 ? 'note' : 'notes'}
+              {tooltip.accuracy !== undefined && ` · ${Math.round(tooltip.accuracy * 100)}%`}
+            </p>
+          </div>
+        )}
+
+        {/* Zoom hint */}
+        {!loading && !isEmpty && data && data.subjects.length > 0 && (
           <div style={{
-            position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)',
-            background: 'rgba(0,0,0,0.40)', backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12,
-            padding: 16, zIndex: 10, minWidth: 148, maxWidth: 210, pointerEvents: 'none',
+            position: 'absolute', bottom: 14, right: 16,
+            fontSize: 10, color: 'rgba(255,255,255,0.22)',
+            pointerEvents: 'none', letterSpacing: '0.04em',
           }}>
-            {data.subjects.map((sub, i) => {
-              const color = SUN_PALETTES[i % SUN_PALETTES.length].color
-              const hasStats = sub.note_count > 0 || sub.accuracy !== undefined
-              return (
-                <div key={sub.name} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: i < data.subjects.length - 1 ? 10 : 0 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0, boxShadow: `0 0 6px ${color}88` }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.80)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {sub.name}
-                    </span>
-                    {hasStats && (
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', display: 'block' }}>
-                        {sub.note_count} {sub.note_count === 1 ? 'note' : 'notes'}
-                        {sub.accuracy !== undefined && ` · ${Math.round(sub.accuracy * 100)}%`}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+            scroll to zoom · drag to pan
           </div>
         )}
       </div>

@@ -17,6 +17,18 @@ function DecksView({ onStudyDeck, onGenerate }) {
       .finally(() => setLoading(false))
   }, [])
 
+  // FIX 3: delete all cards in a deck
+  async function handleDeleteDeck(e, group) {
+    e.stopPropagation()
+    if (!window.confirm(`Delete all ${group.flashcards.length} card${group.flashcards.length !== 1 ? 's' : ''} in "${group.note_title}"?`)) return
+    try {
+      await Promise.all(group.flashcards.map(card => api.deleteFlashcard(card.id)))
+      setGroups(prev => prev.filter(g => g.note_id !== group.note_id))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -47,7 +59,6 @@ function DecksView({ onStudyDeck, onGenerate }) {
 
   return (
     <div className="space-y-3">
-      {/* Per-note decks */}
       {groups.map((group, idx) => (
         <div
           key={group.note_id ?? 'unlinked'}
@@ -67,6 +78,17 @@ function DecksView({ onStudyDeck, onGenerate }) {
             <p className="text-sm font-medium text-slate-200 truncate">{group.note_title}</p>
             <p className="text-xs text-slate-500 mt-0.5">{group.flashcards.length} card{group.flashcards.length !== 1 ? 's' : ''}</p>
           </div>
+          {/* FIX 3: delete button */}
+          <button
+            onClick={(e) => handleDeleteDeck(e, group)}
+            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100"
+            title="Delete deck"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5" />
+              <rect x="3" y="4" width="10" height="10" rx="1" />
+            </svg>
+          </button>
           <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -80,13 +102,18 @@ function DecksView({ onStudyDeck, onGenerate }) {
 
 function GenerateView({ onStudyDeck }) {
   const [notes, setNotes] = useState([])
+  const [notesLoading, setNotesLoading] = useState(true) // FIX 4
   const [selectedNote, setSelectedNote] = useState('')
   const [count, setCount] = useState(10)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    api.getNotes().then(setNotes).catch(console.error)
+    // FIX 4: track loading state and handle empty
+    api.getNotes()
+      .then(setNotes)
+      .catch(console.error)
+      .finally(() => setNotesLoading(false))
   }, [])
 
   async function handleGenerate() {
@@ -110,16 +137,34 @@ function GenerateView({ onStudyDeck }) {
         <div className="flex flex-col sm:flex-row gap-3 items-end">
           <div className="flex-1">
             <label className="label">Select Note</label>
-            <select
-              className="input"
-              value={selectedNote}
-              onChange={(e) => setSelectedNote(e.target.value)}
-            >
-              <option value="">Choose a note…</option>
-              {notes.map((n) => (
-                <option key={n.id} value={n.id}>{n.title}</option>
-              ))}
-            </select>
+            {/* FIX 4: spinner while loading, empty state after */}
+            <div className="relative">
+              <select
+                className="input"
+                value={selectedNote}
+                onChange={(e) => setSelectedNote(e.target.value)}
+                disabled={notesLoading}
+              >
+                <option value="">{notesLoading ? 'Loading notes…' : 'Choose a note…'}</option>
+                {notes.map((n) => (
+                  <option key={n.id} value={n.id}>{n.title}</option>
+                ))}
+              </select>
+              {notesLoading && (
+                <div className="absolute right-9 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <Spinner size="sm" />
+                </div>
+              )}
+            </div>
+            {!notesLoading && notes.length === 0 && (
+              <p className="text-sm text-slate-500 mt-2">
+                No notes yet —{' '}
+                <a href="/notes" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                  create notes first
+                </a>{' '}
+                to generate flashcards.
+              </p>
+            )}
           </div>
           <div className="w-28">
             <label className="label">Card count</label>
@@ -135,7 +180,7 @@ function GenerateView({ onStudyDeck }) {
           <button
             className="btn-primary flex-shrink-0"
             onClick={handleGenerate}
-            disabled={generating || !selectedNote}
+            disabled={generating || !selectedNote || notesLoading}
           >
             {generating ? (
               <span className="flex items-center gap-2"><Spinner size="sm" /> Generating…</span>
@@ -158,20 +203,18 @@ const DIFFICULTY_CFG = {
   hard:   { label: 'Hard',   color: 'bg-red-500/20    text-red-300    border-red-500/30    hover:bg-red-500/30'    },
 }
 
-// initialCards: if provided, study just these cards (a specific deck).
-//               if null, load all cards from the API.
-// deckTitle:    shown in the header when studying a specific deck.
-// onBack:       if provided, show a back button.
-function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
+function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoGenerate = null }) {
   const [activeDeck, setActiveDeck] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const [reviewing, setReviewing] = useState(false)
+  const [reviewingDifficulty, setReviewingDifficulty] = useState(null) // FIX 5
   const [done, setDone] = useState(false)
   const [skippedOnce, setSkippedOnce] = useState(new Set())
   const [savedProgress, setSavedProgress] = useState(null)
+  const [ratings, setRatings] = useState({ easy: 0, medium: 0, hard: 0 }) // FIX 6
 
   const indexRef = useRef(0)
   const activeDeckRef = useRef([])
@@ -182,18 +225,17 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
   useEffect(() => { doneRef.current = done }, [done])
 
   useEffect(() => {
-    // When studying a specific deck, skip localStorage and start fresh.
     if (initialCards) {
       setActiveDeck(initialCards)
       setIndex(0)
       setFlipped(false)
       setDone(false)
       setSkippedOnce(new Set())
+      setRatings({ easy: 0, medium: 0, hard: 0 })
       setLoading(false)
       return
     }
 
-    // Check for saved progress before hitting the API.
     try {
       const raw = localStorage.getItem(FLASHCARD_STORAGE_KEY)
       if (raw) {
@@ -208,7 +250,6 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
     loadCards()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Persist progress (only for the all-cards session, not deck-specific).
   useEffect(() => {
     if (initialCards) return
     if (!loading && activeDeck.length > 0 && !done) {
@@ -251,6 +292,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
       setFlipped(false)
       setDone(false)
       setSkippedOnce(new Set())
+      setRatings({ easy: 0, medium: 0, hard: 0 })
     } catch (e) {
       setError(e.message)
     } finally {
@@ -259,6 +301,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
   }
 
   function restart() {
+    setRatings({ easy: 0, medium: 0, hard: 0 }) // FIX 6: reset on restart
     if (initialCards) {
       setActiveDeck(initialCards)
       setIndex(0)
@@ -289,10 +332,13 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
   async function handleDifficulty(difficulty) {
     const card = activeDeck[index]
     setReviewing(true)
+    setReviewingDifficulty(difficulty) // FIX 5
     try {
       await api.reviewFlashcard(card.id, { difficulty })
     } catch {}
     setReviewing(false)
+    setReviewingDifficulty(null) // FIX 5
+    setRatings(prev => ({ ...prev, [difficulty]: prev[difficulty] + 1 })) // FIX 6
     const next = index + 1
     if (next >= activeDeck.length) {
       if (!initialCards) localStorage.removeItem(FLASHCARD_STORAGE_KEY)
@@ -314,22 +360,23 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
     } else { setIndex(next); setFlipped(false) }
   }
 
+  // FIX 1: calculate effectiveDeckLength AFTER appending
   function handleSkip() {
     const card = activeDeck[index]
     const alreadySkipped = skippedOnce.has(card.id)
+    let newDeckLength = activeDeck.length
     if (!alreadySkipped) {
       setSkippedOnce(prev => new Set([...prev, card.id]))
       setActiveDeck(prev => [...prev, card])
+      newDeckLength = activeDeck.length + 1
     }
-    const effectiveDeckLength = activeDeck.length + (alreadySkipped ? 0 : 1)
     const next = index + 1
-    if (next >= effectiveDeckLength) {
+    if (next >= newDeckLength) {
       if (!initialCards) localStorage.removeItem(FLASHCARD_STORAGE_KEY)
       setDone(true)
     } else { setIndex(next); setFlipped(false) }
   }
 
-  // Back link — shown when studying a specific deck.
   const backLink = onBack && (
     <button
       onClick={onBack}
@@ -338,11 +385,10 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
       <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M10 4L6 8l4 4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      {deckTitle ? `Back to My Decks` : 'Back'}
+      {deckTitle ? 'Back to My Decks' : 'Back'}
     </button>
   )
 
-  // Resume prompt (only for all-cards session).
   if (savedProgress && !loading) {
     return (
       <div className="max-w-xl mx-auto">
@@ -384,6 +430,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
     return <p className="text-sm text-red-400 text-center py-12">{error}</p>
   }
 
+  // FIX 2: add "Generate Flashcards" button to break dead end
   if (activeDeck.length === 0) {
     return (
       <>
@@ -396,14 +443,18 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
           </div>
           <div>
             <p className="text-slate-300 font-medium mb-1">No flashcards yet</p>
-            <p className="text-sm text-slate-500">Switch to the Generate tab to create some.</p>
+            <p className="text-sm text-slate-500">Generate cards from your notes to get started.</p>
           </div>
+          {onGoGenerate && (
+            <button className="btn-primary" onClick={onGoGenerate}>Generate Flashcards</button>
+          )}
         </div>
       </>
     )
   }
 
   if (done) {
+    const totalRated = ratings.easy + ratings.medium + ratings.hard
     return (
       <>
         {backLink}
@@ -417,6 +468,20 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
             <p className="text-slate-200 font-semibold text-lg">Session complete!</p>
             <p className="text-sm text-slate-500 mt-1">You reviewed {activeDeck.length} card{activeDeck.length !== 1 ? 's' : ''}.</p>
           </div>
+          {/* FIX 6: rating breakdown pills */}
+          {totalRated > 0 && (
+            <div className="flex gap-2 flex-wrap justify-center">
+              <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                Easy: {ratings.easy}
+              </span>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                Medium: {ratings.medium}
+              </span>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-red-500/15 text-red-300 border border-red-500/25">
+                Hard: {ratings.hard}
+              </span>
+            </div>
+          )}
           <div className="flex gap-3">
             <button className="btn-primary" onClick={restart}>Study Again</button>
             {onBack && (
@@ -440,7 +505,6 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
     <div className="max-w-xl mx-auto space-y-6">
       {backLink}
 
-      {/* Deck label when studying specific note */}
       {deckTitle && (
         <p className="text-xs text-slate-500 uppercase tracking-widest font-medium -mb-2">{deckTitle}</p>
       )}
@@ -536,7 +600,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
         </button>
       </div>
 
-      {/* Difficulty rating */}
+      {/* Difficulty rating — FIX 5: spinner + opacity on active button */}
       <div
         className="flex gap-3 justify-center transition-all duration-300"
         style={{ opacity: flipped ? 1 : 0, pointerEvents: flipped ? 'auto' : 'none' }}
@@ -546,9 +610,14 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
             key={d}
             onClick={() => handleDifficulty(d)}
             disabled={reviewing}
-            className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-all duration-200 hover:scale-[1.03] ${DIFFICULTY_CFG[d].color}`}
+            className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-all duration-200 hover:scale-[1.03] ${DIFFICULTY_CFG[d].color} ${reviewing && reviewingDifficulty !== d ? 'opacity-50' : ''}`}
           >
-            {DIFFICULTY_CFG[d].label}
+            {reviewing && reviewingDifficulty === d ? (
+              <span className="flex items-center justify-center gap-1.5">
+                <Spinner size="sm" />
+                {DIFFICULTY_CFG[d].label}
+              </span>
+            ) : DIFFICULTY_CFG[d].label}
           </button>
         ))}
       </div>
@@ -576,6 +645,12 @@ export default function Flashcards() {
     setView('decks')
   }
 
+  // FIX 2: escape study mode → generate tab
+  function goToGenerate() {
+    setStudyDeck(null)
+    setView('generate')
+  }
+
   return (
     <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
       <div className="mb-8">
@@ -583,7 +658,6 @@ export default function Flashcards() {
         <p className="text-sm text-slate-500 mt-1">AI-generated cards for active recall practice</p>
       </div>
 
-      {/* Tab switcher — only shown when not in study mode */}
       {view !== 'study' && (
         <div className="pill-tabs mb-6">
           {[
@@ -615,6 +689,7 @@ export default function Flashcards() {
           initialCards={studyDeck.cards}
           deckTitle={studyDeck.title}
           onBack={backToDecks}
+          onGoGenerate={goToGenerate}
         />
       )}
     </div>

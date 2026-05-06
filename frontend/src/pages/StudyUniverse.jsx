@@ -50,29 +50,36 @@ function solveKepler(M, e) {
   return { x: Math.cos(E) - e, y: Math.sqrt(1 - e * e) * Math.sin(E) }
 }
 
-// ── Sun layout: normalized offsets from scene center ──────────────────────────
+// ── Sun layout: absolute pixel offsets from scene center, min 220px separation ─
 
-function computeSunLayout(n) {
+function computeSunLayout(n, W, H) {
   if (n === 0) return []
-  if (n === 1) return [{ nx: 0, ny: 0 }]
-  if (n === 2) return [{ nx: -0.33, ny: 0 }, { nx: 0.33, ny: 0 }]
-  if (n === 3) return [0, 1, 2].map(i => {
-    const a = -Math.PI / 2 + (i / 3) * Math.PI * 2
-    return { nx: Math.cos(a) * 0.33, ny: Math.sin(a) * 0.27 }
-  })
-  if (n <= 6) return Array.from({ length: n }, (_, i) => {
-    const a = -Math.PI / 2 + (i / n) * Math.PI * 2
-    return { nx: Math.cos(a) * 0.36, ny: Math.sin(a) * 0.30 }
-  })
+  if (n === 1) return [{ x: 0, y: 0 }]
+  const MIN_SEP = 220
+  const ringR = (count) => Math.max(MIN_SEP / (2 * Math.sin(Math.PI / count)), 130)
+  const maxR = Math.min(W * 0.40, H * 0.36)
+  if (n === 2) {
+    const r = Math.min(Math.max(MIN_SEP / 2, 130), maxR)
+    return [{ x: -r, y: 0 }, { x: r, y: 0 }]
+  }
+  if (n <= 6) {
+    const r = Math.min(ringR(n), maxR)
+    return Array.from({ length: n }, (_, i) => {
+      const a = -Math.PI / 2 + (i / n) * TAU
+      return { x: Math.cos(a) * r, y: Math.sin(a) * r * 0.88 }
+    })
+  }
   const inner = 4, outer = n - inner
+  const rInner = Math.min(ringR(inner), maxR * 0.50)
+  const rOuter = Math.min(Math.max(rInner + MIN_SEP, ringR(outer)), maxR)
   const positions = []
   for (let i = 0; i < inner; i++) {
-    const a = -Math.PI / 2 + (i / inner) * Math.PI * 2
-    positions.push({ nx: Math.cos(a) * 0.20, ny: Math.sin(a) * 0.18 })
+    const a = -Math.PI / 2 + (i / inner) * TAU
+    positions.push({ x: Math.cos(a) * rInner, y: Math.sin(a) * rInner * 0.88 })
   }
   for (let i = 0; i < outer; i++) {
-    const a = -Math.PI / 2 + (i / outer) * Math.PI * 2
-    positions.push({ nx: Math.cos(a) * 0.38, ny: Math.sin(a) * 0.34 })
+    const a = -Math.PI / 2 + (i / outer) * TAU
+    positions.push({ x: Math.cos(a) * rOuter, y: Math.sin(a) * rOuter * 0.88 })
   }
   return positions
 }
@@ -89,7 +96,7 @@ function mapApiToScene(data) {
     sunData.push({
       name: sub.name,
       color: pal.color, deep: pal.deep, halo: pal.halo, accent: pal.accent,
-      radius: 28 + Math.min((sub.note_count || 0) * 2, 18),
+      radius: Math.round((28 + Math.min((sub.note_count || 0) * 2, 18)) * 0.5),
       mass: 0.8 + rng() * 0.8,
       surfTemp: 0.5 + rng() * 0.5,
       pulseT: rng() * 15,
@@ -103,13 +110,16 @@ function mapApiToScene(data) {
     notesBySubject[key].push(note)
   }
 
-  const ORBIT_MIN = 55, ORBIT_MAX = 165
+  const ORBIT_MIN = 55, ORBIT_MAX = 130
+  const MAX_PLANETS = 8
   const kinds = ['rocky', 'gas', 'icy']
 
   sunData.forEach((sun, sunIdx) => {
     const group = notesBySubject[sun.name] || []
-    const count = group.length
-    group.forEach((note, pos) => {
+    const visibleGroup = group.slice(0, MAX_PLANETS)
+    sun.overflowCount = group.length - visibleGroup.length
+    const count = visibleGroup.length
+    visibleGroup.forEach((note, pos) => {
       const rng = mulberry32(note.id * 137 + 7)
       const a = count === 1 ? 90 : ORBIT_MIN + (pos / (count - 1)) * (ORBIT_MAX - ORBIT_MIN)
       const size = Math.max(8, Math.min(6 + Math.floor((note.content_length || 0) / 250), 18))
@@ -220,30 +230,30 @@ function buildStars(W, H) {
 
 function buildSunTexture(sub, idx) {
   const R = Math.round(sub.radius)
-  const size = R * 12
+  const size = R * 5
   const c = document.createElement('canvas')
   c.width = c.height = size
   const cx = size / 2, cy = size / 2
   const g = c.getContext('2d')
   const rng = mulberry32(idx * 9173 + 13)
 
-  // Corona layers
+  // Corona layers — alphas halved, radii fit within R*2.5 texture half-width
   g.globalCompositeOperation = 'lighter'
   for (let layer = 0; layer < 3; layer++) {
-    const rad = R * (5.2 + layer * 1.6)
+    const rad = R * (2.0 + layer * 0.5)
     const gr = g.createRadialGradient(cx, cy, R * 0.6, cx, cy, rad)
-    gr.addColorStop(0, hexA(sub.halo, 0.20 - layer * 0.05))
-    gr.addColorStop(0.4, hexA(sub.color, 0.08 - layer * 0.02))
+    gr.addColorStop(0, hexA(sub.halo, 0.10 - layer * 0.025))
+    gr.addColorStop(0.4, hexA(sub.color, 0.04 - layer * 0.01))
     gr.addColorStop(1, 'rgba(0,0,0,0)')
     g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, rad, 0, TAU); g.fill()
   }
 
-  // Soft corona shell (no directional rays)
-  const softShell = g.createRadialGradient(cx, cy, R * 1.0, cx, cy, R * 4.8)
-  softShell.addColorStop(0, hexA(sub.accent, 0.10))
-  softShell.addColorStop(0.5, hexA(sub.color, 0.05))
+  // Soft corona shell
+  const softShell = g.createRadialGradient(cx, cy, R * 1.0, cx, cy, R * 2.2)
+  softShell.addColorStop(0, hexA(sub.accent, 0.05))
+  softShell.addColorStop(0.5, hexA(sub.color, 0.025))
   softShell.addColorStop(1, 'rgba(0,0,0,0)')
-  g.fillStyle = softShell; g.beginPath(); g.arc(cx, cy, R * 4.8, 0, TAU); g.fill()
+  g.fillStyle = softShell; g.beginPath(); g.arc(cx, cy, R * 2.2, 0, TAU); g.fill()
 
   // Solar flares
   for (let i = 0; i < 5; i++) {
@@ -434,7 +444,6 @@ export default function StudyUniverse() {
     const meteors = []
 
     const { sunData, planetData } = mapApiToScene(data)
-    const sunLayout = computeSunLayout(sunData.length)
 
     function rebuild() {
       const rect = container.getBoundingClientRect()
@@ -507,16 +516,16 @@ export default function StudyUniverse() {
       const pulse = 1 + Math.sin(t * 0.5 + sub.pulseT) * 0.04
       const drawSize = tex.size * pulse
       ctx.save()
-      ctx.globalCompositeOperation = 'lighter'
+      ctx.globalCompositeOperation = 'source-over'
       ctx.translate(x, y); ctx.rotate(t * 0.02 + sub.pulseT * 0.1)
       ctx.drawImage(tex.canvas, -drawSize / 2, -drawSize / 2, drawSize, drawSize)
       ctx.restore()
       ctx.save()
-      ctx.globalCompositeOperation = 'screen'
+      ctx.globalCompositeOperation = 'source-over'
       const R = sub.radius * pulse
-      const bloom = ctx.createRadialGradient(x, y, 0, x, y, R * 6.5)
-      bloom.addColorStop(0, hexA(sub.accent, 0.22)); bloom.addColorStop(0.35, hexA(sub.color, 0.10)); bloom.addColorStop(1, 'rgba(0,0,0,0)')
-      ctx.fillStyle = bloom; ctx.beginPath(); ctx.arc(x, y, R * 6.5, 0, TAU); ctx.fill()
+      const bloom = ctx.createRadialGradient(x, y, 0, x, y, R * 4.0)
+      bloom.addColorStop(0, hexA(sub.accent, 0.11)); bloom.addColorStop(0.35, hexA(sub.color, 0.05)); bloom.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = bloom; ctx.beginPath(); ctx.arc(x, y, R * 4.0, 0, TAU); ctx.fill()
       ctx.restore()
     }
 
@@ -526,10 +535,10 @@ export default function StudyUniverse() {
       const R = p.size
       const ringTilt = 0.3 + planetIdx * 0.17
 
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'
-      const glow = ctx.createRadialGradient(px, py, 0, px, py, R * 3)
-      glow.addColorStop(0, hexA(p.hue, 0.18)); glow.addColorStop(1, 'rgba(0,0,0,0)')
-      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(px, py, R * 3, 0, TAU); ctx.fill()
+      ctx.save(); ctx.globalCompositeOperation = 'source-over'
+      const glow = ctx.createRadialGradient(px, py, 0, px, py, R * 2.5)
+      glow.addColorStop(0, hexA(p.hue, 0.09)); glow.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(px, py, R * 2.5, 0, TAU); ctx.fill()
       ctx.restore()
 
       if (p.ring) {
@@ -661,8 +670,7 @@ export default function StudyUniverse() {
       ctx.scale(breathe, breathe)
       ctx.rotate(rot)
 
-      const baseDist = Math.min(W, H)
-      const sunPos = sunLayout.map(sl => ({ x: sl.nx * baseDist, y: sl.ny * baseDist }))
+      const sunPos = computeSunLayout(sunData.length, W, H)
 
       planetData.forEach(pl => {
         const sp = sunPos[pl.sun]
@@ -682,6 +690,18 @@ export default function StudyUniverse() {
       planetPositions.sort((a, b) => a.py - b.py)
       planetPositions.forEach(pp => drawPlanet(pp.pl, planetTextures[pp.idx], pp.sp.x, pp.sp.y, pp.px, pp.py, t, pp.idx))
       sunData.forEach((sub, i) => { if (sunPos[i]) drawSun(sunPos[i].x, sunPos[i].y, sub, sunTextures[i], t) })
+
+      ctx.save()
+      ctx.font = 'bold 10px system-ui, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      sunData.forEach((sun, i) => {
+        if (sun.overflowCount > 0 && sunPos[i]) {
+          ctx.fillStyle = 'rgba(255,255,255,0.40)'
+          ctx.fillText(`+${sun.overflowCount}`, sunPos[i].x, sunPos[i].y + sun.radius + 18)
+        }
+      })
+      ctx.restore()
 
       updateMeteors(); drawMeteors()
       ctx.restore()
@@ -703,7 +723,7 @@ export default function StudyUniverse() {
     }
   }, [data])
 
-  const isEmpty = !loading && data && data.total_notes === 0
+  const isEmpty = !loading && data && data.total_notes === 0 && !(data.total_questions_answered)
   const accuracy = data && data.total_questions_answered > 0
     ? Math.round((data.total_correct / data.total_questions_answered) * 100) : 0
 
@@ -743,8 +763,8 @@ export default function StudyUniverse() {
         {isEmpty && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 z-10 pointer-events-none">
             <div className="animate-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(148,163,184,0.3)', boxShadow: '0 0 12px rgba(148,163,184,0.3)' }} />
-            <p className="text-sm text-slate-600 text-center max-w-xs leading-relaxed">
-              Your universe is waiting.<br />Add notes and take quizzes to bring it to life.
+            <p className="text-sm text-slate-400 text-center max-w-xs leading-relaxed">
+              Your universe is empty — add notes and take quizzes to see it grow
             </p>
           </div>
         )}
@@ -772,7 +792,7 @@ export default function StudyUniverse() {
                     {hasStats && (
                       <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', display: 'block' }}>
                         {sub.note_count} {sub.note_count === 1 ? 'note' : 'notes'}
-                        {sub.accuracy !== undefined && ` · ${sub.accuracy}%`}
+                        {sub.accuracy !== undefined && ` · ${Math.round(sub.accuracy * 100)}%`}
                       </span>
                     )}
                   </div>

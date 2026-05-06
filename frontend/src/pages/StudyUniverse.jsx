@@ -231,15 +231,26 @@ export default function StudyUniverse() {
       }
     }
 
-    function drawSunLabel(sx, sy, sun, invS) {
+    function drawSunLabel(sx, sy, sun, invS, labelAbove) {
+      const raw = sun.name
+      const label = raw.length > 18 ? raw.slice(0, 15) + '…' : raw
+      const offsetY = labelAbove ? -(sun.radius + 14) : (sun.radius + 14)
       ctx.save()
-      ctx.translate(sx, sy + sun.radius + 8)
+      ctx.translate(sx, sy + offsetY)
       ctx.scale(invS, invS)
+      ctx.font = '12px system-ui, sans-serif'
       ctx.textAlign = 'center'
-      ctx.textBaseline = 'top'
-      ctx.font = '11px system-ui, sans-serif'
-      ctx.fillStyle = 'rgba(255,255,255,0.65)'
-      ctx.fillText(sun.name, 0, 0)
+      ctx.textBaseline = labelAbove ? 'bottom' : 'top'
+      const tw = ctx.measureText(label).width
+      const pad = 4
+      const bx = -tw / 2 - pad
+      const bw = tw + pad * 2
+      const bh = 14 + pad * 2
+      const by = labelAbove ? -(bh - pad) : -pad
+      ctx.fillStyle = 'rgba(8,0,26,0.7)'
+      ctx.fillRect(bx, by, bw, bh)
+      ctx.fillStyle = 'rgba(255,255,255,0.80)'
+      ctx.fillText(label, 0, labelAbove ? 0 : pad + 1)
       ctx.restore()
     }
 
@@ -332,7 +343,16 @@ export default function StudyUniverse() {
     const onWheel = (e) => {
       e.preventDefault()
       const factor = e.deltaY > 0 ? 0.92 : 1.09
-      zoomRef.current = Math.max(0.15, Math.min(4.0, zoomRef.current * factor))
+      const oldZoom = zoomRef.current
+      const newZoom = Math.max(0.15, Math.min(4.0, oldZoom * factor))
+      const rect = canvas.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+      const sceneX = (mouseX - W / 2 - panRef.current.x) / oldZoom
+      const sceneY = (mouseY - H / 2 - panRef.current.y) / oldZoom
+      zoomRef.current = newZoom
+      panRef.current.x = mouseX - W / 2 - sceneX * newZoom
+      panRef.current.y = mouseY - H / 2 - sceneY * newZoom
     }
 
     canvas.addEventListener('pointerdown', onPointerDown)
@@ -402,13 +422,26 @@ export default function StudyUniverse() {
         if (!pos) return
         const selected = sel === i
         drawSun(pos.x, pos.y, sun, selected)
-        drawSunLabel(pos.x, pos.y, sun, invS)
+
+        // Alternate label side when a neighbor is within 100px on screen
+        let labelAbove = true
+        for (let j = 0; j < galaxyLayout.length; j++) {
+          if (j === i) continue
+          const other = galaxyLayout[j]
+          if (!other) continue
+          const dx = (pos.x - other.x) * totalScale
+          const dy = (pos.y - other.y) * totalScale
+          if (Math.hypot(dx, dy) < 100) { labelAbove = i % 2 === 1; break }
+        }
+
+        drawSunLabel(pos.x, pos.y, sun, invS, labelAbove)
         if (sun.overflowCount > 0) {
+          const overOffsetY = labelAbove ? sun.radius + 8 : -(sun.radius + 8)
           ctx.save()
-          ctx.translate(pos.x, pos.y + sun.radius + 20)
+          ctx.translate(pos.x, pos.y + overOffsetY)
           ctx.scale(invS, invS)
           ctx.textAlign = 'center'
-          ctx.textBaseline = 'top'
+          ctx.textBaseline = labelAbove ? 'top' : 'bottom'
           ctx.font = 'bold 10px system-ui, sans-serif'
           ctx.fillStyle = 'rgba(255,255,255,0.35)'
           ctx.fillText(`+${sun.overflowCount}`, 0, 0)

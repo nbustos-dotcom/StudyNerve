@@ -290,10 +290,15 @@ class BoardSummary(BaseModel):
     title: str
     is_ai_generated: bool
     node_count: int = 0
+    done_count: int = 0
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class UpdateBoardRequest(BaseModel):
+    title: Optional[str] = None
 
 
 class BoardDetail(BaseModel):
@@ -313,14 +318,20 @@ class SaveTldrawStateRequest(BaseModel):
 
 
 class MakeSenseRequest(BaseModel):
-    tldraw_state: str
+    tldraw_state: str = ""
+    mode: Optional[str] = None
+    board_title: Optional[str] = None
+    step_title: Optional[str] = None
+    step_description: Optional[str] = None
 
 
 class MakeSenseItem(BaseModel):
-    type: str
-    text: str
-    x: float
-    y: float
+    type: str = "step"
+    text: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    x: Optional[float] = None
+    y: Optional[float] = None
 
 
 class MakeSenseResponse(BaseModel):

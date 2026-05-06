@@ -40,6 +40,7 @@ from app.schemas import (
     MakeSenseResponse,
     NodeResponse,
     SaveTldrawStateRequest,
+    UpdateBoardRequest,
     UpdateNodePositionRequest,
     UpdateNodeRequest,
 )
@@ -135,6 +136,7 @@ async def list_boards(
 
     board_ids = [b.id for b in boards]
     counts: dict[int, int] = {}
+    done: dict[int, int] = {}
     if board_ids:
         counts_result = await db.execute(
             select(VisionStep.board_id, func.count(VisionStep.id).label("cnt"))
@@ -143,12 +145,20 @@ async def list_boards(
         )
         counts = {row.board_id: row.cnt for row in counts_result}
 
+        done_result = await db.execute(
+            select(VisionStep.board_id, func.count(VisionStep.id).label("cnt"))
+            .where(VisionStep.board_id.in_(board_ids), VisionStep.is_completed == True)  # noqa: E712
+            .group_by(VisionStep.board_id)
+        )
+        done = {row.board_id: row.cnt for row in done_result}
+
     return [
         BoardSummary(
             id=b.id,
             title=b.title,
             is_ai_generated=b.is_ai_generated,
             node_count=counts.get(b.id, 0),
+            done_count=done.get(b.id, 0),
             created_at=b.created_at,
             updated_at=b.updated_at,
         )
@@ -164,6 +174,23 @@ async def get_board(
 ):
     board = await db.get(VisionBoard, board_id)
     _owned_board_or_404(board, current_user.id)
+    return await _board_detail(board, db)
+
+
+@router.put("/boards/{board_id}", response_model=BoardDetail)
+async def update_board(
+    board_id: int,
+    body: UpdateBoardRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    board = await db.get(VisionBoard, board_id)
+    _owned_board_or_404(board, current_user.id)
+    if body.title is not None:
+        stripped = body.title.strip()
+        if stripped:
+            board.title = stripped
+    await db.flush()
     return await _board_detail(board, db)
 
 
@@ -378,6 +405,10 @@ async def make_sense_board(
         result = await make_sense(
             body.tldraw_state,
             context_hint=ctx_hint,
+            mode=body.mode,
+            board_title=body.board_title,
+            step_title=body.step_title,
+            step_description=body.step_description,
             **llm_kwargs,
         )
     except LLMTokenLimitError as exc:
@@ -388,14 +419,18 @@ async def make_sense_board(
     if not result or not isinstance(result.get("items"), list):
         raise HTTPException(status_code=502, detail="Couldn't read canvas, try again.")
 
-    items = [
-        {"type": item.get("type", "sticky"),
-         "text": str(item.get("text", ""))[:120],
-         "x": float(item.get("x", 100)),
-         "y": float(item.get("y", 100))}
-        for item in result["items"][:8]
-        if isinstance(item, dict)
-    ]
+    items = []
+    for item in result["items"][:8]:
+        if not isinstance(item, dict):
+            continue
+        items.append({
+            "type": item.get("type", "step"),
+            "text": str(item["text"])[:120] if item.get("text") else None,
+            "title": str(item["title"])[:120] if item.get("title") else None,
+            "description": str(item["description"])[:200] if item.get("description") else None,
+            "x": float(item["x"]) if item.get("x") is not None else None,
+            "y": float(item["y"]) if item.get("y") is not None else None,
+        })
 
     return MakeSenseResponse(
         action=str(result.get("action", "ask")),

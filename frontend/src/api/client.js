@@ -334,6 +334,9 @@ export const api = {
   /** @param {number} id @returns {Promise} BoardDetail with all nodes */
   visionBoard: (id) => req('GET', `/vision/boards/${id}`),
 
+  /** @param {number} id @param {{ title?: string }} data */
+  visionUpdateBoard: (id, data) => req('PUT', `/vision/boards/${id}`, data),
+
   /** @param {number} id @param {string} tldrawState JSON string from editor.getSnapshot() */
   visionSaveTldrawState: (id, tldrawState) =>
     req('PUT', `/vision/boards/${id}/tldraw-state`, { tldraw_state: tldrawState }),
@@ -377,10 +380,13 @@ export const api = {
   visionDisconnect: (boardId, fromId, toId) => req('DELETE', `/vision/boards/${boardId}/disconnect`, { from_id: fromId, to_id: toId }),
 
   /**
-   * Analyze the canvas and return one AI action (ask / cluster / expand).
-   * @param {number} boardId @param {string} tldrawState JSON from editor.getSnapshot()
+   * AI action on a board. Pass a body object: { mode, board_title, step_title, step_description }
+   * or a legacy tldraw state string.
+   * @param {number} boardId
+   * @param {string|object} body
    * @returns {Promise<{action: string, items: Array, explanation: string}>}
    */
-  visionMakeSense: (boardId, tldrawState) =>
-    req('POST', `/vision/boards/${boardId}/make-sense`, { tldraw_state: tldrawState }),
+  visionMakeSense: (boardId, body) =>
+    req('POST', `/vision/boards/${boardId}/make-sense`,
+      typeof body === 'string' ? { tldraw_state: body } : body),
 }

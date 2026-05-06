@@ -1,8 +1,10 @@
 """
-Brainspace "Make Sense" AI service.
+Vision Board "Make Sense" AI service.
 
-Parses a tldraw snapshot, classifies the canvas state, and asks the
-LLM for one focused action (ask / cluster / expand).
+Three modes:
+  breakdown — given a board title, generate 5-8 concrete actionable steps.
+  expand    — given a step title + description, generate 3-4 sub-steps.
+  analyze   — legacy canvas analysis (ask / cluster / expand).
 """
 
 import json
@@ -12,7 +14,37 @@ from app.llm import generate_json
 
 _MAX_SUMMARY_CHARS = 2000
 
-_SYSTEM = """You are an AI thinking partner inside a study whiteboard called Brainspace.
+_SYSTEM_BREAKDOWN = """You are a study planning AI. The student gives you a topic, assignment, or project.
+Break it down into 5-8 concrete, actionable steps they can actually complete.
+Order them logically. Be specific — avoid vague steps like "study" or "research".
+
+Respond ONLY with valid JSON. No markdown fences, no commentary outside the JSON.
+Keep title under 60 characters. Description under 120 characters.
+
+{
+  "action": "breakdown",
+  "items": [
+    {"type": "step", "title": "...", "description": "..."}
+  ],
+  "explanation": "One sentence summarizing the plan"
+}"""
+
+_SYSTEM_EXPAND = """You are a study planning AI. The student gives you one step from their plan.
+Break it into 3-4 specific sub-tasks, each completable in one focused sitting.
+Make each sub-task concrete and immediately actionable.
+
+Respond ONLY with valid JSON. No markdown fences, no commentary outside the JSON.
+Keep title under 60 characters. Description under 120 characters.
+
+{
+  "action": "expand",
+  "items": [
+    {"type": "step", "title": "...", "description": "..."}
+  ],
+  "explanation": "One sentence about these sub-tasks"
+}"""
+
+_SYSTEM_ANALYZE = """You are an AI thinking partner inside a study whiteboard called Brainspace.
 The user shows you their canvas. Decide ONE of three actions:
 
 ASK: if the canvas is empty or sparse (fewer than 2 stickies), ask one focused question
@@ -38,7 +70,7 @@ Keep sticky text under 80 characters. Position new stickies in empty canvas regi
 }"""
 
 
-# ── tldraw state parser ───────────────────────────────────────────────────────
+# ── tldraw state parser (legacy) ──────────────────────────────────────────────
 
 def _prosemirror_text(node: dict) -> str:
     """Recursively extract plain text from a ProseMirror JSON node."""
@@ -66,11 +98,8 @@ def _note_text(props: dict) -> str:
 
 def _classify_canvas(tldraw_state_json: str) -> tuple[str, str]:
     """
-    Parse a tldraw snapshot JSON and return:
-      (canvas_state, summary_text)
-
+    Parse a tldraw snapshot JSON and return (canvas_state, summary_text).
     canvas_state: "empty" | "messy" | "organized"
-    summary_text: human-readable description for the LLM prompt (≤ _MAX_SUMMARY_CHARS)
     """
     try:
         snap = json.loads(tldraw_state_json)
@@ -99,13 +128,11 @@ def _classify_canvas(tldraw_state_json: str) -> tuple[str, str]:
 
         if shape_type == "note":
             stickies.append({"text": _note_text(props), "x": x, "y": y})
-
         elif shape_type == "arrow":
             start_bound = (props.get("start") or {}).get("type") == "binding"
             end_bound = (props.get("end") or {}).get("type") == "binding"
             if start_bound and end_bound:
                 bound_arrows += 1
-
         elif shape_type == "draw":
             draw_count += 1
 
@@ -117,10 +144,7 @@ def _classify_canvas(tldraw_state_json: str) -> tuple[str, str]:
     else:
         state = "messy"
 
-    lines = [
-        f"Canvas state: {state}",
-        f"Stickies ({n}):",
-    ]
+    lines = [f"Canvas state: {state}", f"Stickies ({n}):"]
     for s in stickies:
         text = (s["text"] or "(empty)").replace("\n", " ")[:100]
         lines.append(f"  • [{int(s['x'])}, {int(s['y'])}] {text}")
@@ -139,18 +163,52 @@ def _classify_canvas(tldraw_state_json: str) -> tuple[str, str]:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 async def make_sense(
-    tldraw_state: str,
+    tldraw_state: str = "",
     context_hint: str = "",
     provider_name: Optional[str] = None,
     api_key: Optional[str] = None,
+    mode: Optional[str] = None,
+    board_title: Optional[str] = None,
+    step_title: Optional[str] = None,
+    step_description: Optional[str] = None,
 ) -> Optional[dict]:
     """
-    Analyze a tldraw canvas snapshot and return one AI action.
+    Analyze a board and return one AI action.
 
-    Returns {"action": str, "items": [...], "explanation": str}, or None on failure.
+    mode="breakdown": generate 5-8 steps from board_title.
+    mode="expand": generate 3-4 sub-steps from step_title + step_description.
+    mode=None: legacy canvas analysis (ask / cluster / expand).
     """
-    canvas_state, summary = _classify_canvas(tldraw_state)
+    if mode == "breakdown":
+        if not board_title:
+            return None
+        prompt = (
+            f"Break down this study task into 5-8 concrete, actionable steps:\n\n"
+            f"**{board_title}**\n\n"
+            "Generate specific steps a student can follow. Order them logically. "
+            "Include a brief description for each step explaining what to do."
+        )
+        system = _SYSTEM_BREAKDOWN
+        if context_hint:
+            system += f"\n\n## Student Background\n{context_hint}"
+        return await generate_json(prompt, system, provider_name, api_key)
 
+    if mode == "expand":
+        if not step_title:
+            return None
+        desc_part = f"\nDescription: {step_description}" if step_description else ""
+        prompt = (
+            f"Expand this step into 3-4 specific sub-tasks:\n\n"
+            f"**{step_title}**{desc_part}\n\n"
+            "Each sub-task should be completable in one focused sitting."
+        )
+        system = _SYSTEM_EXPAND
+        if context_hint:
+            system += f"\n\n## Student Background\n{context_hint}"
+        return await generate_json(prompt, system, provider_name, api_key)
+
+    # Legacy canvas analysis
+    canvas_state, summary = _classify_canvas(tldraw_state)
     prompt = (
         f"Here is the student's canvas:\n\n"
         f"{summary}\n\n"
@@ -158,9 +216,7 @@ async def make_sense(
         "Based on what you see, apply the appropriate action (ASK / CLUSTER / EXPAND). "
         "Place new stickies in areas that do not already have content."
     )
-
-    system = _SYSTEM
+    system = _SYSTEM_ANALYZE
     if context_hint:
-        system = system + f"\n\n## Student Background\n{context_hint}"
-
+        system += f"\n\n## Student Background\n{context_hint}"
     return await generate_json(prompt, system, provider_name, api_key)

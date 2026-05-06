@@ -25,8 +25,8 @@ const inputStyle = {
 }
 
 const btnPrimary = {
-  background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-  boxShadow: '0 4px 20px rgba(99,102,241,0.4)',
+  background: 'linear-gradient(135deg, var(--indigo-500) 0%, var(--violet-600) 100%)',
+  boxShadow: '0 4px 20px rgba(var(--indigo-500-rgb),0.4)',
   color: '#fff',
   border: 'none',
   borderRadius: '10px',
@@ -74,7 +74,7 @@ export default function Login({ onAuth }) {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.12) 0%, transparent 70%)' }}
+      style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(var(--indigo-500-rgb),0.12) 0%, transparent 70%)' }}
     >
       <NeuralBackground />
 
@@ -83,7 +83,7 @@ export default function Login({ onAuth }) {
         className="fixed pointer-events-none"
         style={{
           width: 520, height: 520, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(var(--indigo-500-rgb),0.07) 0%, transparent 70%)',
           top: -120, left: '50%', transform: 'translateX(-50%)',
         }}
       />
@@ -95,7 +95,7 @@ export default function Login({ onAuth }) {
           <div className="text-center">
             <h1
               className="text-2xl font-bold tracking-tight bg-clip-text text-transparent"
-              style={{ backgroundImage: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, #818cf8 100%)' }}
+              style={{ backgroundImage: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, var(--indigo-400) 100%)' }}
             >
               StudyNerve AI
             </h1>
@@ -118,10 +118,10 @@ export default function Login({ onAuth }) {
                 style={
                   mode === m
                     ? {
-                        background: 'rgba(99,102,241,0.2)',
-                        border: '1px solid rgba(99,102,241,0.3)',
+                        background: 'rgba(var(--indigo-500-rgb),0.2)',
+                        border: '1px solid rgba(var(--indigo-500-rgb),0.3)',
                         color: '#a5b4fc',
-                        boxShadow: '0 2px 12px rgba(99,102,241,0.15)',
+                        boxShadow: '0 2px 12px rgba(var(--indigo-500-rgb),0.15)',
                       }
                     : { color: 'rgba(255,255,255,0.35)', border: '1px solid transparent' }
                 }
@@ -143,7 +143,7 @@ export default function Login({ onAuth }) {
                   placeholder="Jane Smith"
                   required
                   autoFocus
-                  onFocus={(e) => (e.target.style.borderColor = 'rgba(99,102,241,0.5)')}
+                  onFocus={(e) => (e.target.style.borderColor = 'rgba(var(--indigo-500-rgb),0.5)')}
                   onBlur={(e) => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
                 />
               </div>
@@ -159,7 +159,7 @@ export default function Login({ onAuth }) {
                 placeholder="you@university.edu"
                 required
                 autoFocus={mode === 'login'}
-                onFocus={(e) => (e.target.style.borderColor = 'rgba(99,102,241,0.5)')}
+                onFocus={(e) => (e.target.style.borderColor = 'rgba(var(--indigo-500-rgb),0.5)')}
                 onBlur={(e) => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
             </div>
@@ -174,7 +174,7 @@ export default function Login({ onAuth }) {
                 placeholder="••••••••"
                 required
                 minLength={8}
-                onFocus={(e) => (e.target.style.borderColor = 'rgba(99,102,241,0.5)')}
+                onFocus={(e) => (e.target.style.borderColor = 'rgba(var(--indigo-500-rgb),0.5)')}
                 onBlur={(e) => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               {mode === 'register' && (

@@ -24,9 +24,9 @@ const navbarStyle = {
 }
 
 const activePillStyle = {
-  background: 'rgba(99, 102, 241, 0.18)',
-  border: '1px solid rgba(99, 102, 241, 0.32)',
-  boxShadow: '0 0 18px rgba(99, 102, 241, 0.18), inset 0 1px 0 rgba(255,255,255,0.07)',
+  background: 'rgba(var(--indigo-500-rgb),0.18)',
+  border: '1px solid rgba(var(--indigo-500-rgb),0.32)',
+  boxShadow: '0 0 18px rgba(var(--indigo-500-rgb),0.18), inset 0 1px 0 rgba(255,255,255,0.07)',
 }
 
 const inactivePillStyle = {
@@ -59,7 +59,7 @@ export default function Layout({ user, onLogout }) {
           <span
             className="text-base font-bold tracking-tight bg-clip-text text-transparent"
             style={{
-              backgroundImage: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, #818cf8 100%)',
+              backgroundImage: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, var(--indigo-400) 100%)',
               fontFamily: "'Sora', sans-serif",
             }}
           >
@@ -107,7 +107,7 @@ export default function Layout({ user, onLogout }) {
           <div className="flex items-center gap-1.5">
             <div
               className="w-1.5 h-1.5 rounded-full"
-              style={{ background: 'rgba(99,102,241,0.7)', boxShadow: '0 0 5px rgba(99,102,241,0.9)' }}
+              style={{ background: 'rgba(var(--indigo-500-rgb),0.7)', boxShadow: '0 0 5px rgba(var(--indigo-500-rgb),0.9)' }}
             />
             <span className="text-[11px] text-white/30 tracking-wide whitespace-nowrap">
               Powered by AI
@@ -120,13 +120,13 @@ export default function Layout({ user, onLogout }) {
               onClick={() => setShowUserMenu((v) => !v)}
               className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all duration-150"
               style={{
-                background: showUserMenu ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.04)',
+                background: showUserMenu ? 'rgba(var(--indigo-500-rgb),0.12)' : 'rgba(255,255,255,0.04)',
                 border: '1px solid rgba(255,255,255,0.08)',
               }}
             >
               <div
                 className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-indigo-300 flex-shrink-0"
-                style={{ background: 'rgba(99,102,241,0.25)' }}
+                style={{ background: 'rgba(var(--indigo-500-rgb),0.25)' }}
               >
                 {user?.name?.[0]?.toUpperCase() ?? '?'}
               </div>
@@ -181,7 +181,7 @@ export default function Layout({ user, onLogout }) {
           onClick={() => setShowMobileMenu((v) => !v)}
           style={{
             color: 'rgba(255,255,255,0.6)',
-            background: showMobileMenu ? 'rgba(99,102,241,0.12)' : 'transparent',
+            background: showMobileMenu ? 'rgba(var(--indigo-500-rgb),0.12)' : 'transparent',
           }}
           aria-label="Toggle menu"
         >
@@ -226,7 +226,7 @@ export default function Layout({ user, onLogout }) {
             <NeuralNetIcon size={24} idPrefix="mobile-nav" />
             <span
               className="text-sm font-bold tracking-tight bg-clip-text text-transparent"
-              style={{ backgroundImage: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, #818cf8 100%)' }}
+              style={{ backgroundImage: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, var(--indigo-400) 100%)' }}
             >
               StudyNerve AI
             </span>
@@ -290,7 +290,7 @@ export default function Layout({ user, onLogout }) {
             <div className="flex items-center gap-2.5 mb-2">
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0"
-                style={{ background: 'rgba(99,102,241,0.25)' }}
+                style={{ background: 'rgba(var(--indigo-500-rgb),0.25)' }}
               >
                 {user?.name?.[0]?.toUpperCase() ?? '?'}
               </div>

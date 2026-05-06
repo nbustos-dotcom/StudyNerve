@@ -23,7 +23,7 @@ export default function NeuralBackground() {
         width: '200px',
         height: '200px',
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(99,102,241,0.03) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, rgba(var(--indigo-500-rgb),0.03) 0%, transparent 70%)',
       }} />
     </div>
   )

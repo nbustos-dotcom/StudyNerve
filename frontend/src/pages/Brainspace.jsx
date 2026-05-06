@@ -12,6 +12,7 @@ import { DefaultColorStyle, DefaultFontStyle } from '@tldraw/tlschema'
 import '@tldraw/tldraw/tldraw.css'
 import '../styles/brainspace.css'
 import { api } from '../api/client'
+import MakeSenseButton from '../components/MakeSenseButton'
 
 const ALLOWED_TOOLS = new Set(['select', 'draw', 'note', 'arrow', 'eraser'])
 
@@ -123,7 +124,7 @@ function BrainspaceList({ onOpen }) {
         fontWeight: 400,
         fontSize: '1.75rem',
         marginBottom: '1.5rem',
-        color: '#56CFE1',
+        color: 'var(--bs-accent)',
         letterSpacing: '0.01em',
         textShadow: '0 0 16px rgba(86, 207, 225, 0.35)',
       }}>
@@ -153,7 +154,7 @@ function BrainspaceList({ onOpen }) {
           style={{
             padding: '0.5rem 1rem',
             background: 'rgba(86, 207, 225, 0.12)',
-            color: '#56CFE1',
+            color: 'var(--bs-accent)',
             border: '1px solid #1F4A5C',
             borderRadius: 6,
             cursor: 'pointer',
@@ -224,6 +225,7 @@ function BrainspaceCanvas({ boardId, onBack }) {
   const [boardTitle, setBoardTitle] = useState('')
   const [status, setStatus] = useState('loading')
   const [saveStatus, setSaveStatus] = useState('saved')
+  const [editor, setEditor] = useState(null)
   const saveTimer = useRef(null)
 
   useEffect(() => {
@@ -242,18 +244,19 @@ function BrainspaceCanvas({ boardId, onBack }) {
       .catch(() => setStatus('error'))
   }, [boardId])
 
-  const handleMount = useCallback((editor) => {
-    editor.setStyleForNextShapes(DefaultColorStyle, 'black')
-    editor.setStyleForNextShapes(DefaultFontStyle, 'draw')
-    editor.updateInstanceState({ isGridMode: false })
+  const handleMount = useCallback((editorInstance) => {
+    setEditor(editorInstance)
+    editorInstance.setStyleForNextShapes(DefaultColorStyle, 'black')
+    editorInstance.setStyleForNextShapes(DefaultFontStyle, 'draw')
+    editorInstance.updateInstanceState({ isGridMode: false })
 
-    const cleanup = editor.store.listen(
+    const cleanup = editorInstance.store.listen(
       () => {
         setSaveStatus('saving')
         clearTimeout(saveTimer.current)
         saveTimer.current = setTimeout(async () => {
           try {
-            const snap = editor.getSnapshot()
+            const snap = editorInstance.getSnapshot()
             await api.visionSaveTldrawState(boardId, JSON.stringify(snap))
             setSaveStatus('saved')
           } catch {
@@ -311,7 +314,7 @@ function BrainspaceCanvas({ boardId, onBack }) {
             background: 'rgba(86, 207, 225, 0.06)',
             cursor: 'pointer',
             fontSize: '0.85rem',
-            color: '#56CFE1',
+            color: 'var(--bs-accent)',
           }}
         >
           ← Boards
@@ -341,6 +344,9 @@ function BrainspaceCanvas({ boardId, onBack }) {
           inferDarkMode={false}
           licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
         />
+        {editor && (
+          <MakeSenseButton editor={editor} boardId={boardId} />
+        )}
       </div>
     </div>
   )

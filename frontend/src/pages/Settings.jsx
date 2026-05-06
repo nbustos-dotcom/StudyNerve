@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
+import Spinner from '../components/Spinner'
 
 function EyeIcon({ open }) {
   return open ? (
@@ -21,15 +22,6 @@ const PROVIDERS = [
   { value: 'anthropic',label: 'Claude (Anthropic)', needsKey: true,  hint: 'Uses claude-sonnet-4.',             apiKeyUrl: 'https://console.anthropic.com/settings/keys',     apiKeyLabel: 'Get key →' },
   { value: 'groq',     label: 'Groq',               needsKey: true,  hint: 'Uses llama-3.3-70b-versatile. Free tier available.', apiKeyUrl: 'https://console.groq.com/keys', apiKeyLabel: 'Get free key → (recommended - best free option)' },
 ]
-
-function Spinner() {
-  return (
-    <svg className="animate-spin w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
-  )
-}
 
 function SectionCard({ title, children }) {
   return (
@@ -314,7 +306,7 @@ export default function Settings() {
             <div className="flex items-center gap-2 mb-1">
               <div
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ background: 'rgba(99,102,241,0.8)', boxShadow: '0 0 6px rgba(99,102,241,0.9)' }}
+                style={{ background: 'rgba(var(--indigo-500-rgb),0.8)', boxShadow: '0 0 6px rgba(var(--indigo-500-rgb),0.9)' }}
               />
               <span className="text-xs text-slate-500">
                 Currently using{' '}
@@ -341,9 +333,9 @@ export default function Settings() {
                   style={
                     provider === p.value
                       ? {
-                          background: 'rgba(99,102,241,0.15)',
-                          border: '1px solid rgba(99,102,241,0.35)',
-                          boxShadow: '0 0 16px rgba(99,102,241,0.1)',
+                          background: 'rgba(var(--indigo-500-rgb),0.15)',
+                          border: '1px solid rgba(var(--indigo-500-rgb),0.35)',
+                          boxShadow: '0 0 16px rgba(var(--indigo-500-rgb),0.1)',
                         }
                       : {
                           background: 'rgba(255,255,255,0.03)',
@@ -426,7 +418,7 @@ export default function Settings() {
           )}
 
           <button type="submit" disabled={providerSaving} className="btn-primary">
-            {providerSaving ? <><Spinner />Saving…</> : 'Save Provider'}
+            {providerSaving ? <><Spinner size="sm" />Saving…</> : 'Save Provider'}
           </button>
         </form>
       </SectionCard>
@@ -522,7 +514,7 @@ export default function Settings() {
 
           <button type="submit" disabled={canvasSaving} className="btn-primary">
             {canvasSaving ? (
-              <><Spinner />{currentSettings?.canvas_connected ? 'Updating…' : 'Connecting…'}</>
+              <><Spinner size="sm" />{currentSettings?.canvas_connected ? 'Updating…' : 'Connecting…'}</>
             ) : (
               currentSettings?.canvas_connected ? 'Update Token' : 'Connect to Canvas'
             )}

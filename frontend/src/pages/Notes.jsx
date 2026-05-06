@@ -1,15 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-
-function Spinner() {
-  return (
-    <svg className="animate-spin w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
-  )
-}
+import Spinner from '../components/Spinner'
 
 const EMPTY_FORM = { title: '', content: '', subject: '' }
 const EMPTY_UPLOAD = { title: '', subject: '', file: null }
@@ -187,7 +179,7 @@ export default function Notes() {
       {normalizeBanner && (
         <div
           className="mb-6 flex items-center justify-between gap-4 rounded-xl px-4 py-3"
-          style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}
+          style={{ background: 'rgba(var(--indigo-500-rgb),0.08)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}
         >
           <p className="text-sm text-indigo-300">
             Some of your subjects look similar. Click here to organize them.
@@ -197,7 +189,7 @@ export default function Notes() {
             disabled={normalizing}
             className="flex-shrink-0 btn-primary text-xs"
           >
-            {normalizing ? <span className="flex items-center gap-1.5"><Spinner /> Organizing…</span> : 'Organize'}
+            {normalizing ? <span className="flex items-center gap-1.5"><Spinner size="sm" /> Organizing…</span> : 'Organize'}
           </button>
         </div>
       )}
@@ -261,7 +253,7 @@ export default function Notes() {
             <div className="flex justify-end">
               <button type="submit" className="btn-primary" disabled={creating}>
                 {creating ? (
-                  <span className="flex items-center gap-2"><Spinner /> Saving…</span>
+                  <span className="flex items-center gap-2"><Spinner size="sm" /> Saving…</span>
                 ) : (
                   'Save Note'
                 )}
@@ -343,7 +335,7 @@ export default function Notes() {
                 disabled={uploading || !uploadForm.file}
               >
                 {uploading ? (
-                  <span className="flex items-center gap-2"><Spinner /> Extracting text…</span>
+                  <span className="flex items-center gap-2"><Spinner size="sm" /> Extracting text…</span>
                 ) : (
                   'Upload'
                 )}
@@ -356,7 +348,7 @@ export default function Notes() {
       {/* Notes list */}
       {notes.length === 0 ? (
         <div className="card p-10 flex flex-col items-center gap-4 text-center">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(var(--indigo-500-rgb),0.08)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}>
             <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
             </svg>
@@ -391,7 +383,7 @@ export default function Notes() {
                     className="flex-shrink-0 btn-ghost text-xs text-slate-600 hover:text-red-400"
                     title="Delete note"
                   >
-                    {deletingId === note.id ? <Spinner /> : (
+                    {deletingId === note.id ? <Spinner size="sm" /> : (
                       <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <path d="M3 4h10M6 4V2h4v2M5 4v8a1 1 0 001 1h4a1 1 0 001-1V4" strokeLinecap="round" />
                       </svg>
@@ -410,7 +402,7 @@ export default function Notes() {
                     disabled={ts?.loading}
                   >
                     {ts?.loading ? (
-                      <span className="flex items-center gap-1.5"><Spinner /> Extracting…</span>
+                      <span className="flex items-center gap-1.5"><Spinner size="sm" /> Extracting…</span>
                     ) : (
                       'Extract Topics'
                     )}
@@ -422,7 +414,7 @@ export default function Notes() {
                     disabled={ss?.loading}
                   >
                     {ss?.loading ? (
-                      <span className="flex items-center gap-1.5"><Spinner /> Summarizing…</span>
+                      <span className="flex items-center gap-1.5"><Spinner size="sm" /> Summarizing…</span>
                     ) : (
                       'Summarize'
                     )}
@@ -489,8 +481,8 @@ export default function Notes() {
                     <div
                       className="rounded-xl p-4"
                       style={{
-                        background: 'rgba(99,102,241,0.06)',
-                        border: '1px solid rgba(99,102,241,0.15)',
+                        background: 'rgba(var(--indigo-500-rgb),0.06)',
+                        border: '1px solid rgba(var(--indigo-500-rgb),0.15)',
                       }}
                     >
                       {ss.summary.split('\n').filter(Boolean).map((line, i) => (

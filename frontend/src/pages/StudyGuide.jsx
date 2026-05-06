@@ -6,17 +6,7 @@ import rehypeKatex from 'rehype-katex'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { api } from '../api/client'
-
-// ── Icons ────────────────────────────────────────────────────────────────────
-
-function Spinner() {
-  return (
-    <svg className="animate-spin w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
-  )
-}
+import Spinner from '../components/Spinner'
 
 function BackIcon() {
   return (
@@ -105,7 +95,7 @@ function makeComponents() {
       <div
         id={id}
         style={{
-          borderLeft: '3px solid #6366f1',
+          borderLeft: '3px solid var(--indigo-500)',
           paddingLeft: '14px',
           marginTop: mt[level],
           marginBottom: '10px',
@@ -131,7 +121,7 @@ function makeComponents() {
     ),
 
     strong: ({ children }) => (
-      <strong style={{ color: '#818cf8', fontWeight: 600 }}>{children}</strong>
+      <strong style={{ color: 'var(--indigo-400)', fontWeight: 600 }}>{children}</strong>
     ),
 
     em: ({ children }) => (
@@ -157,7 +147,7 @@ function makeComponents() {
     ),
 
     blockquote: ({ children }) => (
-      <blockquote style={{ borderLeft: '2px solid rgba(99,102,241,0.4)', paddingLeft: '14px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', margin: '14px 0' }}>
+      <blockquote style={{ borderLeft: '2px solid rgba(var(--indigo-500-rgb),0.4)', paddingLeft: '14px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', margin: '14px 0' }}>
         {children}
       </blockquote>
     ),
@@ -180,7 +170,7 @@ function makeComponents() {
       }
       return (
         <code
-          style={{ background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', borderRadius: '5px', padding: '2px 7px', fontSize: '0.85em', fontFamily: 'monospace' }}
+          style={{ background: 'rgba(var(--indigo-500-rgb),0.15)', color: '#a5b4fc', borderRadius: '5px', padding: '2px 7px', fontSize: '0.85em', fontFamily: 'monospace' }}
         >
           {children}
         </code>
@@ -356,7 +346,7 @@ export default function StudyGuide() {
           <div className="flex items-center gap-2">
             {editing && (
               <span className="text-xs text-slate-500 flex items-center gap-1">
-                {saving ? <><Spinner /> Saving…</> : saveError ? <span className="text-red-400">{saveError}</span> : null}
+                {saving ? <><Spinner size="sm" /> Saving…</> : saveError ? <span className="text-red-400">{saveError}</span> : null}
               </span>
             )}
             <button
@@ -383,7 +373,7 @@ export default function StudyGuide() {
         <div className="flex items-center gap-2 mb-2">
           <span
             className="text-xs font-medium px-2 py-0.5 rounded-full"
-            style={{ background: 'rgba(99,102,241,0.12)', color: 'rgba(165,180,252,0.9)', border: '1px solid rgba(99,102,241,0.2)' }}
+            style={{ background: 'rgba(var(--indigo-500-rgb),0.12)', color: 'rgba(165,180,252,0.9)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}
           >
             Study Guide
           </span>
@@ -397,7 +387,7 @@ export default function StudyGuide() {
           className="rounded-2xl p-8 flex flex-col items-center gap-4"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
         >
-          <Spinner />
+          <Spinner size="sm" />
           <p className="text-sm text-slate-400">Creating your study guide…</p>
           <p className="text-xs text-slate-600">This usually takes 10–20 seconds</p>
         </div>
@@ -434,7 +424,7 @@ export default function StudyGuide() {
                       width: '100%',
                       minHeight: '520px',
                       background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(99,102,241,0.35)',
+                      border: '1px solid rgba(var(--indigo-500-rgb),0.35)',
                       borderRadius: '10px',
                       padding: '16px',
                       color: 'rgba(255,255,255,0.85)',

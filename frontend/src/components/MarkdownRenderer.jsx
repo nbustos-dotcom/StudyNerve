@@ -81,8 +81,8 @@ function makeComponents(size) {
       }
       return (
         <code
-          className="px-1.5 py-0.5 rounded-md font-mono text-indigo-300"
-          style={{ background: 'rgba(99,102,241,0.15)', fontSize: '0.85em' }}
+          className="px-1.5 py-0.5 rounded-md font-mono text-indigo-300 bg-indigo-500/15"
+          style={{ fontSize: '0.85em' }}
         >
           {children}
         </code>

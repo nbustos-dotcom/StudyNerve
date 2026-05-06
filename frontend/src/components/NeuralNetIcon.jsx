@@ -23,8 +23,8 @@ export default function NeuralNetIcon({ size = 32, idPrefix = 'nn' }) {
         {/* Node fill: violet highlight → indigo */}
         <radialGradient id={gId} cx="38%" cy="35%" r="65%">
           <stop offset="0%"   stopColor="#a78bfa" />
-          <stop offset="60%"  stopColor="#818cf8" />
-          <stop offset="100%" stopColor="#6366f1" />
+          <stop offset="60%"  stopColor="var(--indigo-400)" />
+          <stop offset="100%" stopColor="var(--indigo-500)" />
         </radialGradient>
 
         {/*
@@ -39,7 +39,7 @@ export default function NeuralNetIcon({ size = 32, idPrefix = 'nn' }) {
       </defs>
 
       {/* Connection lines — asymmetric network */}
-      <g stroke="#818cf8" strokeOpacity="0.55" strokeWidth="0.9"
+      <g stroke="var(--indigo-400)" strokeOpacity="0.55" strokeWidth="0.9"
          strokeLinecap="round" fill="none">
         <line x1="19" y1="5"  x2="25" y2="7"  />  {/* F – B */}
         <line x1="7"  y1="9"  x2="16" y2="16" />  {/* A – C */}

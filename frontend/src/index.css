@@ -1,5 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Sora:wght@500;600;700&display=swap');
 
+:root {
+  --indigo-500: #6366f1;
+  --indigo-500-rgb: 99, 102, 241;
+  --indigo-400: #818cf8;
+  --indigo-300: #a5b4fc;
+  --violet-600: #8b5cf6;
+  --cyan-400: #56CFE1;
+  --cyan-300: #7DDFEE;
+  --deep-bg: #030014;
+  --deep-surface: #08001a;
+  --bs-accent: #56CFE1;
+  --bs-text: #E8F8FB;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,7 +26,7 @@
 
   body {
     min-height: 100%;
-    background: #030014;
+    background: var(--deep-bg);
     color: rgba(255, 255, 255, 0.88);
     font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -62,10 +76,10 @@
            text-white text-sm font-medium px-4 py-2 rounded-xl
            transition-all duration-200
            disabled:opacity-40 disabled:cursor-not-allowed;
-    box-shadow: 0 4px 24px rgba(99, 102, 241, 0.22), 0 1px 0 rgba(255,255,255,0.08) inset;
+    box-shadow: 0 4px 24px rgba(var(--indigo-500-rgb), 0.22), 0 1px 0 rgba(255,255,255,0.08) inset;
   }
   .btn-primary:not(:disabled):hover {
-    box-shadow: 0 4px 28px rgba(99, 102, 241, 0.35), 0 1px 0 rgba(255,255,255,0.1) inset;
+    box-shadow: 0 4px 28px rgba(var(--indigo-500-rgb), 0.35), 0 1px 0 rgba(255,255,255,0.1) inset;
     transform: translateY(-1px);
   }
 
@@ -229,7 +243,7 @@
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   color: #fff;
   border-color: rgba(139,92,246,0.4);
-  box-shadow: 0 2px 12px rgba(99,102,241,0.3);
+  box-shadow: 0 2px 12px rgba(var(--indigo-500-rgb), 0.3);
 }
 
 /* ── Card hover lift ─────────────────────────────────────────────────────── */

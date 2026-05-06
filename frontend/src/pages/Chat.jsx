@@ -96,7 +96,7 @@ function MessageBubble({ message }) {
             <div className="mb-2">
               <span
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-indigo-300/80"
-                style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }}
+                style={{ background: 'rgba(var(--indigo-500-rgb),0.12)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}
               >
                 <PaperclipIcon />
                 {message.fileName}
@@ -259,11 +259,11 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, on
                     style={
                       isActive
                         ? {
-                            background: 'rgba(99,102,241,0.12)',
-                            borderLeft: '2px solid rgba(99,102,241,0.7)',
-                            borderTop: '1px solid rgba(99,102,241,0.2)',
-                            borderRight: '1px solid rgba(99,102,241,0.2)',
-                            borderBottom: '1px solid rgba(99,102,241,0.2)',
+                            background: 'rgba(var(--indigo-500-rgb),0.12)',
+                            borderLeft: '2px solid rgba(var(--indigo-500-rgb),0.7)',
+                            borderTop: '1px solid rgba(var(--indigo-500-rgb),0.2)',
+                            borderRight: '1px solid rgba(var(--indigo-500-rgb),0.2)',
+                            borderBottom: '1px solid rgba(var(--indigo-500-rgb),0.2)',
                           }
                         : {
                             background: isHovered ? 'rgba(255,255,255,0.04)' : 'transparent',
@@ -576,12 +576,12 @@ export default function Chat() {
                       src={attachedFile.previewUrl}
                       alt="preview"
                       className="h-10 w-10 object-cover rounded-lg flex-shrink-0"
-                      style={{ border: '1px solid rgba(99,102,241,0.3)' }}
+                      style={{ border: '1px solid rgba(var(--indigo-500-rgb),0.3)' }}
                     />
                   ) : null}
                   <span
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-indigo-300/80 truncate max-w-[280px]"
-                    style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }}
+                    style={{ background: 'rgba(var(--indigo-500-rgb),0.12)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}
                   >
                     <PaperclipIcon />
                     {attachedFile.name}
@@ -654,8 +654,8 @@ export default function Chat() {
                              text-white transition-all duration-200
                              disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{
-                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                    boxShadow: '0 4px 20px rgba(99,102,241,0.3)',
+                    background: 'linear-gradient(135deg, var(--indigo-500) 0%, var(--violet-600) 100%)',
+                    boxShadow: '0 4px 20px rgba(var(--indigo-500-rgb),0.3)',
                   }}
                   aria-label="Send message"
                 >

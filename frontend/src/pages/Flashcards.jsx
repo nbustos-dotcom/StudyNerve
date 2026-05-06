@@ -1,16 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
+import Spinner from '../components/Spinner'
 
 const FLASHCARD_STORAGE_KEY = 'studynerve_flashcard_progress'
-
-function Spinner({ className = 'w-4 h-4' }) {
-  return (
-    <svg className={`animate-spin text-indigo-400 ${className}`} fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
-  )
-}
 
 // ── My Decks View ─────────────────────────────────────────────────────────────
 
@@ -28,7 +20,7 @@ function DecksView({ onStudyDeck, onGenerate }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Spinner className="w-6 h-6" />
+        <Spinner />
       </div>
     )
   }
@@ -38,7 +30,7 @@ function DecksView({ onStudyDeck, onGenerate }) {
       <div className="card p-10 flex flex-col items-center gap-4 text-center">
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center"
-          style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}
+          style={{ background: 'rgba(var(--indigo-500-rgb),0.08)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}
         >
           <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
@@ -146,7 +138,7 @@ function GenerateView({ onStudyDeck }) {
             disabled={generating || !selectedNote}
           >
             {generating ? (
-              <span className="flex items-center gap-2"><Spinner /> Generating…</span>
+              <span className="flex items-center gap-2"><Spinner size="sm" /> Generating…</span>
             ) : (
               'Generate'
             )}
@@ -355,7 +347,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
     return (
       <div className="max-w-xl mx-auto">
         <div className="card p-8 flex flex-col items-center gap-5 text-center fade-in-up">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(var(--indigo-500-rgb),0.08)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}>
             <svg className="w-7 h-7 text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z"/>
             </svg>
@@ -383,7 +375,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Spinner className="w-6 h-6" />
+        <Spinner />
       </div>
     )
   }
@@ -397,7 +389,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
       <>
         {backLink}
         <div className="card p-10 flex flex-col items-center gap-4 text-center">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(var(--indigo-500-rgb),0.08)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}>
             <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
             </svg>
@@ -480,7 +472,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null }) {
             transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
             cursor: 'pointer',
             boxShadow: flipped
-              ? '0 16px 48px rgba(99,102,241,0.2), 0 4px 16px rgba(0,0,0,0.4)'
+              ? '0 16px 48px rgba(var(--indigo-500-rgb),0.2), 0 4px 16px rgba(0,0,0,0.4)'
               : '0 8px 32px rgba(0,0,0,0.3)',
           }}
         >

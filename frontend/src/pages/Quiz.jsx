@@ -3,18 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import MarkdownRenderer from '../components/MarkdownRenderer'
 import NeuralNetIcon from '../components/NeuralNetIcon'
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function Spinner({ size = 'md' }) {
-  const cls = size === 'lg' ? 'w-10 h-10' : size === 'sm' ? 'w-4 h-4' : 'w-6 h-6'
-  return (
-    <svg className={`animate-spin ${cls} text-indigo-400`} fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
-  )
-}
+import Spinner from '../components/Spinner'
 
 function parseOptions(optionsStr) {
   if (!optionsStr) return null
@@ -317,7 +306,7 @@ export default function Quiz() {
   if (phase === PHASES.GENERATING) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center px-8 fade-in-up">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6" style={{ background: 'rgba(var(--indigo-500-rgb),0.1)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}>
           <Spinner size="lg" />
         </div>
         <p className="text-slate-200 font-semibold text-lg">Generating questions…</p>
@@ -370,7 +359,7 @@ export default function Quiz() {
                 className={`w-full text-left flex items-start gap-4 px-5 py-4 min-h-[60px] rounded-xl border transition-all duration-200 ${optionStyle(
                   key, selectedAnswer, currentResult
                 )}`}
-                style={selectedAnswer === key && !currentResult ? { boxShadow: '0 0 0 2px rgba(99,102,241,0.5)' } : {}}
+                style={selectedAnswer === key && !currentResult ? { boxShadow: '0 0 0 2px rgba(var(--indigo-500-rgb),0.5)' } : {}}
               >
                 <span className="font-mono font-bold text-sm flex-shrink-0 mt-0.5 w-5">{key}.</span>
                 <span className="text-sm leading-relaxed">{value}</span>

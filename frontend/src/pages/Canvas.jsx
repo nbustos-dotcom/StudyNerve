@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
+import Spinner from '../components/Spinner'
 
 // ── Due-date helpers ──────────────────────────────────────────────────────────
 
@@ -33,15 +34,6 @@ const U = {
 
 // ── Tiny shared components ────────────────────────────────────────────────────
 
-function Spinner({ small }) {
-  return (
-    <svg className={`animate-spin ${small ? 'w-4 h-4' : 'w-5 h-5'} text-indigo-400`} fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
-  )
-}
-
 function ChevronRight() {
   return (
     <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -70,7 +62,7 @@ function ImportIcon() {
 // ── Course accent color from name hash ────────────────────────────────────────
 
 const COURSE_ACCENTS = [
-  'rgba(99,102,241,0.5)',   // indigo
+  'rgba(var(--indigo-500-rgb),0.5)',   // indigo
   'rgba(168,85,247,0.5)',   // purple
   'rgba(59,130,246,0.5)',   // blue
   'rgba(20,184,166,0.5)',   // teal
@@ -186,7 +178,7 @@ export default function Canvas() {
         {status?.connected && (
           <button onClick={handleSyncAll} disabled={syncing} className="btn-primary">
             {syncing ? (
-              <><Spinner small />Syncing…</>
+              <><Spinner size="sm" />Syncing…</>
             ) : (
               <>
                 <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -228,7 +220,7 @@ export default function Canvas() {
       {/* ── Connection status card ──────────────────────────────────────────── */}
       {statusLoading ? (
         <div className="card p-5 mb-8 flex items-center gap-3">
-          <Spinner small />
+          <Spinner size="sm" />
           <span className="text-sm text-slate-500">Checking Canvas connection…</span>
         </div>
       ) : status?.connected ? (
@@ -281,7 +273,7 @@ export default function Canvas() {
 
           {coursesLoading ? (
             <div className="flex items-center gap-2 text-slate-500 text-sm">
-              <Spinner small />Loading courses…
+              <Spinner size="sm" />Loading courses…
             </div>
           ) : courses.length === 0 ? (
             <div className="card p-10 flex flex-col items-center gap-3 text-center">
@@ -297,7 +289,7 @@ export default function Canvas() {
                     key={course.id}
                     onClick={() => selectCourse(course)}
                     className="card p-5 text-left group transition-all duration-200 hover:border-indigo-500/30 card-lift"
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99,102,241,0.06)')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--indigo-500-rgb),0.06)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = '')}
                     style={{ borderLeft: `3px solid ${accent}` }}
                   >
@@ -341,7 +333,7 @@ export default function Canvas() {
 
           {assignmentsLoading ? (
             <div className="flex items-center gap-2 text-slate-500 text-sm">
-              <Spinner small />Loading assignments…
+              <Spinner size="sm" />Loading assignments…
             </div>
           ) : assignments.length === 0 ? (
             <div className="card p-10 flex flex-col items-center gap-3 text-center">
@@ -410,7 +402,7 @@ export default function Canvas() {
                       }
                     >
                       {isImporting ? (
-                        <Spinner small />
+                        <Spinner size="sm" />
                       ) : isImported ? (
                         <><CheckIcon />Imported</>
                       ) : (

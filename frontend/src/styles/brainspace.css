@@ -5,9 +5,9 @@
   --tl-font-draw: 'Caveat', cursive;
 
   /* Selection / UI chrome → cyan */
-  --tl-color-selection-stroke: #56CFE1;
+  --tl-color-selection-stroke: var(--bs-accent);
   --tl-color-selection-fill:   rgba(86, 207, 225, 0.1);
-  --tl-color-focus:            #56CFE1;
+  --tl-color-focus:            var(--bs-accent);
 
   /* Panel surfaces → deep teal */
   --tl-color-panel:            #0D2837;
@@ -50,7 +50,7 @@
 
 /* Icon color: bioluminescent cyan */
 .tlui-main-toolbar__tools .tlui-button {
-  color: #56CFE1 !important;
+  color: var(--bs-accent) !important;
 }
 
 .tlui-main-toolbar__tools .tlui-button:hover:not([disabled]) {
@@ -85,7 +85,7 @@
 
 .tl-note__container {
   background-color: #0F3A4A !important;
-  border: 1.5px solid #56CFE1 !important;
+  border: 1.5px solid var(--bs-accent) !important;
   box-shadow:
     0 0 12px rgba(86, 207, 225, 0.25),
     0 4px 16px rgba(0, 0, 0, 0.35) !important;

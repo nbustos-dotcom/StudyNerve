@@ -366,3 +366,49 @@ async def evaluate_answer(
         "Evaluate whether the student's answer is correct."
     )
     return await generate_json(prompt, ANSWER_EVALUATION_SYSTEM, provider_name, api_key)
+
+
+SUGGEST_TITLE_SYSTEM = (
+    "Generate a short, descriptive title (5-8 words max) for these study notes. "
+    "Return ONLY the title text, nothing else. No quotes, no punctuation at the end."
+)
+
+SUBJECT_MERGE_SYSTEM = """\
+You are organizing a student's study subject labels.
+Return ONLY valid JSON in this exact structure:
+{"groups": [{"canonical": "Full Subject Name", "aliases": ["abbrev1", "abbrev2"]}]}
+Rules:
+- Only group subjects that clearly refer to the same subject (e.g. "PSY" and "Psychology")
+- The canonical should be the most complete/formal name in the list
+- If no merges are needed, return {"groups": []}
+- Do not invent merges — only combine when confident"""
+
+
+async def suggest_note_title(
+    content: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[str]:
+    prompt = f"Study notes:\n\n{content}"
+    result = await generate_chat(
+        [{"role": "user", "content": prompt}],
+        SUGGEST_TITLE_SYSTEM,
+        provider_name,
+        api_key,
+    )
+    if not result:
+        return None
+    return result.strip().strip('"').strip("'").rstrip(".")
+
+
+async def suggest_subject_merges(
+    subjects_text: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[dict]:
+    prompt = (
+        "These are subject labels from a student's notes:\n"
+        f"{subjects_text}\n\n"
+        "Identify which labels refer to the same subject and should be merged."
+    )
+    return await generate_json(prompt, SUBJECT_MERGE_SYSTEM, provider_name, api_key)

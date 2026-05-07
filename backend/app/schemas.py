@@ -40,6 +40,10 @@ class NoteCreate(BaseModel):
     subject: Optional[str] = None
 
 
+class SuggestTitleRequest(BaseModel):
+    content: str
+
+
 class StudyGuideUpdate(BaseModel):
     content: str
 
@@ -263,6 +267,11 @@ class StudentInsightResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class MergeSubjectRequest(BaseModel):
+    from_subject: str
+    to_subject: str
 
 
 # ── Vision Board ─────────────────────────────────────────────────────────────

@@ -174,6 +174,15 @@ export const api = {
   /** @returns {Promise<{ updated: number }>} */
   normalizeAllSubjects: () => req('POST', '/subjects/normalize-all'),
 
+  /** @returns {Promise<{ title: string }>} */
+  suggestTitle: (content) => req('POST', '/notes/suggest-title', { content }),
+
+  /** @returns {Promise<Array<{ canonical: string, aliases: string[] }>>} */
+  suggestMerges: () => req('POST', '/subjects/suggest-merges'),
+
+  /** @returns {Promise<{ updated: number }>} */
+  mergeSubject: (from_subject, to_subject) => req('PUT', '/subjects/merge', { from_subject, to_subject }),
+
   /** @returns {Promise<{ created: number }>} */
   extractTopics: (id) => req('POST', `/notes/${id}/extract-topics`),
 

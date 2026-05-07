@@ -6,12 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.llm import extract_topics, generate_study_guide as llm_study_guide, summarize_note as llm_summarize_note
+from app.llm import extract_topics, generate_study_guide as llm_study_guide, suggest_note_title, summarize_note as llm_summarize_note
 from app.models import Note, Topic, User
 from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
-from app.schemas import NoteCreate, NoteResponse, StudyGuideUpdate
+from app.schemas import NoteCreate, NoteResponse, StudyGuideUpdate, SuggestTitleRequest
 from app.services.subjects import normalize_subject
 
 _MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
@@ -82,6 +82,20 @@ async def upload_note(
     await db.flush()
     await db.refresh(note)
     return note
+
+
+@router.post("/suggest-title")
+async def suggest_title_endpoint(
+    body: SuggestTitleRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    content = body.content[:500]
+    llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
+    title = await suggest_note_title(content, **llm_kwargs)
+    if not title:
+        raise HTTPException(status_code=502, detail="Could not generate a title")
+    return {"title": title}
 
 
 @router.get("", response_model=list[NoteResponse])

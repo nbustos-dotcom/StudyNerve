@@ -23,6 +23,20 @@ export default function Notes() {
   const [normalizeBanner, setNormalizeBanner] = useState(false)
   const [normalizing, setNormalizing] = useState(false)
 
+  // Auto-title state
+  const [titleAutoGen, setTitleAutoGen] = useState(false)
+  const [uploadTitleAutoGen, setUploadTitleAutoGen] = useState(false)
+  const [suggestingTitle, setSuggestingTitle] = useState(false)
+  const [suggestingUploadTitle, setSuggestingUploadTitle] = useState(false)
+  const titleRef = useRef('')
+  const uploadTitleRef = useRef('')
+  const titleDebounceRef = useRef(null)
+
+  // AI subject merge suggestions
+  const [mergeSuggestions, setMergeSuggestions] = useState([])
+  const [mergesDismissed, setMergesDismissed] = useState(new Set())
+  const [mergingFrom, setMergingFrom] = useState(null)
+
   // Per-note topic state: noteId → { loading, topics, error, count }
   const [topicState, setTopicState] = useState({})
   // Per-note summary state: noteId → { loading, summary, error }
@@ -34,6 +48,25 @@ export default function Notes() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOrder, setSortOrder] = useState('newest')
   const [subjectFilter, setSubjectFilter] = useState('all')
+
+  const subjectCounts = useMemo(() => {
+    const counts = {}
+    notes.forEach(n => { if (n.subject) counts[n.subject] = (counts[n.subject] || 0) + 1 })
+    return counts
+  }, [notes])
+
+  const activeMergeSuggestions = useMemo(() => {
+    const active = []
+    for (const group of mergeSuggestions) {
+      for (const alias of group.aliases) {
+        const key = `${alias}→${group.canonical}`
+        if (!mergesDismissed.has(key) && alias !== group.canonical && subjectCounts[alias] > 0) {
+          active.push({ alias, canonical: group.canonical })
+        }
+      }
+    }
+    return active
+  }, [mergeSuggestions, mergesDismissed, subjectCounts])
 
   const uniqueSubjects = useMemo(() => {
     const seen = new Set()
@@ -58,6 +91,7 @@ export default function Notes() {
   useEffect(() => {
     fetchNotes()
     api.getSubjectList().then(setSubjectList).catch(() => {})
+    api.suggestMerges().then(setMergeSuggestions).catch(() => {})
   }, [])
 
   async function fetchNotes() {
@@ -71,6 +105,47 @@ export default function Notes() {
       console.error(e)
     } finally {
       setNotesLoading(false)
+    }
+  }
+
+  async function triggerSuggestTitle(content) {
+    if (titleRef.current.trim()) return
+    setSuggestingTitle(true)
+    try {
+      const { title } = await api.suggestTitle(content.slice(0, 500))
+      if (!titleRef.current.trim()) {
+        titleRef.current = title
+        setForm(f => ({ ...f, title }))
+        setTitleAutoGen(true)
+      }
+    } catch (_) {}
+    finally { setSuggestingTitle(false) }
+  }
+
+  async function triggerSuggestUploadTitle(content) {
+    if (uploadTitleRef.current.trim()) return
+    setSuggestingUploadTitle(true)
+    try {
+      const { title } = await api.suggestTitle(content.slice(0, 500))
+      if (!uploadTitleRef.current.trim()) {
+        uploadTitleRef.current = title
+        setUploadForm(f => ({ ...f, title }))
+        setUploadTitleAutoGen(true)
+      }
+    } catch (_) {}
+    finally { setSuggestingUploadTitle(false) }
+  }
+
+  async function handleMerge(fromSubject, toSubject) {
+    setMergingFrom(fromSubject)
+    try {
+      await api.mergeSubject(fromSubject, toSubject)
+      setMergesDismissed(prev => new Set([...prev, `${fromSubject}→${toSubject}`]))
+      await fetchNotes()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setMergingFrom(null)
     }
   }
 
@@ -89,7 +164,11 @@ export default function Notes() {
 
   async function handleCreate(e) {
     e.preventDefault()
-    if (!form.title.trim() || !form.content.trim()) return
+    if (!form.title.trim()) {
+      setCreateError('Please add a title — or paste content and wait for auto-fill.')
+      return
+    }
+    if (!form.content.trim()) return
     setCreating(true)
     setCreateError(null)
     try {
@@ -99,6 +178,8 @@ export default function Notes() {
         subject: form.subject.trim() || null,
       })
       setForm(EMPTY_FORM)
+      titleRef.current = ''
+      setTitleAutoGen(false)
       await fetchNotes()
     } catch (err) {
       setCreateError(err.message)
@@ -111,7 +192,16 @@ export default function Notes() {
     e.preventDefault()
     setDragOver(false)
     const file = e.dataTransfer?.files?.[0]
-    if (file) setUploadForm((f) => ({ ...f, file }))
+    if (!file) return
+    setUploadForm(f => ({ ...f, file }))
+    if (file.name.toLowerCase().endsWith('.txt')) {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        const content = ev.target.result?.slice(0, 500) || ''
+        if (content.trim().length >= 30) triggerSuggestUploadTitle(content)
+      }
+      reader.readAsText(file)
+    }
   }
 
   async function handleUpload(e) {
@@ -125,6 +215,8 @@ export default function Notes() {
         subject: uploadForm.subject.trim() || undefined,
       })
       setUploadForm(EMPTY_UPLOAD)
+      uploadTitleRef.current = ''
+      setUploadTitleAutoGen(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
       await fetchNotes()
     } catch (err) {
@@ -168,7 +260,7 @@ export default function Notes() {
   }
 
   async function handleSummarize(noteId) {
-    if (summaryState[noteId]?.summary) return // already loaded
+    if (summaryState[noteId]?.summary) return
     setSummaryState((prev) => ({ ...prev, [noteId]: { loading: true, summary: null, error: null } }))
     try {
       const result = await api.summarizeNote(noteId)
@@ -179,7 +271,7 @@ export default function Notes() {
   }
 
   async function handleShowTopics(noteId) {
-    if (topicState[noteId]?.topics) return // already loaded
+    if (topicState[noteId]?.topics) return
     setTopicState((prev) => ({ ...prev, [noteId]: { loading: true, topics: null, error: null } }))
     try {
       const topics = await api.getTopics(noteId)
@@ -203,6 +295,52 @@ export default function Notes() {
         <h1 className="text-xl font-semibold text-slate-100">Notes</h1>
         <p className="text-sm text-slate-500 mt-1">Paste study material and extract topics for quizzing</p>
       </div>
+
+      {/* AI subject merge suggestions */}
+      {activeMergeSuggestions.length > 0 && (
+        <div className="mb-6 space-y-2">
+          {activeMergeSuggestions.map(({ alias, canonical }) => {
+            const aliasCount = subjectCounts[alias] || 0
+            const canonicalCount = subjectCounts[canonical] || 0
+            return (
+              <div
+                key={`${alias}→${canonical}`}
+                className="flex items-center justify-between gap-4 rounded-xl px-4 py-3"
+                style={{ background: 'rgba(var(--indigo-500-rgb),0.06)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}
+              >
+                <p className="text-sm text-slate-300">
+                  Merge{' '}
+                  <span className="text-white font-medium">'{alias}'</span>
+                  <span className="text-slate-500"> ({aliasCount} {aliasCount === 1 ? 'note' : 'notes'})</span>
+                  {' '}into{' '}
+                  <span className="text-white font-medium">'{canonical}'</span>
+                  {canonicalCount > 0 && (
+                    <span className="text-slate-500"> ({canonicalCount} {canonicalCount === 1 ? 'note' : 'notes'})</span>
+                  )}
+                  ?
+                </p>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => handleMerge(alias, canonical)}
+                    disabled={mergingFrom === alias}
+                    className="btn-primary text-xs"
+                  >
+                    {mergingFrom === alias
+                      ? <span className="flex items-center gap-1"><Spinner size="sm" /> Merging…</span>
+                      : 'Accept'}
+                  </button>
+                  <button
+                    onClick={() => setMergesDismissed(prev => new Set([...prev, `${alias}→${canonical}`]))}
+                    className="btn-ghost text-xs text-slate-500 hover:text-slate-300"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {normalizeBanner && (
         <div
@@ -244,13 +382,26 @@ export default function Notes() {
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="col-span-2">
-                <label className="label">Title *</label>
+                <label className="label flex items-center gap-2">
+                  Title
+                  {suggestingTitle && (
+                    <span className="text-xs text-slate-500 font-normal flex items-center gap-1">
+                      <Spinner size="sm" /> suggesting…
+                    </span>
+                  )}
+                  {!suggestingTitle && titleAutoGen && (
+                    <span className="text-xs text-slate-500 font-normal">(auto-generated)</span>
+                  )}
+                </label>
                 <input
                   className="input"
                   placeholder="e.g. Chapter 3 — Cell Biology"
                   value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  required
+                  onChange={(e) => {
+                    titleRef.current = e.target.value
+                    setForm(f => ({ ...f, title: e.target.value }))
+                    setTitleAutoGen(false)
+                  }}
                 />
               </div>
               <div>
@@ -271,7 +422,19 @@ export default function Notes() {
                 rows={6}
                 placeholder="Paste your notes, textbook excerpt, or study material here…"
                 value={form.content}
-                onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setForm(f => ({ ...f, content: value }))
+                  clearTimeout(titleDebounceRef.current)
+                  if (value.trim().length >= 30) {
+                    titleDebounceRef.current = setTimeout(() => triggerSuggestTitle(value), 1000)
+                  }
+                }}
+                onBlur={(e) => {
+                  clearTimeout(titleDebounceRef.current)
+                  const value = e.target.value
+                  if (value.trim().length >= 30) triggerSuggestTitle(value)
+                }}
                 required
               />
             </div>
@@ -324,7 +487,16 @@ export default function Notes() {
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
-                  if (file) setUploadForm((f) => ({ ...f, file }))
+                  if (!file) return
+                  setUploadForm(f => ({ ...f, file }))
+                  if (file.name.toLowerCase().endsWith('.txt')) {
+                    const reader = new FileReader()
+                    reader.onload = (ev) => {
+                      const content = ev.target.result?.slice(0, 500) || ''
+                      if (content.trim().length >= 30) triggerSuggestUploadTitle(content)
+                    }
+                    reader.readAsText(file)
+                  }
                 }}
               />
             </div>
@@ -332,12 +504,27 @@ export default function Notes() {
             {/* Optional metadata */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="col-span-2">
-                <label className="label">Title <span className="text-slate-600">(optional — defaults to filename)</span></label>
+                <label className="label flex items-center gap-2">
+                  Title
+                  <span className="text-slate-600 font-normal">(optional — defaults to filename)</span>
+                  {suggestingUploadTitle && (
+                    <span className="text-xs text-slate-500 font-normal flex items-center gap-1">
+                      <Spinner size="sm" /> suggesting…
+                    </span>
+                  )}
+                  {!suggestingUploadTitle && uploadTitleAutoGen && (
+                    <span className="text-xs text-slate-500 font-normal">(auto-generated)</span>
+                  )}
+                </label>
                 <input
                   className="input"
                   placeholder="e.g. Chapter 3 — Cell Biology"
                   value={uploadForm.title}
-                  onChange={(e) => setUploadForm((f) => ({ ...f, title: e.target.value }))}
+                  onChange={(e) => {
+                    uploadTitleRef.current = e.target.value
+                    setUploadForm(f => ({ ...f, title: e.target.value }))
+                    setUploadTitleAutoGen(false)
+                  }}
                 />
               </div>
               <div>
@@ -547,9 +734,7 @@ export default function Notes() {
 
                 {/* Summary */}
                 {ss?.summary && (
-                  <div
-                    className="mt-4 pt-4 border-t border-[#1e1e2e]"
-                  >
+                  <div className="mt-4 pt-4 border-t border-[#1e1e2e]">
                     <p className="text-xs font-medium text-slate-500 mb-2">Summary</p>
                     <div
                       className="rounded-xl p-4"

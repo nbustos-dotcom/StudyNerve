@@ -478,36 +478,48 @@ async def send_message(
 
     learning_profile = await detect_learning_style(db, user_id=current_user.id)
 
-    # Improvement 2: topic-targeted insight retrieval
     msg_keywords = _extract_keywords(message)
     all_insights = await get_insights(db, user_id=current_user.id)
-    stored_insights = (
-        sorted(
+
+    # Only inject insights when the message shares keywords with a topic the student has studied.
+    # Zero overlap means a casual/general question — skip insight injection entirely.
+    insight_topic_words: set[str] = set()
+    for ins in all_insights:
+        if ins.topic_name:
+            insight_topic_words |= _extract_keywords(ins.topic_name)
+    if msg_keywords and insight_topic_words and (msg_keywords & insight_topic_words):
+        stored_insights = sorted(
             all_insights,
             key=lambda ins: _keyword_score(
                 (ins.topic_name or "") + " " + (ins.insight or ""), msg_keywords
             ),
             reverse=True,
         )
-        if msg_keywords
-        else all_insights
-    )
+    else:
+        stored_insights = []
 
     user_ctx = await build_user_context(current_user.id, db)
 
-    # Improvement 5: keyword-matched note injection when no note_id supplied
+    # Keyword-matched note injection when no note_id supplied
     inferred_note_id: int | None = None
     if note_id is None and message:
         _inferred = await _find_relevant_note(current_user.id, message, db)
         if _inferred is not None:
             inferred_note_id = _inferred.id
 
+    # Drop pending_question if the new message shares no keywords with it — student changed topics.
+    effective_pending: str | None = pending_question or None
+    if effective_pending and msg_keywords:
+        pending_words = _extract_keywords(effective_pending)
+        if not (msg_keywords & pending_words):
+            effective_pending = None
+
     system = await _build_system_prompt(
         db, current_user.id, note_id, question_id,
         style_hint, learning_profile, stored_insights,
         user_context=user_ctx,
         mode=mode,
-        pending_question=pending_question or None,
+        pending_question=effective_pending,
         inferred_note_id=inferred_note_id,
     )
 

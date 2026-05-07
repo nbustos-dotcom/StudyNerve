@@ -688,24 +688,37 @@ export default function Chat() {
               {/* Mode toggle */}
               <div className="flex items-center gap-1 mb-2">
                 {[
-                  { id: 'explain',  label: 'Explain'  },
-                  { id: 'socratic', label: 'Socratic'  },
-                  { id: 'practice', label: 'Practice' },
-                ].map(({ id, label }) => (
-                  <button
-                    key={id}
-                    onClick={() => changeTutorMode(id)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 ${
-                      tutorMode === id ? 'text-indigo-300' : 'text-white/30 hover:text-white/60'
-                    }`}
-                    style={
-                      tutorMode === id
-                        ? { background: 'rgba(var(--indigo-500-rgb),0.15)', border: '1px solid rgba(var(--indigo-500-rgb),0.3)' }
-                        : { background: 'transparent', border: '1px solid transparent' }
-                    }
-                  >
-                    {label}
-                  </button>
+                  { id: 'explain',  label: 'Explain',  tip: 'Get clear, direct explanations' },
+                  { id: 'socratic', label: 'Socratic', tip: 'Guided questions to help you discover the answer yourself' },
+                  { id: 'practice', label: 'Practice', tip: 'Explanations followed by a practice problem to try' },
+                ].map(({ id, label, tip }) => (
+                  <div key={id} className="relative group">
+                    <button
+                      onClick={() => changeTutorMode(id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 ${
+                        tutorMode === id ? 'text-indigo-300' : 'text-white/30 hover:text-white/60'
+                      }`}
+                      style={
+                        tutorMode === id
+                          ? { background: 'rgba(var(--indigo-500-rgb),0.15)', border: '1px solid rgba(var(--indigo-500-rgb),0.3)' }
+                          : { background: 'transparent', border: '1px solid transparent' }
+                      }
+                    >
+                      {label}
+                    </button>
+                    <div
+                      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white/75 whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 z-10"
+                      style={{
+                        background: 'rgba(12,12,24,0.96)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        backdropFilter: 'blur(12px)',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+                        transition: 'opacity 150ms ease',
+                      }}
+                    >
+                      {tip}
+                    </div>
+                  </div>
                 ))}
               </div>
 

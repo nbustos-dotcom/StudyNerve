@@ -10,7 +10,6 @@ import Login from './pages/Login'
 import Notes from './pages/Notes'
 import StudyGuide from './pages/StudyGuide'
 import Quiz from './pages/Quiz'
-import Results from './pages/Results'
 import Settings from './pages/Settings'
 import VisionBoard from './pages/VisionBoard'
 import StudyUniverse from './pages/StudyUniverse'
@@ -85,7 +84,6 @@ export default function App() {
           <Route path="notes/:noteId/study-guide" element={<StudyGuide />} />
           <Route path="quiz" element={<Quiz />} />
           <Route path="chat" element={<Chat />} />
-          <Route path="results" element={<Results />} />
           <Route path="flashcards" element={<Flashcards />} />
           <Route path="canvas" element={<Canvas />} />
           <Route path="vision" element={<VisionBoard />} />

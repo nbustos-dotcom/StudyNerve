@@ -692,152 +692,315 @@ function QuestionCountInput({ config, setConfig }) {
 // ── Configure view ────────────────────────────────────────────────────────────
 
 function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error, mode, setMode, savedProgress, onResume, onDismissResume, history, historyLoading, onOpenReview }) {
+  const [tab, setTab] = useState('configure') // 'configure' | 'history'
+  const [topicStats, setTopicStats] = useState(null)
+  const [topicLoading, setTopicLoading] = useState(false)
+  const [topicSortBy, setTopicSortBy] = useState('accuracy')
+  const [topicSortDir, setTopicSortDir] = useState('desc')
+
   const canGenerate = !!config.note_id
+
+  function switchToHistory() {
+    setTab('history')
+    if (topicStats === null) {
+      setTopicLoading(true)
+      api.getTopicStats()
+        .then(setTopicStats)
+        .catch(() => setTopicStats([]))
+        .finally(() => setTopicLoading(false))
+    }
+  }
+
+  function handleTopicSort(col) {
+    if (topicSortBy === col) setTopicSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setTopicSortBy(col); setTopicSortDir('desc') }
+  }
+
+  const sortedTopics = topicStats
+    ? [...topicStats].sort((a, b) => {
+        let av, bv
+        if (topicSortBy === 'accuracy') { av = a.accuracy; bv = b.accuracy }
+        else if (topicSortBy === 'attempts') { av = a.total_attempts; bv = b.total_attempts }
+        else { av = a.topic_name.toLowerCase(); bv = b.topic_name.toLowerCase() }
+        if (av < bv) return topicSortDir === 'asc' ? -1 : 1
+        if (av > bv) return topicSortDir === 'asc' ? 1 : -1
+        return 0
+      })
+    : []
 
   return (
     <div className="p-4 sm:p-8 max-w-xl mx-auto fade-in-up">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-xl font-semibold text-slate-100">Quiz</h1>
         <p className="text-sm text-slate-500 mt-1">Generate questions from your notes with AI</p>
       </div>
 
-      {/* Resume banner */}
-      {savedProgress && (
-        <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl border border-indigo-500/30 bg-indigo-500/8">
-          <svg className="w-4 h-4 text-indigo-400 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM6.5 5.5l4 2.5-4 2.5V5.5z"/>
-          </svg>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-slate-200 font-medium">In-progress quiz found</p>
-            <p className="text-xs text-slate-500">Question {savedProgress.currentIdx + 1} of {savedProgress.questions.length}</p>
-          </div>
-          <button className="btn-primary text-xs px-3 py-1.5" onClick={onResume}>Resume</button>
-          <button className="text-slate-600 hover:text-slate-400 transition-colors ml-1" onClick={onDismissResume} title="Discard">
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round"/>
-            </svg>
-          </button>
-        </div>
-      )}
-
-      {/* Mode toggle */}
-      <div className="pill-tabs mb-4">
-        {[
-          { id: 'standard', label: 'Standard Quiz' },
-          { id: 'adaptive', label: 'Adaptive Quiz' },
-        ].map(({ id, label }) => (
-          <button
-            key={id}
-            onClick={() => setMode(id)}
-            className={`pill-tab${mode === id ? ' active' : ''}`}
-          >
-            {label}
-          </button>
-        ))}
+      {/* Top-level tab bar */}
+      <div className="pill-tabs mb-6">
+        <button onClick={() => setTab('configure')} className={`pill-tab${tab === 'configure' ? ' active' : ''}`}>
+          Configure
+        </button>
+        <button onClick={switchToHistory} className={`pill-tab${tab === 'history' ? ' active' : ''}`}>
+          History
+        </button>
       </div>
 
-      {mode === 'adaptive' && (
-        <div className="flex items-start gap-2 mb-4 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
-          <svg className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 3a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 018 4zm0 8a1 1 0 110-2 1 1 0 010 2z" />
-          </svg>
-          <p className="text-xs text-amber-400/80">
-            Focuses on your weakest topics based on past performance. Falls back to standard if no attempt history exists.
-          </p>
-        </div>
-      )}
+      {/* ── History tab ─────────────────────────────────────────────────────── */}
+      {tab === 'history' && (
+        <div className="fade-in-up">
+          {/* Per-topic accuracy table */}
+          {topicLoading && <div className="flex justify-center py-10"><Spinner /></div>}
 
-      <div className="card p-6 space-y-6">
-        <div>
-          <label className="label">Note *</label>
-          <select
-            className="input"
-            value={config.note_id}
-            onChange={(e) => setConfig((c) => ({ ...c, note_id: e.target.value }))}
-          >
-            <option value="">Select a note…</option>
-            {notes.map((n) => (
-              <option key={n.id} value={n.id}>{n.title}{n.subject ? ` — ${n.subject}` : ''}</option>
-            ))}
-          </select>
-          {notes.length === 0 && (
-            <p className="text-xs text-white/30 mt-1.5">No notes yet — add one on the Notes page first.</p>
+          {!topicLoading && topicStats !== null && topicStats.length === 0 && (
+            <div className="card p-10 flex flex-col items-center gap-3 text-center mb-8">
+              <svg className="w-8 h-8 text-white/10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+              </svg>
+              <p className="text-sm text-white/30">Complete a quiz to see per-topic results here.</p>
+            </div>
           )}
-        </div>
 
-        <QuestionCountInput config={config} setConfig={setConfig} />
+          {!topicLoading && sortedTopics.length > 0 && (
+            <>
+              <h2 className="text-sm font-medium text-slate-300 mb-3">Per-Topic Accuracy</h2>
+              <div className="card-solid overflow-hidden mb-8">
+                <table className="w-full">
+                  <thead className="border-b border-[#1e1e2e]">
+                    <tr>
+                      <th
+                        className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-slate-300 select-none transition-colors"
+                        onClick={() => handleTopicSort('name')}
+                      >
+                        Topic{' '}
+                        {topicSortBy !== 'name' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                      </th>
+                      <th
+                        className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-slate-300 select-none transition-colors"
+                        onClick={() => handleTopicSort('attempts')}
+                      >
+                        Attempts{' '}
+                        {topicSortBy !== 'attempts' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                      </th>
+                      <th className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4">Correct</th>
+                      <th
+                        className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 min-w-[140px] cursor-pointer hover:text-slate-300 select-none transition-colors"
+                        onClick={() => handleTopicSort('accuracy')}
+                      >
+                        Accuracy{' '}
+                        {topicSortBy !== 'accuracy' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#1e1e2e]">
+                    {sortedTopics.map((t) => {
+                      const pct = Math.round(t.accuracy * 100)
+                      const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
+                      const textColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
+                      return (
+                        <tr key={t.topic_id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3 px-4 text-sm text-slate-200">{t.topic_name}</td>
+                          <td className="py-3 px-4 text-right text-sm text-slate-400 tabular-nums">{t.total_attempts}</td>
+                          <td className="py-3 px-4 text-right text-sm text-slate-400 tabular-nums">{t.correct_attempts}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full bar-animate ${barColor}`} style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className={`text-xs font-medium tabular-nums w-8 text-right ${textColor}`}>{pct}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                <div className="px-4 py-3 border-t border-[#1e1e2e] flex justify-between text-xs text-slate-600">
+                  <span>{topicStats.length} topic{topicStats.length !== 1 ? 's' : ''}</span>
+                  <span>
+                    {topicStats.reduce((s, t) => s + t.total_attempts, 0)} total attempts ·{' '}
+                    {topicStats.reduce((s, t) => s + t.correct_attempts, 0)} correct
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
 
-        {mode === 'standard' && (
-          <div>
-            <label className="label">Question types</label>
-            <div className="flex gap-2">
-              {[
-                { id: 'mcq', label: 'Multiple choice' },
-                { id: 'short_answer', label: 'Short answer' },
-              ].map(({ id, label }) => {
-                const active = config.question_types.includes(id)
+          {/* Past individual quizzes */}
+          <h2 className="text-sm font-medium text-slate-400 mb-3">Past Quizzes</h2>
+          {historyLoading ? (
+            <div className="flex justify-center py-6"><Spinner /></div>
+          ) : history.length === 0 ? (
+            <p className="text-xs text-slate-600 text-center py-4">No completed quizzes yet — finish one to see it here.</p>
+          ) : (
+            <div className="space-y-2">
+              {history.map((item) => {
+                const pct = Math.round((item.score / item.total_questions) * 100)
+                const color = scoreColor(pct)
                 return (
                   <button
-                    key={id}
-                    onClick={() => toggleType(id)}
-                    className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${
-                      active
-                        ? 'bg-indigo-500/15 border-indigo-500/50 text-indigo-300'
-                        : 'border-[#1e1e2e] text-slate-400 hover:border-slate-500 hover:text-slate-200'
-                    }`}
+                    key={item.id}
+                    onClick={() => onOpenReview(item)}
+                    className="w-full text-left card-solid p-4 flex items-center gap-4 hover:border-white/20 transition-colors group"
                   >
-                    {label}
+                    <div className={`text-2xl font-bold tabular-nums w-14 flex-shrink-0 ${color}`}>{pct}%</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-slate-200 truncate">{item.note_title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{item.score}/{item.total_questions} correct · {formatDate(item.completed_at)}</p>
+                    </div>
+                    <span className="text-xs text-indigo-400 group-hover:text-indigo-300 transition-colors flex-shrink-0 font-medium">Review</span>
+                    <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                 )
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      )}
 
-        {error && (
-          <div className="text-sm text-red-400 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
-            {error}
-          </div>
-        )}
+      {/* ── Configure tab ───────────────────────────────────────────────────── */}
+      {tab === 'configure' && (
+        <>
+          {/* Resume banner */}
+          {savedProgress && (
+            <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl border border-indigo-500/30 bg-indigo-500/8">
+              <svg className="w-4 h-4 text-indigo-400 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM6.5 5.5l4 2.5-4 2.5V5.5z"/>
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-slate-200 font-medium">In-progress quiz found</p>
+                <p className="text-xs text-slate-500">Question {savedProgress.currentIdx + 1} of {savedProgress.questions.length}</p>
+              </div>
+              <button className="btn-primary text-xs px-3 py-1.5" onClick={onResume}>Resume</button>
+              <button className="text-slate-600 hover:text-slate-400 transition-colors ml-1" onClick={onDismissResume} title="Discard">
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+          )}
 
-        <button className="btn-primary w-full py-2.5" disabled={!canGenerate} onClick={onGenerate}>
-          {mode === 'adaptive' ? 'Generate Adaptive Quiz' : 'Generate Quiz'}
-        </button>
-      </div>
-
-      {/* Past Quizzes */}
-      <div className="mt-10">
-        <h2 className="text-sm font-medium text-slate-400 mb-3">Past Quizzes</h2>
-        {historyLoading ? (
-          <div className="flex justify-center py-6"><Spinner /></div>
-        ) : history.length === 0 ? (
-          <p className="text-xs text-slate-600 text-center py-4">No completed quizzes yet — finish one above to see it here.</p>
-        ) : (
-          <div className="space-y-2">
-            {history.map((item) => {
-              const pct = Math.round((item.score / item.total_questions) * 100)
-              const color = scoreColor(pct)
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onOpenReview(item)}
-                  className="w-full text-left card-solid p-4 flex items-center gap-4 hover:border-white/20 transition-colors group"
-                >
-                  <div className={`text-2xl font-bold tabular-nums w-14 flex-shrink-0 ${color}`}>{pct}%</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-200 truncate">{item.note_title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{item.score}/{item.total_questions} correct · {formatDate(item.completed_at)}</p>
-                  </div>
-                  <span className="text-xs text-indigo-400 group-hover:text-indigo-300 transition-colors flex-shrink-0 font-medium">Review</span>
-                  <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-              )
-            })}
+          {/* Mode toggle */}
+          <div className="pill-tabs mb-4">
+            {[
+              { id: 'standard', label: 'Standard Quiz' },
+              { id: 'adaptive', label: 'Adaptive Quiz' },
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setMode(id)}
+                className={`pill-tab${mode === id ? ' active' : ''}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-        )}
-      </div>
+
+          {mode === 'adaptive' && (
+            <div className="flex items-start gap-2 mb-4 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+              <svg className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 3a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 018 4zm0 8a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+              <p className="text-xs text-amber-400/80">
+                Focuses on your weakest topics based on past performance. Falls back to standard if no attempt history exists.
+              </p>
+            </div>
+          )}
+
+          <div className="card p-6 space-y-6">
+            <div>
+              <label className="label">Note *</label>
+              <select
+                className="input"
+                value={config.note_id}
+                onChange={(e) => setConfig((c) => ({ ...c, note_id: e.target.value }))}
+              >
+                <option value="">Select a note…</option>
+                {notes.map((n) => (
+                  <option key={n.id} value={n.id}>{n.title}{n.subject ? ` — ${n.subject}` : ''}</option>
+                ))}
+              </select>
+              {notes.length === 0 && (
+                <p className="text-xs text-white/30 mt-1.5">No notes yet — add one on the Notes page first.</p>
+              )}
+            </div>
+
+            <QuestionCountInput config={config} setConfig={setConfig} />
+
+            {mode === 'standard' && (
+              <div>
+                <label className="label">Question types</label>
+                <div className="flex gap-2">
+                  {[
+                    { id: 'mcq', label: 'Multiple choice' },
+                    { id: 'short_answer', label: 'Short answer' },
+                  ].map(({ id, label }) => {
+                    const active = config.question_types.includes(id)
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => toggleType(id)}
+                        className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${
+                          active
+                            ? 'bg-indigo-500/15 border-indigo-500/50 text-indigo-300'
+                            : 'border-[#1e1e2e] text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="text-sm text-red-400 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
+                {error}
+              </div>
+            )}
+
+            <button className="btn-primary w-full py-2.5" disabled={!canGenerate} onClick={onGenerate}>
+              {mode === 'adaptive' ? 'Generate Adaptive Quiz' : 'Generate Quiz'}
+            </button>
+          </div>
+
+          {/* Past Quizzes */}
+          <div className="mt-10">
+            <h2 className="text-sm font-medium text-slate-400 mb-3">Past Quizzes</h2>
+            {historyLoading ? (
+              <div className="flex justify-center py-6"><Spinner /></div>
+            ) : history.length === 0 ? (
+              <p className="text-xs text-slate-600 text-center py-4">No completed quizzes yet — finish one above to see it here.</p>
+            ) : (
+              <div className="space-y-2">
+                {history.map((item) => {
+                  const pct = Math.round((item.score / item.total_questions) * 100)
+                  const color = scoreColor(pct)
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => onOpenReview(item)}
+                      className="w-full text-left card-solid p-4 flex items-center gap-4 hover:border-white/20 transition-colors group"
+                    >
+                      <div className={`text-2xl font-bold tabular-nums w-14 flex-shrink-0 ${color}`}>{pct}%</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-200 truncate">{item.note_title}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{item.score}/{item.total_questions} correct · {formatDate(item.completed_at)}</p>
+                      </div>
+                      <span className="text-xs text-indigo-400 group-hover:text-indigo-300 transition-colors flex-shrink-0 font-medium">Review</span>
+                      <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

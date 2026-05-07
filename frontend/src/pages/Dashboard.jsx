@@ -166,6 +166,11 @@ export default function Dashboard() {
   const [gaps, setGaps] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [topicExpanded, setTopicExpanded] = useState(false)
+  const [topicStats, setTopicStats] = useState(null)
+  const [topicLoading, setTopicLoading] = useState(false)
+  const [topicSortBy, setTopicSortBy] = useState('accuracy')
+  const [topicSortDir, setTopicSortDir] = useState('desc')
 
   useEffect(() => {
     Promise.all([
@@ -176,6 +181,34 @@ export default function Dashboard() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
+
+  function toggleTopics() {
+    if (!topicExpanded && topicStats === null) {
+      setTopicLoading(true)
+      api.getTopicStats()
+        .then(setTopicStats)
+        .catch(() => setTopicStats([]))
+        .finally(() => setTopicLoading(false))
+    }
+    setTopicExpanded((v) => !v)
+  }
+
+  function handleTopicSort(col) {
+    if (topicSortBy === col) setTopicSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setTopicSortBy(col); setTopicSortDir('desc') }
+  }
+
+  const sortedTopicStats = topicStats
+    ? [...topicStats].sort((a, b) => {
+        let av, bv
+        if (topicSortBy === 'accuracy') { av = a.accuracy; bv = b.accuracy }
+        else if (topicSortBy === 'attempts') { av = a.total_attempts; bv = b.total_attempts }
+        else { av = a.topic_name.toLowerCase(); bv = b.topic_name.toLowerCase() }
+        if (av < bv) return topicSortDir === 'asc' ? -1 : 1
+        if (av > bv) return topicSortDir === 'asc' ? 1 : -1
+        return 0
+      })
+    : []
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl mx-auto fade-in-up">
@@ -261,6 +294,87 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+
+          {/* All Topics — collapsible, lazy-loaded */}
+          <div className="mt-6 mb-2">
+            <button
+              onClick={toggleTopics}
+              className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              {topicExpanded ? 'Hide Topics ▴' : 'View All Topics ▾'}
+            </button>
+            {topicExpanded && (
+              <div className="mt-4 fade-in-up">
+                {topicLoading && (
+                  <div className="flex justify-center py-8"><Spinner small /></div>
+                )}
+                {!topicLoading && topicStats !== null && sortedTopicStats.length === 0 && (
+                  <p className="text-sm text-white/30 py-4 text-center">No quiz attempts yet.</p>
+                )}
+                {!topicLoading && sortedTopicStats.length > 0 && (
+                  <div className="card overflow-hidden">
+                    <table className="w-full">
+                      <thead className="border-b border-[#1e1e2e]">
+                        <tr>
+                          <th
+                            className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-slate-300 select-none transition-colors"
+                            onClick={() => handleTopicSort('name')}
+                          >
+                            Topic{' '}
+                            {topicSortBy !== 'name' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                          </th>
+                          <th
+                            className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-slate-300 select-none transition-colors"
+                            onClick={() => handleTopicSort('attempts')}
+                          >
+                            Attempts{' '}
+                            {topicSortBy !== 'attempts' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                          </th>
+                          <th className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4">Correct</th>
+                          <th
+                            className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 min-w-[180px] cursor-pointer hover:text-slate-300 select-none transition-colors"
+                            onClick={() => handleTopicSort('accuracy')}
+                          >
+                            Accuracy{' '}
+                            {topicSortBy !== 'accuracy' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#1e1e2e]">
+                        {sortedTopicStats.map((t) => {
+                          const pct = Math.round(t.accuracy * 100)
+                          const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
+                          const textColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
+                          return (
+                            <tr key={t.topic_id} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="py-3 px-4 text-sm text-slate-200">{t.topic_name}</td>
+                              <td className="py-3 px-4 text-right text-sm text-slate-400 tabular-nums">{t.total_attempts}</td>
+                              <td className="py-3 px-4 text-right text-sm text-slate-400 tabular-nums">{t.correct_attempts}</td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full bar-animate ${barColor}`} style={{ width: `${pct}%` }} />
+                                  </div>
+                                  <span className={`text-xs font-medium tabular-nums w-8 text-right ${textColor}`}>{pct}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                    <div className="px-4 py-3 border-t border-[#1e1e2e] flex justify-between text-xs text-slate-600">
+                      <span>{topicStats.length} topic{topicStats.length !== 1 ? 's' : ''}</span>
+                      <span>
+                        {topicStats.reduce((s, t) => s + t.total_attempts, 0)} total attempts ·{' '}
+                        {topicStats.reduce((s, t) => s + t.correct_attempts, 0)} correct
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {stats.total_notes === 0 && (
             <div className="card p-10 flex flex-col items-center gap-4 text-center">

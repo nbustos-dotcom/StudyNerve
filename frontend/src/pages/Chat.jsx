@@ -307,6 +307,86 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, on
   )
 }
 
+// ── Study nudge (session-start personalized suggestion) ──────────────────────
+
+function StudyNudge({ onDismiss, onSuggest }) {
+  const [topGap, setTopGap] = useState(null)
+  const [urgentDeadline, setUrgentDeadline] = useState(null)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    Promise.allSettled([
+      api.getGaps(),
+      api.canvasUpcoming(7),
+    ]).then(([gapsRes, deadlineRes]) => {
+      const gaps = gapsRes.status === 'fulfilled' ? (gapsRes.value ?? []) : []
+      const upcoming = deadlineRes.status === 'fulfilled' ? (deadlineRes.value ?? []) : []
+      setTopGap(gaps[0] ?? null)
+      const soon = upcoming.find((a) => {
+        if (!a.due_at) return false
+        const diff = new Date(a.due_at) - Date.now()
+        return diff > 0 && diff < 3 * 86400000
+      })
+      setUrgentDeadline(soon ?? null)
+      setLoaded(true)
+    })
+  }, [])
+
+  if (!loaded || (!topGap && !urgentDeadline)) return null
+
+  const pct = topGap ? Math.round(topGap.accuracy * 100) : null
+  const pctColor = pct < 40 ? 'text-red-400' : pct < 70 ? 'text-amber-400' : 'text-emerald-400'
+
+  let suggestion = ''
+  if (topGap && urgentDeadline) {
+    suggestion = `Help me with ${topGap.topic_name} — it's my weakest area (${pct}%) and I have "${urgentDeadline.name}" due soon.`
+  } else if (topGap) {
+    suggestion = `Help me improve on ${topGap.topic_name} — that's my weakest area right now.`
+  } else {
+    suggestion = `I have "${urgentDeadline.name}" due soon — can you help me prepare?`
+  }
+
+  return (
+    <div
+      className="mb-5 rounded-xl px-4 py-3.5 flex gap-3 fade-in-up"
+      style={{
+        background: 'rgba(var(--indigo-500-rgb),0.07)',
+        border: '1px solid rgba(var(--indigo-500-rgb),0.2)',
+      }}
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-medium text-indigo-300/60 uppercase tracking-wider mb-2">Suggested Focus</p>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          {topGap && (
+            <span className="text-sm text-slate-300">
+              Weakest topic: <span className={`font-semibold ${pctColor}`}>{topGap.topic_name}</span>
+              <span className="text-slate-500 ml-1 text-xs">({pct}%)</span>
+            </span>
+          )}
+          {urgentDeadline && (
+            <span className="text-sm text-slate-300">
+              Due soon: <span className="font-semibold text-amber-300">{urgentDeadline.name}</span>
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => onSuggest(suggestion)}
+          className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+        >
+          Start here →
+        </button>
+      </div>
+      <button
+        onClick={onDismiss}
+        className="flex-shrink-0 text-white/20 hover:text-white/50 transition-colors text-lg leading-none mt-0.5"
+        aria-label="Dismiss"
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Chat() {
@@ -321,6 +401,9 @@ export default function Chat() {
   const [sessions, setSessions] = useState([])
   const [showSidebar, setShowSidebar] = useState(false)
   const [attachedFile, setAttachedFile] = useState(null) // { file, name, previewUrl, isImage }
+  const [tutorMode, setTutorMode] = useState(() => localStorage.getItem('tutor_mode') || 'explain')
+  const [pendingQuestion, setPendingQuestion] = useState(null)
+  const [nudgeDismissed, setNudgeDismissed] = useState(false)
 
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
@@ -349,6 +432,7 @@ export default function Chat() {
     if (sessionIdRef.current && sessionIdRef.current !== sid) {
       api.endChatSession(sessionIdRef.current).catch(() => {})
     }
+    setPendingQuestion(null)
     try {
       const history = await api.chatHistory(sid)
       setMessages(history.map((m) => ({ role: m.role, content: m.content, fileName: m.file_name ?? null })))
@@ -379,6 +463,8 @@ export default function Chat() {
     setMessages([])
     sessionIdRef.current = null
     setSessionId(null)
+    setPendingQuestion(null)
+    setNudgeDismissed(false)
     setTimeout(() => inputRef.current?.focus(), 50)
   }
 
@@ -430,16 +516,21 @@ export default function Chat() {
     if (fileInputRef.current) fileInputRef.current.value = ''
     setIsTyping(true)
 
+    const priorPending = pendingQuestion
+    setPendingQuestion(null)
     try {
       const res = await api.chatSend({
         message: text || '',
         session_id: sessionIdRef.current ?? undefined,
         question_id: questionId ?? undefined,
         file: sendFile?.file ?? undefined,
+        mode: tutorMode,
+        pending_question: priorPending ?? undefined,
       })
       sessionIdRef.current = res.session_id
       setSessionId(res.session_id)
       setMessages((prev) => [...prev, { role: 'assistant', content: res.response }])
+      setPendingQuestion(extractPendingQuestion(res.response))
       fetchSessions()
     } catch (e) {
       setMessages((prev) => [
@@ -479,6 +570,19 @@ export default function Chat() {
       e.preventDefault()
       doSend(input)
     }
+  }
+
+  function changeTutorMode(m) {
+    setTutorMode(m)
+    localStorage.setItem('tutor_mode', m)
+  }
+
+  function extractPendingQuestion(text) {
+    if (!text) return null
+    const clean = text.replace(/\n+/g, ' ')
+    const matches = clean.match(/[^.!?]*\?/g)
+    if (!matches || matches.length === 0) return null
+    return matches[matches.length - 1].trim()
   }
 
   const canSend = (input.trim().length > 0 || attachedFile != null) && !isTyping
@@ -549,7 +653,20 @@ export default function Chat() {
           {/* Messages area */}
           <div className="flex-1 overflow-y-auto px-4 py-6">
             <div className="max-w-2xl mx-auto">
-              {showWelcome && <WelcomeMessage />}
+              {showWelcome && (
+                <>
+                  {!nudgeDismissed && (
+                    <StudyNudge
+                      onDismiss={() => setNudgeDismissed(true)}
+                      onSuggest={(text) => {
+                        setInput(text)
+                        setTimeout(() => inputRef.current?.focus(), 50)
+                      }}
+                    />
+                  )}
+                  <WelcomeMessage />
+                </>
+              )}
 
               {messages.map((msg, i) => (
                 <MessageBubble key={i} message={msg} />
@@ -567,6 +684,30 @@ export default function Chat() {
             style={{ background: 'rgba(10,10,26,0.6)', backdropFilter: 'blur(24px)' }}
           >
             <div className="max-w-2xl mx-auto">
+
+              {/* Mode toggle */}
+              <div className="flex items-center gap-1 mb-2">
+                {[
+                  { id: 'explain',  label: 'Explain'  },
+                  { id: 'socratic', label: 'Socratic'  },
+                  { id: 'practice', label: 'Practice' },
+                ].map(({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => changeTutorMode(id)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 ${
+                      tutorMode === id ? 'text-indigo-300' : 'text-white/30 hover:text-white/60'
+                    }`}
+                    style={
+                      tutorMode === id
+                        ? { background: 'rgba(var(--indigo-500-rgb),0.15)', border: '1px solid rgba(var(--indigo-500-rgb),0.3)' }
+                        : { background: 'transparent', border: '1px solid transparent' }
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
 
               {/* File preview chip */}
               {attachedFile && (

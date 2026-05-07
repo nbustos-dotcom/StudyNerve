@@ -130,6 +130,49 @@ def _detect_style(user_messages: list[str]) -> str:
     )
 
 
+# ── Keyword helpers (insight filtering + note search) ────────────────────────
+
+_STOP_WORDS = {
+    "the", "and", "for", "are", "but", "not", "you", "all", "can", "has", "was",
+    "her", "they", "this", "that", "with", "have", "from", "what", "been", "which",
+    "when", "how", "why", "who", "did", "does", "will", "just", "like", "also",
+    "into", "some", "more", "than", "then", "them", "your", "its", "about",
+}
+
+
+def _extract_keywords(message: str) -> set[str]:
+    words = re.findall(r'\b[a-zA-Z]{4,}\b', message.lower())
+    return {w for w in words if w not in _STOP_WORDS}
+
+
+def _keyword_score(text: str, keywords: set[str]) -> int:
+    if not text or not keywords:
+        return 0
+    text_lower = text.lower()
+    return sum(1 for kw in keywords if kw in text_lower)
+
+
+async def _find_relevant_note(user_id: int, message: str, db: AsyncSession):
+    """Return the user's most keyword-relevant note, or None if score < 2."""
+    keywords = _extract_keywords(message)
+    if not keywords:
+        return None
+    from sqlalchemy import select as _select
+    result = await db.execute(
+        _select(Note)
+        .where(Note.user_id == user_id)
+        .order_by(Note.updated_at.desc())
+        .limit(20)
+    )
+    notes = result.scalars().all()
+    best, best_score = None, 0
+    for note in notes:
+        score = _keyword_score(note.title or "", keywords) * 3 + _keyword_score(note.content or "", keywords)
+        if score > best_score:
+            best_score, best = score, note
+    return best if best_score >= 2 else None
+
+
 # ── System prompt builder ─────────────────────────────────────────────────────
 
 async def _build_system_prompt(
@@ -141,6 +184,9 @@ async def _build_system_prompt(
     learning_profile: LearningProfile,
     insights: list[StudentInsight],
     user_context: str = "",
+    mode: str = "explain",
+    pending_question: str | None = None,
+    inferred_note_id: int | None = None,
 ) -> str:
     lines: list[str] = [
         "You are StudyNerve AI. You talk like a real person, not an AI. No corporate tone. "
@@ -276,12 +322,18 @@ async def _build_system_prompt(
             )
         lines.append("")
 
-    if note_id is not None:
-        print(f"[query] note fetch: note_id={note_id} user_id={user_id}", flush=True)
-        note = await db.get(Note, note_id)
+    effective_note_id = note_id if note_id is not None else inferred_note_id
+    if effective_note_id is not None:
+        print(f"[query] note fetch: note_id={effective_note_id} user_id={user_id}", flush=True)
+        note = await db.get(Note, effective_note_id)
         if note and note.user_id == user_id:
             print(f"[query] note fetch: OK — note.user_id={note.user_id} matches", flush=True)
-            lines.append(f"## Their study material — {note.title}:")
+            label = (
+                "Their study material"
+                if note_id is not None
+                else "Relevant note (matched from their question — use if applicable)"
+            )
+            lines.append(f"## {label} — {note.title}:")
             content = note.content
             if len(content) > _NOTE_CONTENT_LIMIT:
                 content = content[:_NOTE_CONTENT_LIMIT] + "\n[…content truncated…]"
@@ -317,6 +369,37 @@ async def _build_system_prompt(
         lines.append(user_context)
         lines.append("")
 
+    if pending_question:
+        lines += [
+            "## Open question from your last response:",
+            f'You previously asked: "{pending_question}"',
+            "Check if the student's new message answers this. If yes — acknowledge it briefly "
+            "before continuing. If they ignored it and changed topic — note it in one short "
+            "sentence ('You didn\\'t answer yet — [restate question briefly]?') then follow "
+            "their new direction without belaboring it.",
+            "",
+        ]
+
+    if mode == "socratic":
+        lines += [
+            "## TUTORING MODE: SOCRATIC",
+            "Do NOT give the answer directly. Ask 2-3 targeted questions that scaffold the "
+            "student toward discovering it themselves. If they're still stuck after two "
+            "exchanges, give one concrete hint — not the full answer. Only reveal the answer "
+            "after 3 genuine attempts.",
+            "",
+        ]
+    elif mode == "practice":
+        lines += [
+            "## TUTORING MODE: PRACTICE",
+            "After your explanation (kept brief), generate exactly ONE practice problem "
+            "directly related to what was discussed. Format it clearly: "
+            "'**Practice:** [problem here]'. Wait for their attempt before evaluating. "
+            "If wrong, explain the error and offer a simpler variation. If correct, briefly "
+            "confirm and give a harder variation.",
+            "",
+        ]
+
     lines += [
         "EVERY SINGLE RESPONSE MUST:",
         "- Start with a direct answer to what was asked. No preamble.",
@@ -345,6 +428,8 @@ async def send_message(
     note_id: Optional[int] = Form(default=None),
     question_id: Optional[int] = Form(default=None),
     file: Optional[UploadFile] = File(default=None),
+    mode: str = Form(default="explain"),
+    pending_question: Optional[str] = Form(default=None),
 ):
     print(
         f"[send_message] content-type={request.headers.get('content-type', 'MISSING')} "
@@ -384,13 +469,38 @@ async def send_message(
     style_hint = _detect_style(recent_user_msgs)
 
     learning_profile = await detect_learning_style(db, user_id=current_user.id)
-    stored_insights = await get_insights(db, user_id=current_user.id)
+
+    # Improvement 2: topic-targeted insight retrieval
+    msg_keywords = _extract_keywords(message)
+    all_insights = await get_insights(db, user_id=current_user.id)
+    stored_insights = (
+        sorted(
+            all_insights,
+            key=lambda ins: _keyword_score(
+                (ins.topic_name or "") + " " + (ins.insight or ""), msg_keywords
+            ),
+            reverse=True,
+        )
+        if msg_keywords
+        else all_insights
+    )
+
     user_ctx = await build_user_context(current_user.id, db)
+
+    # Improvement 5: keyword-matched note injection when no note_id supplied
+    inferred_note_id: int | None = None
+    if note_id is None and message:
+        _inferred = await _find_relevant_note(current_user.id, message, db)
+        if _inferred is not None:
+            inferred_note_id = _inferred.id
 
     system = await _build_system_prompt(
         db, current_user.id, note_id, question_id,
         style_hint, learning_profile, stored_insights,
         user_context=user_ctx,
+        mode=mode,
+        pending_question=pending_question or None,
+        inferred_note_id=inferred_note_id,
     )
 
     if file_text:

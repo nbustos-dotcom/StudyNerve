@@ -268,13 +268,15 @@ export const api = {
    * @param {{ message: string, session_id?: string, note_id?: number, question_id?: number, file?: File }} data
    * @returns {Promise<{ session_id: string, response: string, role: string, file_name?: string }>}
    */
-  chatSend: ({ message, session_id, note_id, question_id, file } = {}) => {
+  chatSend: ({ message, session_id, note_id, question_id, file, mode, pending_question } = {}) => {
     const fd = new FormData()
     fd.append('message', message)
     if (session_id) fd.append('session_id', session_id)
     if (note_id != null) fd.append('note_id', String(note_id))
     if (question_id != null) fd.append('question_id', String(question_id))
     if (file) fd.append('file', file)
+    if (mode) fd.append('mode', mode)
+    if (pending_question) fd.append('pending_question', pending_question)
     return reqMultipart('POST', '/chat/send', fd)
   },
 

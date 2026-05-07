@@ -134,7 +134,16 @@ async def generate_quiz(
     for q in saved:
         await db.refresh(q)
 
-    return saved
+    return [
+        QuestionResponse(
+            id=q.id, topic_id=q.topic_id, topic_name=topic.name,
+            note_id=q.note_id, type=q.type, content=q.content,
+            options=q.options, correct_answer=q.correct_answer,
+            explanation=q.explanation, difficulty=q.difficulty,
+            created_at=q.created_at,
+        )
+        for q in saved
+    ]
 
 
 # ── Answer submission ─────────────────────────────────────────────────────────
@@ -431,7 +440,16 @@ async def generate_adaptive_quiz(
         await db.flush()
         for q in saved:
             await db.refresh(q)
-        return saved
+        return [
+            QuestionResponse(
+                id=q.id, topic_id=q.topic_id, topic_name=topic.name,
+                note_id=q.note_id, type=q.type, content=q.content,
+                options=q.options, correct_answer=q.correct_answer,
+                explanation=q.explanation, difficulty=q.difficulty,
+                created_at=q.created_at,
+            )
+            for q in saved
+        ]
 
     weakest = note_gaps[:3]
     total_gap = sum(g.gap_score for g in weakest) or 1.0
@@ -441,9 +459,9 @@ async def generate_adaptive_quiz(
     topics_result = await db.execute(select(Topic).where(Topic.id.in_(topic_ids)))
     topic_map: dict[int, Topic] = {t.id: t for t in topics_result.scalars().all()}
 
-    saved: list[Question] = []
+    saved_with_topics: list[tuple[Question, str]] = []
     for i, gap in enumerate(weakest):
-        remaining_budget = body.count - len(saved)
+        remaining_budget = body.count - len(saved_with_topics)
         if remaining_budget <= 0:
             break
 
@@ -456,6 +474,9 @@ async def generate_adaptive_quiz(
         topic = topic_map.get(gap.topic_id)
         if topic is None:
             continue
+
+        # Difficulty ceiling based on current accuracy: easier questions for weaker topics
+        difficulty = 2 if gap.accuracy < 0.4 else (3 if gap.accuracy < 0.7 else 4)
 
         try:
             llm_result = await generate_questions(
@@ -481,18 +502,27 @@ async def generate_adaptive_quiz(
                 options=json.dumps(options) if options else None,
                 correct_answer=str(q_data.get("correct_answer", "")),
                 explanation=q_data.get("explanation"),
-                difficulty=int(q_data.get("difficulty", 3)),
+                difficulty=difficulty,
             )
             db.add(db_question)
-            saved.append(db_question)
+            saved_with_topics.append((db_question, topic.name))
 
-    if not saved:
+    if not saved_with_topics:
         raise HTTPException(status_code=502, detail="Failed to generate adaptive questions")
 
     await db.flush()
-    for q in saved:
+    for q, _ in saved_with_topics:
         await db.refresh(q)
-    return saved
+    return [
+        QuestionResponse(
+            id=q.id, topic_id=q.topic_id, topic_name=tname,
+            note_id=q.note_id, type=q.type, content=q.content,
+            options=q.options, correct_answer=q.correct_answer,
+            explanation=q.explanation, difficulty=q.difficulty,
+            created_at=q.created_at,
+        )
+        for q, tname in saved_with_topics
+    ]
 
 
 # ── Quiz history ──────────────────────────────────────────────────────────────

@@ -80,6 +80,7 @@ class QuizGenerateRequest(BaseModel):
 class QuestionResponse(BaseModel):
     id: int
     topic_id: int
+    topic_name: Optional[str] = None
     note_id: int
     type: str
     content: str

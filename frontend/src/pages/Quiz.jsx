@@ -35,6 +35,13 @@ function scoreColor(pct) {
   return pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
 }
 
+function timeColor(secs) {
+  if (secs == null) return 'text-slate-600'
+  if (secs < 20) return 'text-emerald-400'
+  if (secs < 60) return 'text-amber-400'
+  return 'text-red-400'
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 const PHASES = { CONFIGURE: 'configure', GENERATING: 'generating', ACTIVE: 'active', SUMMARY: 'summary', REVIEW: 'review' }
@@ -73,6 +80,7 @@ export default function Quiz() {
   const [lastQuizId, setLastQuizId] = useState(null)
   const [flaggedQuestions, setFlaggedQuestions] = useState(new Set())
   const [flagging, setFlagging] = useState(null)
+  const [streak, setStreak] = useState(0)
 
   useEffect(() => {
     api.getNotes().then(setNotes).catch(console.error)
@@ -91,6 +99,41 @@ export default function Quiz() {
       localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify({ questions, currentIdx, results, sessionId }))
     }
   }, [phase, currentIdx, results, questions, sessionId])
+
+  // Keyboard shortcuts during active quiz
+  useEffect(() => {
+    if (phase !== PHASES.ACTIVE) return
+    function onKey(e) {
+      const question = questions[currentIdx]
+      if (!question) return
+      const isMcq = question.type === 'mcq'
+      const isAnswered = currentResult !== null
+      const opts = parseOptions(question.options)
+
+      if (isAnswered) {
+        if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          handleNext()
+        }
+        return
+      }
+      if (submitting) return
+
+      if (isMcq && opts) {
+        const optKeys = Object.keys(opts)
+        const map = { a: 0, b: 1, c: 2, d: 3, '1': 0, '2': 1, '3': 2, '4': 3 }
+        const idx = map[e.key.toLowerCase()] ?? map[e.key]
+        if (idx != null && idx < optKeys.length) {
+          e.preventDefault()
+          const key = optKeys[idx]
+          setSelectedAnswer(key)
+          submitAnswer(key)
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [phase, questions, currentIdx, currentResult, submitting, results]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleType(type) {
     setGenerateError(null)
@@ -175,7 +218,8 @@ export default function Quiz() {
         time_taken_seconds: timeTaken,
       })
       setCurrentResult(result)
-      setResults((prev) => [...prev, { question: questions[currentIdx], result, answer }])
+      setResults((prev) => [...prev, { question: questions[currentIdx], result, answer, timeTaken }])
+      setStreak((prev) => (result.is_correct ? prev + 1 : 0))
     } catch (e) {
       console.error('Submit failed:', e)
     } finally {
@@ -266,6 +310,46 @@ export default function Quiz() {
     setLastQuizId(null)
     setFlaggedQuestions(new Set())
     setFlagging(null)
+    setStreak(0)
+  }
+
+  async function practiceWeakTopic(noteId) {
+    localStorage.removeItem(QUIZ_STORAGE_KEY)
+    setSavedProgress(null)
+    setQuestions([])
+    setResults([])
+    setCurrentIdx(0)
+    setCurrentResult(null)
+    setSelectedAnswer('')
+    setShortAnswer('')
+    setSessionId(null)
+    setGenerateError(null)
+    setLastQuizId(null)
+    setFlaggedQuestions(new Set())
+    setFlagging(null)
+    setStreak(0)
+    setConfig({ note_id: String(noteId), num_questions: 10, question_types: [] })
+    setMode('adaptive')
+    setPhase(PHASES.GENERATING)
+    try {
+      const [qs, session] = await Promise.all([
+        api.generateAdaptiveQuiz({ note_id: noteId, count: 10 }),
+        api.startSession(),
+      ])
+      if (!qs || qs.length === 0) throw new Error('No questions generated')
+      setQuestions(qs)
+      setSessionId(session.id)
+      setCurrentIdx(0)
+      setResults([])
+      setCurrentResult(null)
+      setSelectedAnswer('')
+      setShortAnswer('')
+      questionStartTime.current = Date.now()
+      setPhase(PHASES.ACTIVE)
+    } catch (e) {
+      setGenerateError(e.message)
+      setPhase(PHASES.CONFIGURE)
+    }
   }
 
   function openReview(item) {
@@ -328,7 +412,12 @@ export default function Quiz() {
         <div className="mb-8">
           <div className="flex justify-between text-xs text-slate-500 mb-2">
             <span>Question {currentIdx + 1} of {questions.length}</span>
-            <span className="capitalize text-slate-600">{question.type.replace('_', ' ')} · difficulty {question.difficulty}/5</span>
+            <div className="flex items-center gap-3">
+              {streak >= 2 && (
+                <span className="text-amber-400 font-medium">🔥 {streak}</span>
+              )}
+              <span className="capitalize text-slate-600">{question.type.replace('_', ' ')} · difficulty {question.difficulty}/5</span>
+            </div>
           </div>
           <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
             <div
@@ -374,10 +463,16 @@ export default function Quiz() {
             <textarea
               className="input resize-none"
               rows={4}
-              placeholder="Type your answer…"
+              placeholder="Type your answer… (Enter to submit)"
               value={shortAnswer}
               onChange={(e) => setShortAnswer(e.target.value)}
               disabled={isAnswered}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && !isAnswered && !submitting && shortAnswer.trim()) {
+                  e.preventDefault()
+                  submitAnswer(shortAnswer)
+                }
+              }}
             />
             {!isAnswered && (
               <div className="flex justify-end mt-2">
@@ -460,6 +555,23 @@ export default function Quiz() {
     const pct = Math.round((correct / total) * 100)
     const color = scoreColor(pct)
 
+    const slowest = results.reduce((max, r) =>
+      (r.timeTaken ?? 0) > (max?.timeTaken ?? 0) ? r : max, null)
+
+    const topicAcc = {}
+    results.forEach(({ question, result }) => {
+      const key = question.topic_id
+      const name = question.topic_name || 'This topic'
+      if (!topicAcc[key]) topicAcc[key] = { name, noteId: question.note_id, correct: 0, total: 0 }
+      topicAcc[key].total++
+      if (result.is_correct) topicAcc[key].correct++
+    })
+    const weakTopics = Object.values(topicAcc)
+      .map((t) => ({ ...t, pct: Math.round((t.correct / t.total) * 100) }))
+      .filter((t) => t.pct < 100)
+      .sort((a, b) => a.pct - b.pct)
+      .slice(0, 2)
+
     return (
       <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
         <div className="text-center mb-10">
@@ -468,8 +580,20 @@ export default function Quiz() {
           <p className="text-slate-400 text-sm">{correct} of {total} correct</p>
         </div>
 
+        {slowest?.timeTaken > 20 && (
+          <div className="mb-5 px-4 py-3 rounded-xl flex items-center gap-3"
+            style={{ background: 'rgba(var(--indigo-500-rgb),0.06)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}>
+            <span className="text-base flex-shrink-0">⏱</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] text-indigo-300/60 font-medium uppercase tracking-wider">Took longest</p>
+              <p className="text-xs text-slate-400 mt-0.5 truncate">{slowest.question.content}</p>
+            </div>
+            <span className={`flex-shrink-0 text-sm font-semibold tabular-nums ${timeColor(slowest.timeTaken)}`}>{slowest.timeTaken}s</span>
+          </div>
+        )}
+
         <div className="space-y-3 mb-8">
-          {results.map(({ question, result, answer }, i) => {
+          {results.map(({ question, result, answer, timeTaken }, i) => {
             const isFlagged = flaggedQuestions.has(i)
             return (
               <div
@@ -486,12 +610,17 @@ export default function Quiz() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-slate-300 leading-snug">{question.content}</p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Your answer: <span className="text-slate-400">{answer}</span>
-                      {!result.is_correct && (
-                        <> · Correct: <span className="text-emerald-400">{result.correct_answer}</span></>
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                      <p className="text-xs text-slate-500">
+                        Your answer: <span className="text-slate-400">{answer}</span>
+                        {!result.is_correct && (
+                          <> · Correct: <span className="text-emerald-400">{result.correct_answer}</span></>
+                        )}
+                      </p>
+                      {timeTaken != null && (
+                        <span className={`text-xs tabular-nums ${timeColor(timeTaken)}`}>{timeTaken}s</span>
                       )}
-                    </p>
+                    </div>
                     {lastQuizId && (
                       <button
                         onClick={() => handleFlagQuestion(i)}
@@ -514,6 +643,28 @@ export default function Quiz() {
             )
           })}
         </div>
+
+        {weakTopics.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-sm font-medium text-slate-400 mb-3">What to study next</h2>
+            <div className="space-y-2">
+              {weakTopics.map((t, i) => (
+                <div key={i} className="card-solid p-4 flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-200 font-medium truncate">{t.name}</p>
+                    <p className={`text-xs mt-0.5 ${scoreColor(t.pct)}`}>{t.pct}% accuracy</p>
+                  </div>
+                  <button
+                    onClick={() => practiceWeakTopic(t.noteId)}
+                    className="btn-primary text-xs px-3 py-1.5 flex-shrink-0"
+                  >
+                    Practice this →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-center">
           <button className="btn-primary" onClick={handleReset}>Try Another Quiz</button>
@@ -966,39 +1117,6 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
             </button>
           </div>
 
-          {/* Past Quizzes */}
-          <div className="mt-10">
-            <h2 className="text-sm font-medium text-slate-400 mb-3">Past Quizzes</h2>
-            {historyLoading ? (
-              <div className="flex justify-center py-6"><Spinner /></div>
-            ) : history.length === 0 ? (
-              <p className="text-xs text-slate-600 text-center py-4">No completed quizzes yet — finish one above to see it here.</p>
-            ) : (
-              <div className="space-y-2">
-                {history.map((item) => {
-                  const pct = Math.round((item.score / item.total_questions) * 100)
-                  const color = scoreColor(pct)
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => onOpenReview(item)}
-                      className="w-full text-left card-solid p-4 flex items-center gap-4 hover:border-white/20 transition-colors group"
-                    >
-                      <div className={`text-2xl font-bold tabular-nums w-14 flex-shrink-0 ${color}`}>{pct}%</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-200 truncate">{item.note_title}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{item.score}/{item.total_questions} correct · {formatDate(item.completed_at)}</p>
-                      </div>
-                      <span className="text-xs text-indigo-400 group-hover:text-indigo-300 transition-colors flex-shrink-0 font-medium">Review</span>
-                      <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
         </>
       )}
     </div>

@@ -27,7 +27,7 @@ async function reqMultipart(method, path, formData) {
   if (res.status === 401) {
     const detail = data?.detail || 'Session expired. Please log in again.'
     const message = Array.isArray(detail) ? detail[0]?.msg ?? String(detail) : String(detail)
-    if (!path.startsWith('/auth/')) {
+    if (path === '/auth/me') {
       localStorage.removeItem('mt_token')
       localStorage.removeItem('mt_user')
       window.location.href = '/login'
@@ -65,10 +65,10 @@ async function req(method, path, body) {
   if (res.status === 401) {
     const detail = data?.detail || 'Session expired. Please log in again.'
     const message = Array.isArray(detail) ? detail[0]?.msg ?? String(detail) : String(detail)
-    // Only treat as session expiry (clear + redirect) for authenticated routes.
-    // Auth endpoints (/auth/login, /auth/register) return 401 for wrong
-    // credentials — that is not an expired session, just a bad password.
-    if (!path.startsWith('/auth/')) {
+    // Only clear the session and redirect when /auth/me returns 401 — that means
+    // the token itself is expired or invalid. All other 401s (Canvas not connected,
+    // third-party service auth failures, etc.) are caller-level errors, not session expiry.
+    if (path === '/auth/me') {
       localStorage.removeItem('mt_token')
       localStorage.removeItem('mt_user')
       window.location.href = '/login'

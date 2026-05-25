@@ -45,6 +45,7 @@ export default function NeuralBackground() {
   const [dims, setDims] = useState({ w: window.innerWidth, h: window.innerHeight })
 
   useEffect(() => {
+    console.log('Neural background mounted')
     api.getSubjects()
       .then(subjects => {
         const active = (subjects || []).filter(s => !s.archived)
@@ -75,10 +76,10 @@ export default function NeuralBackground() {
         top: 0,
         left: 0,
         width: '100%',
-        height: '100%',
+        height: '100vh',
         zIndex: 0,
         pointerEvents: 'none',
-        opacity: 0.12,
+        opacity: 0.25,
         overflow: 'hidden',
       }}
     >

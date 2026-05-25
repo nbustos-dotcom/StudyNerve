@@ -52,7 +52,7 @@ export default function Privacy() {
   return (
     <div
       className="min-h-screen flex flex-col items-center px-4 py-16"
-      style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(var(--indigo-500-rgb),0.1) 0%, transparent 70%)' }}
+      style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.1) 0%, transparent 70%)' }}
     >
       <NeuralBackground />
 
@@ -61,7 +61,7 @@ export default function Privacy() {
         <div className="text-center mb-10">
           <h1
             className="text-3xl font-bold tracking-tight bg-clip-text text-transparent mb-2"
-            style={{ backgroundImage: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, var(--indigo-400) 100%)' }}
+            style={{ backgroundImage: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, #818cf8 100%)' }}
           >
             Privacy Policy
           </h1>

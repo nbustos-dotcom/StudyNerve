@@ -50,8 +50,6 @@ function Checkbox({ checked, onChange, size = 16 }) {
 
 function StepCard({ step, index, subSteps, onToggle, onExpand, onToggleSub, isDragOver, onDragStart, onDragOver, onDragEnd, onDrop }) {
   const [expanding, setExpanding] = useState(false)
-  const stagger = `stagger-${Math.min(index + 1, 6)}`
-
   async function handleExpand() {
     setExpanding(true)
     await onExpand(step)
@@ -65,7 +63,7 @@ function StepCard({ step, index, subSteps, onToggle, onExpand, onToggleSub, isDr
       onDragOver={e => onDragOver(e, index)}
       onDragEnd={onDragEnd}
       onDrop={e => onDrop(e, index)}
-      className={`card p-3 transition-all duration-150 ${stagger}`}
+      className={"card p-3 transition-all duration-150"}
       style={{
         opacity: step.is_completed ? 0.55 : 1,
         outline: isDragOver ? '2px solid rgba(99,102,241,0.45)' : 'none',
@@ -92,7 +90,7 @@ function StepCard({ step, index, subSteps, onToggle, onExpand, onToggleSub, isDr
           <button
             onClick={handleExpand}
             disabled={expanding}
-            className="btn-ghost text-xs text-white/30 hover:text-indigo-400 shrink-0 px-2 py-0.5"
+            className="btn-ghost text-xs text-white/30 hover:text-accent-hover shrink-0 px-2 py-0.5"
           >
             {expanding ? '…' : 'Expand'}
           </button>
@@ -209,7 +207,7 @@ function BoardList({ onOpen }) {
       {loading ? (
         <div className="flex flex-col gap-3">
           {[1, 2, 3].map(i => (
-            <div key={i} className={`skeleton h-[88px] rounded-xl stagger-${i}`} />
+            <div key={i} className={"skeleton h-[88px] rounded-xl"} />
           ))}
         </div>
       ) : boards.length === 0 ? (
@@ -228,7 +226,7 @@ function BoardList({ onOpen }) {
               <div
                 key={board.id}
                 onClick={() => onOpen(board.id, false)}
-                className={`card p-4 cursor-pointer hover:border-white/15 transition-all duration-200 ${i < 6 ? `stagger-${i + 1}` : ''}`}
+                className="card p-4 cursor-pointer hover:border-white/15 transition-all duration-200"
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <h3 className="font-medium text-slate-100 text-sm leading-snug flex-1 line-clamp-2">
@@ -243,7 +241,7 @@ function BoardList({ onOpen }) {
                 </div>
                 <div className="h-1 rounded-full mb-2.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
                   <div
-                    className="h-1 rounded-full bg-indigo-500 transition-all duration-500"
+                    className="h-1 rounded-full bg-accent transition-all duration-500"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -451,7 +449,7 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
         <div className="skeleton h-8 w-52 rounded-lg" />
         <div className="skeleton h-2 rounded-full" />
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className={`skeleton h-16 rounded-xl stagger-${i}`} />
+          <div key={i} className={"skeleton h-16 rounded-xl"} />
         ))}
       </div>
     </div>
@@ -516,7 +514,7 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-white/40">{doneSteps} of {totalSteps} steps done</span>
-            <span className="text-xs font-medium text-indigo-400">{pct}%</span>
+            <span className="text-xs font-medium text-accent-hover">{pct}%</span>
           </div>
           <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <div
@@ -539,7 +537,7 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
         {aiLoading && sortedTopSteps.length === 0 && (
           <div className="flex flex-col gap-2">
             {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className={`skeleton h-14 rounded-xl stagger-${i}`} />
+              <div key={i} className={"skeleton h-14 rounded-xl"} />
             ))}
           </div>
         )}
@@ -548,7 +546,7 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
           <div className="card p-8 text-center">
             <p className="text-white/35 text-sm leading-relaxed">
               No steps yet — click{' '}
-              <span className="text-indigo-400 font-medium">✦ AI Breakdown</span>{' '}
+              <span className="text-accent-hover font-medium">✦ AI Breakdown</span>{' '}
               to generate them, or add one manually below.
             </p>
           </div>

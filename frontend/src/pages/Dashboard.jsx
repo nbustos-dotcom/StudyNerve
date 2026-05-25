@@ -80,7 +80,7 @@ function SmartHeroCard({ gaps, canvasItems, onDismiss, onStudyNow, studyNowLoadi
   return (
     <div
       className="card mb-5 relative"
-      style={{ borderLeft: '4px solid rgba(var(--indigo-500-rgb),0.7)' }}
+      style={{ borderLeft: '3px solid rgba(99,102,241,0.6)' }}
     >
       <div className="p-5 pr-10">
         <p className="text-[15px] text-slate-200 leading-snug">{message}</p>
@@ -250,7 +250,7 @@ function UpcomingDeadlines() {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-medium text-slate-300">Upcoming Deadlines</h2>
+        <h2 className="text-sm font-medium text-ink-secondary">Upcoming Deadlines</h2>
         {connected && items?.length > 0 && (
           <Link to="/canvas" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">
             View Canvas →
@@ -446,8 +446,8 @@ export default function Dashboard() {
   return (
     <div className="p-4 sm:p-8 max-w-5xl mx-auto fade-in-up">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-100">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-1">Your study overview</p>
+        <h1 className="text-xl font-semibold text-ink-primary">Dashboard</h1>
+        <p className="text-sm text-ink-muted mt-1">Your study overview</p>
       </div>
 
       {loading && (
@@ -494,10 +494,10 @@ export default function Dashboard() {
 
               {/* Stat cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="stagger-1"><StatCard label="Notes" value={stats.total_notes} sub="uploaded" /></div>
-                <div className="stagger-2"><StatCard label="Questions" value={stats.total_questions} sub="generated" /></div>
-                <div className="stagger-3"><StatCard label="Attempts" value={stats.total_attempts} sub="answered" /></div>
-                <div className="stagger-4"><AccuracyRing value={stats.overall_accuracy} /></div>
+                <div><StatCard label="Notes" value={stats.total_notes} sub="uploaded" /></div>
+                <div><StatCard label="Questions" value={stats.total_questions} sub="generated" /></div>
+                <div><StatCard label="Attempts" value={stats.total_attempts} sub="answered" /></div>
+                <div><AccuracyRing value={stats.overall_accuracy} /></div>
               </div>
 
               {/* Weak Areas */}
@@ -634,7 +634,7 @@ export default function Dashboard() {
 
               {stats.total_notes === 0 && (
                 <div className="card p-10 flex flex-col items-center gap-4 text-center">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(var(--indigo-500-rgb),0.1)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}>
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
                     <svg className="w-7 h-7 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 12v6M9 15h6"/>
                     </svg>

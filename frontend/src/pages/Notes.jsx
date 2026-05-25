@@ -314,8 +314,8 @@ export default function Notes() {
       </datalist>
 
       <div className="mb-8">
-        <h1 className="text-xl font-semibold text-slate-100">Notes</h1>
-        <p className="text-sm text-slate-500 mt-1">Paste study material and extract topics for quizzing</p>
+        <h1 className="text-xl font-semibold text-ink-primary">Notes</h1>
+        <p className="text-sm text-ink-muted mt-1">Paste study material and extract topics for quizzing</p>
       </div>
 
       {/* AI subject merge suggestions */}
@@ -328,7 +328,7 @@ export default function Notes() {
               <div
                 key={`${alias}→${canonical}`}
                 className="flex items-center justify-between gap-4 rounded-xl px-4 py-3"
-                style={{ background: 'rgba(var(--indigo-500-rgb),0.06)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}
+                style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}
               >
                 <p className="text-sm text-slate-300">
                   Merge{' '}
@@ -367,7 +367,7 @@ export default function Notes() {
       {normalizeBanner && (
         <div
           className="mb-6 flex items-center justify-between gap-4 rounded-xl px-4 py-3"
-          style={{ background: 'rgba(var(--indigo-500-rgb),0.08)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}
+          style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}
         >
           <p className="text-sm text-indigo-300">
             Some of your subjects look similar. Click here to organize them.
@@ -653,14 +653,14 @@ export default function Notes() {
       {/* Notes list */}
       {notesLoading ? (
         <div className="space-y-4">
-          <SkeletonCard className="stagger-1" />
-          <SkeletonCard className="stagger-2" />
-          <SkeletonCard className="stagger-3" />
-          <SkeletonCard className="stagger-4" />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       ) : notes.length === 0 ? (
         <div className="card p-10 flex flex-col items-center gap-4 text-center">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(var(--indigo-500-rgb),0.08)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
             <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
             </svg>
@@ -798,8 +798,8 @@ export default function Notes() {
                     <div
                       className="rounded-xl p-4"
                       style={{
-                        background: 'rgba(var(--indigo-500-rgb),0.06)',
-                        border: '1px solid rgba(var(--indigo-500-rgb),0.15)',
+                        background: 'rgba(99,102,241,0.06)',
+                        border: '1px solid rgba(99,102,241,0.15)',
                       }}
                     >
                       {ss.summary.split('\n').filter(Boolean).map((line, i) => (

@@ -4,20 +4,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        base: '#0a0a0f',
-        surface: {
-          DEFAULT: '#111118',
-          2: '#17171f',
-          glass: 'rgba(255,255,255,0.04)',
-          dark: 'rgba(15,15,35,0.45)',
-          card: 'rgba(0,0,0,0.6)',
+        deep: {
+          bg:       '#09090b',
+          surface:  '#111113',
+          elevated: '#18181b',
         },
-        border: '#1e1e2e',
-        indigo: { 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1' },
-        violet: { 600: '#8b5cf6' },
-        cyan: { 300: '#7DDFEE', 400: '#56CFE1' },
-        deep: { bg: '#030014', surface: '#08001a' },
-        bs: { bg: '#0A1F2E', surface: '#0F3A4A', border: '#1F4A5C', accent: '#56CFE1', text: '#E8F8FB' },
+        border: {
+          subtle: 'rgba(255,255,255,0.06)',
+          hover:  'rgba(255,255,255,0.1)',
+        },
+        ink: {
+          primary:   '#e4e4e7',
+          secondary: '#a1a1aa',
+          muted:     '#71717a',
+          faint:     '#52525b',
+        },
+        accent: {
+          DEFAULT: '#6366f1',
+          hover:   '#818cf8',
+          muted:   'rgba(99,102,241,0.15)',
+        },
+        success: '#22c55e',
+        danger:  '#ef4444',
+        warning: '#f59e0b',
+      },
+      fontFamily: {
+        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'monospace'],
       },
     },
   },

@@ -112,22 +112,22 @@ function ShortcutHelp({ open, onClose }) {
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9990, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} />
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9990, background: 'rgba(0,0,0,0.55)' }} />
       <div style={{
         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-        zIndex: 9995, width: 340, borderRadius: 16,
-        background: 'rgba(12,12,30,0.97)', border: '1px solid rgba(255,255,255,0.1)',
-        backdropFilter: 'blur(24px)', boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+        zIndex: 9995, width: 340, borderRadius: 10,
+        background: '#18181b', border: '1px solid rgba(255,255,255,0.08)',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
         padding: '20px 24px',
       }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>Keyboard Shortcuts</h3>
+        <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600, color: '#e4e4e7' }}>Keyboard Shortcuts</h3>
         {shortcuts.map(([key, label]) => (
           <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{label}</span>
-            <kbd style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.08)', padding: '3px 8px', borderRadius: 5, fontFamily: 'monospace' }}>{key}</kbd>
+            <span style={{ fontSize: 13, color: '#71717a' }}>{label}</span>
+            <kbd style={{ fontSize: 11, color: '#a1a1aa', background: 'rgba(255,255,255,0.07)', padding: '3px 8px', borderRadius: 4, fontFamily: 'IBM Plex Mono, monospace' }}>{key}</kbd>
           </div>
         ))}
-        <button onClick={onClose} style={{ marginTop: 16, width: '100%', padding: '8px', borderRadius: 8, background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc', fontSize: 13, cursor: 'pointer' }}>
+        <button onClick={onClose} style={{ marginTop: 16, width: '100%', padding: '8px', borderRadius: 6, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', color: '#818cf8', fontSize: 13, cursor: 'pointer' }}>
           Close
         </button>
       </div>

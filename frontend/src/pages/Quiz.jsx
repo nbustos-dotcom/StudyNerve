@@ -19,14 +19,14 @@ function parseOptions(optionsStr) {
 function optionStyle(key, selectedAnswer, result) {
   if (!result) {
     return selectedAnswer === key
-      ? 'bg-indigo-500/15 border-indigo-500/60 text-indigo-200'
-      : 'border-[#1e1e2e] hover:border-slate-500 hover:bg-white/5 text-slate-300'
+      ? 'bg-accent/10 border-accent text-ink-primary'
+      : 'border-border-subtle hover:border-border-hover hover:bg-white/[0.03] text-ink-secondary'
   }
   if (key === result.correct_answer)
-    return 'bg-emerald-500/10 border-emerald-500/60 text-emerald-300'
+    return 'bg-success/10 border-success/60 text-green-300'
   if (key === selectedAnswer && !result.is_correct)
-    return 'bg-red-500/10 border-red-500/50 text-red-300'
-  return 'border-[#1e1e2e] text-slate-600 opacity-40'
+    return 'bg-danger/10 border-danger/50 text-red-300'
+  return 'border-border-subtle text-ink-faint opacity-40'
 }
 
 function formatDate(iso) {
@@ -416,11 +416,11 @@ export default function Quiz() {
   if (phase === PHASES.GENERATING) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center px-8 fade-in-up">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6" style={{ background: 'rgba(var(--indigo-500-rgb),0.1)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}>
+        <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-6 bg-deep-elevated border border-border-subtle">
           <Spinner size="lg" />
         </div>
-        <p className="text-slate-200 font-semibold text-lg">Generating questions…</p>
-        <p className="text-slate-500 text-sm mt-2">This can take 10–30 seconds with Ollama</p>
+        <p className="text-ink-primary font-semibold text-lg">Generating questions…</p>
+        <p className="text-ink-muted text-sm mt-2">This can take 10–30 seconds with Ollama</p>
       </div>
     )
   }
@@ -436,15 +436,14 @@ export default function Quiz() {
       <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
         {/* Study Now banner */}
         {studyNowMeta && (
-          <div className="mb-5 px-4 py-3 rounded-xl flex items-center gap-3"
-            style={{ background: 'rgba(var(--indigo-500-rgb),0.07)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}>
+          <div className="mb-5 px-4 py-3 rounded-lg flex items-center gap-3 bg-accent/[0.07] border border-accent/20">
             <span className="text-indigo-400 text-base flex-shrink-0">⚡</span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-wider">{studyNowMeta.reason}</p>
-              <p className="text-sm text-slate-200 font-medium mt-0.5">
+              <p className="text-xs text-accent/70 font-medium uppercase tracking-wider">{studyNowMeta.reason}</p>
+              <p className="text-sm text-ink-primary font-medium mt-0.5">
                 {studyNowMeta.topic_name}
                 {studyNowMeta.topic_accuracy != null && (
-                  <span className="text-slate-500 font-normal"> · {studyNowMeta.topic_accuracy}% accuracy</span>
+                  <span className="text-ink-faint font-normal"> · {studyNowMeta.topic_accuracy}% accuracy</span>
                 )}
               </p>
             </div>
@@ -452,26 +451,26 @@ export default function Quiz() {
         )}
         {/* Progress */}
         <div className="mb-8">
-          <div className="flex justify-between text-xs text-slate-500 mb-2">
+          <div className="flex justify-between text-xs text-ink-muted mb-2">
             <span>Question {currentIdx + 1} of {questions.length}</span>
             <div className="flex items-center gap-3">
               {streak >= 2 && (
-                <span className="text-amber-400 font-medium">🔥 {streak}</span>
+                <span className="text-accent font-medium">🔥 {streak}</span>
               )}
-              <span className="capitalize text-slate-600">{question.type.replace('_', ' ')} · difficulty {question.difficulty}/5</span>
+              <span className="capitalize text-ink-faint">{question.type.replace('_', ' ')} · difficulty {question.difficulty}/5</span>
             </div>
           </div>
-          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-deep-elevated rounded-full overflow-hidden">
             <div
-              className="h-full bg-indigo-500 rounded-full transition-all duration-500 ease-out"
+              className="h-full bg-accent rounded-full transition-all duration-500 ease-out"
               style={{ width: `${((currentIdx + (isAnswered ? 1 : 0)) / questions.length) * 100}%` }}
             />
           </div>
         </div>
 
         {/* Question */}
-        <div className="card-solid p-7 mb-6" style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.3)' }}>
-          <div className="text-base leading-relaxed">
+        <div className="card-solid p-7 mb-6">
+          <div className="text-base leading-relaxed text-ink-primary">
             <MarkdownRenderer>{question.content}</MarkdownRenderer>
           </div>
         </div>
@@ -490,7 +489,7 @@ export default function Quiz() {
                 className={`w-full text-left flex items-start gap-4 px-5 py-4 min-h-[60px] rounded-xl border transition-all duration-200 ${optionStyle(
                   key, selectedAnswer, currentResult
                 )}`}
-                style={selectedAnswer === key && !currentResult ? { boxShadow: '0 0 0 2px rgba(var(--indigo-500-rgb),0.5)' } : {}}
+                style={selectedAnswer === key && !currentResult ? { boxShadow: '0 0 0 2px rgba(99,102,241,0.5)' } : {}}
               >
                 <span className="font-mono font-bold text-sm flex-shrink-0 mt-0.5 w-5">{key}.</span>
                 <span className="text-sm leading-relaxed">{value}</span>
@@ -621,18 +620,17 @@ export default function Quiz() {
       <Confetti show={showConfetti} />
       <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
         <div className="text-center mb-10">
-          <p className="text-white/30 text-sm mb-2 uppercase tracking-widest font-medium">Quiz Complete</p>
+          <p className="text-ink-faint text-sm mb-2 uppercase tracking-widest font-medium">Quiz Complete</p>
           <p className={`text-6xl font-bold mb-3 ${color}`}>{pct}%</p>
           <p className="text-slate-400 text-sm">{correct} of {total} correct</p>
         </div>
 
         {slowest?.timeTaken > 20 && (
-          <div className="mb-5 px-4 py-3 rounded-xl flex items-center gap-3"
-            style={{ background: 'rgba(var(--indigo-500-rgb),0.06)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}>
+          <div className="mb-5 px-4 py-3 rounded-lg flex items-center gap-3 bg-accent/[0.06] border border-accent/[0.15]">
             <span className="text-base flex-shrink-0">⏱</span>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] text-indigo-300/60 font-medium uppercase tracking-wider">Took longest</p>
-              <p className="text-xs text-slate-400 mt-0.5 truncate">{slowest.question.content}</p>
+              <p className="text-[11px] text-accent/60 font-medium uppercase tracking-wider">Took longest</p>
+              <p className="text-xs text-ink-secondary mt-0.5 truncate">{slowest.question.content}</p>
             </div>
             <span className={`flex-shrink-0 text-sm font-semibold tabular-nums ${timeColor(slowest.timeTaken)}`}>{slowest.timeTaken}s</span>
           </div>
@@ -713,8 +711,7 @@ export default function Quiz() {
         )}
 
         {studyNowMeta && (
-          <div className="mb-6 px-4 py-4 rounded-xl text-center"
-            style={{ background: 'rgba(var(--indigo-500-rgb),0.06)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}>
+          <div className="mb-6 px-4 py-4 rounded-lg text-center bg-accent/[0.06] border border-accent/[0.15]">
             <p className="text-xs text-slate-500 mb-1">
               Your accuracy on <span className="text-slate-300">{studyNowMeta.topic_name}</span> was{' '}
               {studyNowMeta.topic_accuracy != null ? `${studyNowMeta.topic_accuracy}%` : 'unknown'}. Let's see how you did.
@@ -966,8 +963,8 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
   return (
     <div className="p-4 sm:p-8 max-w-xl mx-auto fade-in-up">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-100">Quiz</h1>
-        <p className="text-sm text-slate-500 mt-1">Generate questions from your notes with AI</p>
+        <h1 className="text-xl font-semibold text-ink-primary">Quiz</h1>
+        <p className="text-sm text-ink-muted mt-1">Generate questions from your notes with AI</p>
       </div>
 
       {/* Top-level tab bar */}
@@ -1099,7 +1096,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
         <>
           {/* Resume banner */}
           {savedProgress && (
-            <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl border border-indigo-500/30 bg-indigo-500/8">
+            <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-lg border border-accent/30 bg-accent/[0.08]">
               <svg className="w-4 h-4 text-indigo-400 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM6.5 5.5l4 2.5-4 2.5V5.5z"/>
               </svg>
@@ -1178,8 +1175,8 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
                         onClick={() => toggleType(id)}
                         className={`flex-1 py-2 rounded-lg text-sm border transition-colors ${
                           active
-                            ? 'bg-indigo-500/15 border-indigo-500/50 text-indigo-300'
-                            : 'border-[#1e1e2e] text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                            ? 'bg-accent/15 border-accent/50 text-accent-hover'
+                            : 'border-border-subtle text-ink-muted hover:border-border-hover hover:text-ink-primary'
                         }`}
                       >
                         {label}

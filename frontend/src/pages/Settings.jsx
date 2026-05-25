@@ -27,7 +27,7 @@ function SectionCard({ title, children }) {
   return (
     <div className="card-solid mb-6 overflow-hidden">
       <div className="px-6 py-4 border-b border-white/[0.05]" style={{ background: 'rgba(255,255,255,0.02)' }}>
-        <h2 className="text-sm font-semibold text-slate-200 tracking-wide">{title}</h2>
+        <h2 className="text-sm font-semibold text-ink-primary tracking-wide">{title}</h2>
       </div>
       <div className="p-6">{children}</div>
     </div>
@@ -38,14 +38,14 @@ function DeleteAccountModal({ onConfirm, onCancel, deleting }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+      style={{ background: 'rgba(0,0,0,0.75)' }}
     >
       <div
         className="rounded-2xl p-6 max-w-md w-full mx-4"
         style={{
-          background: 'rgba(12,12,28,0.98)',
+          background: '#18181b',
           border: '1px solid rgba(239,68,68,0.2)',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
         }}
       >
         {/* Icon + title */}
@@ -98,14 +98,14 @@ function ClearMemoryModal({ onConfirm, onCancel, clearing }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+      style={{ background: 'rgba(0,0,0,0.75)' }}
     >
       <div
         className="rounded-2xl p-6 max-w-md w-full mx-4"
         style={{
-          background: 'rgba(12,12,28,0.98)',
+          background: '#18181b',
           border: '1px solid rgba(239,68,68,0.2)',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
         }}
       >
         <div className="flex items-center gap-3 mb-4">
@@ -299,7 +299,7 @@ export default function Settings() {
             <div className="flex items-center gap-2 mb-1">
               <div
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ background: 'rgba(var(--indigo-500-rgb),0.8)', boxShadow: '0 0 6px rgba(var(--indigo-500-rgb),0.9)' }}
+                style={{ background: 'rgba(99,102,241,0.8)', boxShadow: '0 0 6px rgba(99,102,241,0.9)' }}
               />
               <span className="text-xs text-slate-500">
                 Currently using{' '}
@@ -326,19 +326,18 @@ export default function Settings() {
                   style={
                     provider === p.value
                       ? {
-                          background: 'rgba(var(--indigo-500-rgb),0.15)',
-                          border: '1px solid rgba(var(--indigo-500-rgb),0.35)',
-                          boxShadow: '0 0 16px rgba(var(--indigo-500-rgb),0.1)',
+                          background: 'rgba(99,102,241,0.12)',
+                          border: '1px solid rgba(99,102,241,0.3)',
                         }
                       : {
-                          background: 'rgba(255,255,255,0.03)',
-                          border: '1px solid rgba(255,255,255,0.07)',
+                          background: 'rgba(255,255,255,0.02)',
+                          border: '1px solid rgba(255,255,255,0.06)',
                         }
                   }
                 >
                   <div
                     className="text-sm font-medium"
-                    style={{ color: provider === p.value ? '#a5b4fc' : 'rgba(255,255,255,0.6)' }}
+                    style={{ color: provider === p.value ? '#818cf8' : '#a1a1aa' }}
                   >
                     {p.label}
                   </div>

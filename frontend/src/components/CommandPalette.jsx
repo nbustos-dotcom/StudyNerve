@@ -77,8 +77,7 @@ export default function CommandPalette({ open, onClose }) {
         onClick={onClose}
         style={{
           position: 'fixed', inset: 0, zIndex: 9990,
-          background: 'rgba(0,0,0,0.55)',
-          backdropFilter: 'blur(4px)',
+          background: 'rgba(0,0,0,0.6)',
           animation: 'palette-fade-in 0.15s ease',
         }}
       />
@@ -93,11 +92,10 @@ export default function CommandPalette({ open, onClose }) {
           zIndex: 9995,
           width: '100%',
           maxWidth: 448,
-          borderRadius: 16,
-          background: 'rgba(12,12,30,0.97)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          backdropFilter: 'blur(24px)',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+          borderRadius: 10,
+          background: '#18181b',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
           animation: 'palette-slide-in 0.15s ease',
           overflow: 'hidden',
         }}
@@ -143,7 +141,7 @@ export default function CommandPalette({ open, onClose }) {
                   gap: 12,
                   width: '100%',
                   padding: '10px 16px',
-                  background: i === activeIdx ? 'rgba(99,102,241,0.15)' : 'transparent',
+                  background: i === activeIdx ? 'rgba(99,102,241,0.12)' : 'transparent',
                   border: 'none',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -151,7 +149,7 @@ export default function CommandPalette({ open, onClose }) {
                 }}
               >
                 <span style={{ fontSize: 16, width: 22, textAlign: 'center', flexShrink: 0 }}>{action.icon}</span>
-                <span style={{ flex: 1, fontSize: 14, color: i === activeIdx ? '#c4b5fd' : 'rgba(255,255,255,0.75)', fontWeight: i === activeIdx ? 500 : 400 }}>
+                <span style={{ flex: 1, fontSize: 14, color: i === activeIdx ? '#818cf8' : '#a1a1aa', fontWeight: i === activeIdx ? 500 : 400 }}>
                   {action.label}
                 </span>
                 {action.shortcut && (

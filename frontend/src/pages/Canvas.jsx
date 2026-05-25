@@ -98,7 +98,7 @@ function Toggle({ on, onChange }) {
 // ── Course accent color from name hash ────────────────────────────────────────
 
 const COURSE_ACCENTS = [
-  'rgba(var(--indigo-500-rgb),0.5)',
+  'rgba(99,102,241,0.5)',
   'rgba(168,85,247,0.5)',
   'rgba(59,130,246,0.5)',
   'rgba(20,184,166,0.5)',
@@ -345,7 +345,7 @@ export default function Canvas() {
                           <div
                             key={course.id}
                             className="flex items-center justify-between gap-3 py-2"
-                            style={{ borderBottom: i < courses.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
+                            style={{ borderBottom: i < courses.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}
                           >
                             <span
                               className="text-sm flex-1 min-w-0 truncate"
@@ -494,7 +494,7 @@ export default function Canvas() {
                     key={course.id}
                     onClick={() => selectCourse(course)}
                     className="card p-5 text-left group transition-all duration-200 hover:border-indigo-500/30 card-lift"
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--indigo-500-rgb),0.06)')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99,102,241,0.06)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = '')}
                     style={{ borderLeft: `3px solid ${accent}` }}
                   >
@@ -614,12 +614,12 @@ export default function Canvas() {
                             Due {formatDue(a.due_at)}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center text-[11px] text-white/25 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                          <span className="inline-flex items-center text-[11px] text-white/25 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)' }}>
                             No due date
                           </span>
                         )}
                         {a.points_possible != null && (
-                          <span className="text-[11px] text-white/30 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>{a.points_possible} pts</span>
+                          <span className="text-[11px] text-white/30 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)' }}>{a.points_possible} pts</span>
                         )}
                         {a.submission_types?.length > 0 && (
                           <span className="text-[11px] text-white/25 capitalize px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>

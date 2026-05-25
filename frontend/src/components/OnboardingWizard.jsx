@@ -21,10 +21,9 @@ function StepWelcome() {
       </div>
 
       <h1 style={{
-        fontSize: '26px', fontWeight: 700, letterSpacing: '-0.02em',
-        background: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, var(--indigo-400) 100%)',
-        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-        marginBottom: '16px', fontFamily: "'Sora', sans-serif",
+        fontSize: '22px', fontWeight: 700, letterSpacing: '-0.01em',
+        color: '#e4e4e7',
+        marginBottom: '16px',
       }}>
         Welcome to StudyNerve AI
       </h1>
@@ -87,7 +86,7 @@ function StepHowItWorks() {
         {cards.map((card) => (
           <div key={card.title} style={{
             padding: '20px 14px',
-            background: 'rgba(255,255,255,0.04)',
+            background: 'rgba(255,255,255,0.05)',
             border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: '16px',
           }}>
@@ -125,8 +124,8 @@ function StepConnectAI({ provider, setProvider, apiKey, setApiKey }) {
               onClick={() => setProvider(p.value)}
               style={{
                 padding: '14px',
-                background: isSelected ? 'rgba(var(--indigo-500-rgb),0.15)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${isSelected ? 'rgba(var(--indigo-500-rgb),0.4)' : 'rgba(255,255,255,0.08)'}`,
+                background: isSelected ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${isSelected ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.06)'}`,
                 borderRadius: '12px',
                 cursor: 'pointer',
                 transition: 'all 0.15s',
@@ -137,7 +136,7 @@ function StepConnectAI({ provider, setProvider, apiKey, setApiKey }) {
                   {p.label}
                 </p>
                 {isSelected && (
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--indigo-500)', boxShadow: '0 0 6px rgba(var(--indigo-500-rgb),0.8)', flexShrink: 0 }} />
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', flexShrink: 0 }} />
                 )}
               </div>
               <p style={{ fontSize: '11px', color: p.badgeColor, marginBottom: '6px' }}>{p.badge}</p>
@@ -146,9 +145,9 @@ function StepConnectAI({ provider, setProvider, apiKey, setApiKey }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                style={{ fontSize: '11px', color: 'var(--indigo-400)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                style={{ fontSize: '11px', color: '#818cf8', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = '#a5b4fc')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--indigo-400)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#818cf8')}
               >
                 Get API key →
               </a>
@@ -182,7 +181,7 @@ function StepConnectAI({ provider, setProvider, apiKey, setApiKey }) {
             boxSizing: 'border-box',
             transition: 'border-color 0.15s',
           }}
-          onFocus={(e) => (e.target.style.borderColor = 'rgba(var(--indigo-500-rgb),0.5)')}
+          onFocus={(e) => (e.target.style.borderColor = 'rgba(99,102,241,0.5)')}
           onBlur={(e) => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
         />
         <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.22)', marginTop: '6px' }}>
@@ -226,7 +225,7 @@ function StepCanvas({ canvasUrl, setCanvasUrl, canvasToken, setCanvasToken }) {
               boxSizing: 'border-box',
               transition: 'border-color 0.15s',
             }}
-            onFocus={(e) => (e.target.style.borderColor = 'rgba(var(--indigo-500-rgb),0.5)')}
+            onFocus={(e) => (e.target.style.borderColor = 'rgba(99,102,241,0.5)')}
             onBlur={(e) => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
           />
         </div>
@@ -254,7 +253,7 @@ function StepCanvas({ canvasUrl, setCanvasUrl, canvasToken, setCanvasToken }) {
               boxSizing: 'border-box',
               transition: 'border-color 0.15s',
             }}
-            onFocus={(e) => (e.target.style.borderColor = 'rgba(var(--indigo-500-rgb),0.5)')}
+            onFocus={(e) => (e.target.style.borderColor = 'rgba(99,102,241,0.5)')}
             onBlur={(e) => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
           />
           <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.22)', marginTop: '6px' }}>
@@ -348,19 +347,15 @@ export default function OnboardingWizard({ onComplete }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
-      background: 'rgba(4,4,18,0.88)',
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
+      background: 'rgba(0,0,0,0.75)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '16px',
     }}>
       <div style={{
-        background: 'rgba(11,11,28,0.97)',
-        backdropFilter: 'blur(40px)',
-        WebkitBackdropFilter: 'blur(40px)',
-        border: '1px solid rgba(255,255,255,0.09)',
-        boxShadow: '0 32px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06)',
-        borderRadius: '24px',
+        background: '#111113',
+        border: '1px solid rgba(255,255,255,0.08)',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+        borderRadius: '12px',
         width: '100%', maxWidth: '560px',
         maxHeight: '90vh',
         display: 'flex', flexDirection: 'column',
@@ -422,13 +417,13 @@ export default function OnboardingWizard({ onComplete }) {
                 width: i === step ? '24px' : '6px',
                 borderRadius: '3px',
                 background: i === step
-                  ? 'linear-gradient(90deg, var(--indigo-500), var(--violet-600))'
+                  ? '#6366f1'
                   : i < step
-                  ? 'rgba(var(--indigo-500-rgb),0.5)'
+                  ? 'rgba(99,102,241,0.4)'
                   : 'rgba(255,255,255,0.08)',
                 transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.25s ease',
                 flexShrink: 0,
-                boxShadow: i === step ? '0 0 8px rgba(var(--indigo-500-rgb),0.5)' : 'none',
+                boxShadow: 'none',
               }} />
             ))}
           </div>
@@ -472,8 +467,7 @@ export default function OnboardingWizard({ onComplete }) {
               onClick={handleContinue}
               disabled={transitioning || saving}
               style={{
-                background: 'linear-gradient(135deg, var(--indigo-500) 0%, var(--violet-600) 100%)',
-                boxShadow: '0 4px 20px rgba(var(--indigo-500-rgb),0.4)',
+                background: '#6366f1',
                 color: '#fff', border: 'none',
                 borderRadius: '10px', padding: '9px 20px',
                 fontSize: '13px', fontWeight: 600, cursor: 'pointer',

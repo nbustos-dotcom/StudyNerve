@@ -101,7 +101,7 @@ function MessageBubble({ message }) {
             <div className="mb-2">
               <span
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-indigo-300/80"
-                style={{ background: 'rgba(var(--indigo-500-rgb),0.12)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}
+                style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }}
               >
                 <PaperclipIcon />
                 {message.fileName}
@@ -189,21 +189,17 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, on
 
   return (
     <aside
-      className="flex-shrink-0 flex flex-col border-r border-white/[0.06]"
-      style={{
-        width: 256,
-        background: 'rgba(255,255,255,0.025)',
-        backdropFilter: 'blur(16px)',
-      }}
+      className="flex-shrink-0 flex flex-col border-r border-border-subtle"
+      style={{ width: 256, background: '#111113' }}
     >
       {/* New Chat button */}
       <div className="flex-shrink-0 p-3">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium
-                     text-white/80 transition-all duration-200 hover:text-white
-                     border border-white/[0.08] hover:border-indigo-500/40"
-          style={{ background: 'rgba(255,255,255,0.04)' }}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
+                     text-ink-secondary transition-colors duration-150 hover:text-ink-primary
+                     border border-border-subtle hover:border-border-hover"
+          style={{ background: 'transparent' }}
         >
           <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M8 3v10M3 8h10" />
@@ -264,14 +260,14 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, on
                     style={
                       isActive
                         ? {
-                            background: 'rgba(var(--indigo-500-rgb),0.12)',
-                            borderLeft: '2px solid rgba(var(--indigo-500-rgb),0.7)',
-                            borderTop: '1px solid rgba(var(--indigo-500-rgb),0.2)',
-                            borderRight: '1px solid rgba(var(--indigo-500-rgb),0.2)',
-                            borderBottom: '1px solid rgba(var(--indigo-500-rgb),0.2)',
+                            background: 'rgba(99,102,241,0.1)',
+                            borderLeft: '2px solid #6366f1',
+                            borderTop: '1px solid rgba(99,102,241,0.15)',
+                            borderRight: '1px solid rgba(99,102,241,0.15)',
+                            borderBottom: '1px solid rgba(99,102,241,0.15)',
                           }
                         : {
-                            background: isHovered ? 'rgba(255,255,255,0.04)' : 'transparent',
+                            background: isHovered ? 'rgba(255,255,255,0.03)' : 'transparent',
                             border: '1px solid transparent',
                           }
                     }
@@ -352,15 +348,9 @@ function StudyNudge({ onDismiss, onSuggest }) {
   }
 
   return (
-    <div
-      className="mb-5 rounded-xl px-4 py-3.5 flex gap-3 fade-in-up"
-      style={{
-        background: 'rgba(var(--indigo-500-rgb),0.07)',
-        border: '1px solid rgba(var(--indigo-500-rgb),0.2)',
-      }}
-    >
+    <div className="mb-5 rounded-lg px-4 py-3.5 flex gap-3 fade-in-up bg-accent/[0.07] border border-accent/20">
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-medium text-indigo-300/60 uppercase tracking-wider mb-2">Suggested Focus</p>
+        <p className="text-[11px] font-medium text-accent/60 uppercase tracking-wider mb-2">Suggested Focus</p>
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           {topGap && (
             <span className="text-sm text-slate-300">
@@ -639,13 +629,9 @@ export default function Chat() {
         <div className="flex-1 flex flex-col min-w-0">
 
           {/* Mobile-only sessions toggle — no branding, desktop shows nothing */}
-          <div
-            className="md:hidden flex-shrink-0 flex items-center px-4 py-2 border-b border-white/[0.06]"
-            style={{ background: 'rgba(255,255,255,0.02)' }}
-          >
+          <div className="md:hidden flex-shrink-0 flex items-center px-4 py-2 border-b border-border-subtle">
             <button
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white/50 hover:text-white/80 transition-colors"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-ink-muted hover:text-ink-primary transition-colors border border-border-subtle"
               onClick={() => setShowSidebar((v) => !v)}
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -685,8 +671,8 @@ export default function Chat() {
 
           {/* Input bar */}
           <div
-            className="flex-shrink-0 border-t border-white/[0.06] px-4 py-4"
-            style={{ background: 'rgba(10,10,26,0.6)', backdropFilter: 'blur(24px)' }}
+            className="flex-shrink-0 border-t border-border-subtle px-4 py-4"
+            style={{ background: '#111113' }}
           >
             <div className="max-w-2xl mx-auto">
 
@@ -700,12 +686,12 @@ export default function Chat() {
                   <div key={id} className="relative group">
                     <button
                       onClick={() => changeTutorMode(id)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 ${
-                        tutorMode === id ? 'text-indigo-300' : 'text-white/30 hover:text-white/60'
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors duration-150 ${
+                        tutorMode === id ? 'text-accent' : 'text-ink-faint hover:text-ink-muted'
                       }`}
                       style={
                         tutorMode === id
-                          ? { background: 'rgba(var(--indigo-500-rgb),0.15)', border: '1px solid rgba(var(--indigo-500-rgb),0.3)' }
+                          ? { background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)' }
                           : { background: 'transparent', border: '1px solid transparent' }
                       }
                     >
@@ -735,12 +721,12 @@ export default function Chat() {
                       src={attachedFile.previewUrl}
                       alt="preview"
                       className="h-10 w-10 object-cover rounded-lg flex-shrink-0"
-                      style={{ border: '1px solid rgba(var(--indigo-500-rgb),0.3)' }}
+                      style={{ border: '1px solid rgba(99,102,241,0.3)' }}
                     />
                   ) : null}
                   <span
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-indigo-300/80 truncate max-w-[280px]"
-                    style={{ background: 'rgba(var(--indigo-500-rgb),0.12)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}
+                    style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }}
                   >
                     <PaperclipIcon />
                     {attachedFile.name}
@@ -770,10 +756,10 @@ export default function Chat() {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isTyping}
                   title="Attach a file (PDF, TXT, or image)"
-                  className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
-                             text-white/40 hover:text-indigo-300 transition-all duration-200
+                  className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center
+                             text-ink-muted hover:text-accent transition-colors duration-150
                              disabled:opacity-30 disabled:cursor-not-allowed"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
                   aria-label="Attach file"
                 >
                   <PaperclipIcon />
@@ -783,13 +769,12 @@ export default function Chat() {
                   <textarea
                     ref={inputRef}
                     rows={1}
-                    className="w-full resize-none rounded-2xl px-4 py-3 text-sm text-white/85
-                               placeholder-white/25 border border-white/[0.08]
-                               focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20
-                               transition-all duration-200 leading-relaxed"
+                    className="w-full resize-none rounded-lg px-4 py-3 text-sm text-ink-primary
+                               placeholder-ink-faint border border-border-subtle
+                               focus:outline-none focus:border-accent
+                               transition-colors duration-150 leading-relaxed"
                     style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      backdropFilter: 'blur(12px)',
+                      background: 'rgba(255,255,255,0.03)',
                       maxHeight: '140px',
                       overflowY: 'auto',
                       scrollbarWidth: 'none',
@@ -812,10 +797,7 @@ export default function Chat() {
                   className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
                              text-white transition-all duration-200
                              disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{
-                    background: 'linear-gradient(135deg, var(--indigo-500) 0%, var(--violet-600) 100%)',
-                    boxShadow: '0 4px 20px rgba(var(--indigo-500-rgb),0.3)',
-                  }}
+                  style={{ background: '#6366f1' }}
                   aria-label="Send message"
                 >
                   <SendIcon disabled={!canSend} />

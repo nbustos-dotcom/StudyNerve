@@ -42,7 +42,7 @@ function DecksView({ onStudyDeck, onGenerate }) {
       <div className="card p-10 flex flex-col items-center gap-4 text-center">
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center"
-          style={{ background: 'rgba(var(--indigo-500-rgb),0.08)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}
+          style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}
         >
           <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
@@ -67,7 +67,7 @@ function DecksView({ onStudyDeck, onGenerate }) {
         >
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.04)' }}
+            style={{ background: 'rgba(255,255,255,0.05)' }}
           >
             <svg className="w-5 h-5 text-slate-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="14" height="12" rx="2"/>
@@ -393,7 +393,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
     return (
       <div className="max-w-xl mx-auto">
         <div className="card p-8 flex flex-col items-center gap-5 text-center fade-in-up">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(var(--indigo-500-rgb),0.08)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
             <svg className="w-7 h-7 text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z"/>
             </svg>
@@ -436,7 +436,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
       <>
         {backLink}
         <div className="card p-10 flex flex-col items-center gap-4 text-center">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(var(--indigo-500-rgb),0.08)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
             <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
             </svg>
@@ -536,7 +536,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
             transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
             cursor: 'pointer',
             boxShadow: flipped
-              ? '0 16px 48px rgba(var(--indigo-500-rgb),0.2), 0 4px 16px rgba(0,0,0,0.4)'
+              ? '0 16px 48px rgba(99,102,241,0.2), 0 4px 16px rgba(0,0,0,0.4)'
               : '0 8px 32px rgba(0,0,0,0.3)',
           }}
         >

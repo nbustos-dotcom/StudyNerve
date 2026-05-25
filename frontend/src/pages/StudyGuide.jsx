@@ -95,7 +95,7 @@ function makeComponents() {
       <div
         id={id}
         style={{
-          borderLeft: '3px solid var(--indigo-500)',
+          borderLeft: '3px solid #6366f1',
           paddingLeft: '14px',
           marginTop: mt[level],
           marginBottom: '10px',
@@ -121,7 +121,7 @@ function makeComponents() {
     ),
 
     strong: ({ children }) => (
-      <strong style={{ color: 'var(--indigo-400)', fontWeight: 600 }}>{children}</strong>
+      <strong style={{ color: '#818cf8', fontWeight: 600 }}>{children}</strong>
     ),
 
     em: ({ children }) => (
@@ -147,7 +147,7 @@ function makeComponents() {
     ),
 
     blockquote: ({ children }) => (
-      <blockquote style={{ borderLeft: '2px solid rgba(var(--indigo-500-rgb),0.4)', paddingLeft: '14px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', margin: '14px 0' }}>
+      <blockquote style={{ borderLeft: '2px solid rgba(99,102,241,0.4)', paddingLeft: '14px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', margin: '14px 0' }}>
         {children}
       </blockquote>
     ),
@@ -170,7 +170,7 @@ function makeComponents() {
       }
       return (
         <code
-          style={{ background: 'rgba(var(--indigo-500-rgb),0.15)', color: '#a5b4fc', borderRadius: '5px', padding: '2px 7px', fontSize: '0.85em', fontFamily: 'monospace' }}
+          style={{ background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', borderRadius: '5px', padding: '2px 7px', fontSize: '0.85em', fontFamily: 'monospace' }}
         >
           {children}
         </code>
@@ -373,7 +373,7 @@ export default function StudyGuide() {
         <div className="flex items-center gap-2 mb-2">
           <span
             className="text-xs font-medium px-2 py-0.5 rounded-full"
-            style={{ background: 'rgba(var(--indigo-500-rgb),0.12)', color: 'rgba(165,180,252,0.9)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}
+            style={{ background: 'rgba(99,102,241,0.12)', color: 'rgba(165,180,252,0.9)', border: '1px solid rgba(99,102,241,0.2)' }}
           >
             Study Guide
           </span>
@@ -423,8 +423,8 @@ export default function StudyGuide() {
                     style={{
                       width: '100%',
                       minHeight: '520px',
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(var(--indigo-500-rgb),0.35)',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(99,102,241,0.35)',
                       borderRadius: '10px',
                       padding: '16px',
                       color: 'rgba(255,255,255,0.85)',

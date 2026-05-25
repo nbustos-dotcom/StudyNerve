@@ -24,16 +24,16 @@ function formatRelativeTime(isoString) {
 
 function TypingIndicator() {
   return (
-    <div className="border-t border-white/[0.05] py-5">
+    <div className="border-t border-border-subtle py-5">
       <div className="flex items-center gap-2 mb-3">
         <NeuralNetIcon size={14} idPrefix="typing-indicator" />
-        <span className="text-[11px] font-medium text-indigo-300/60">StudyNerve AI</span>
+        <span className="text-[11px] font-medium text-accent/60">StudyNerve AI</span>
       </div>
       <div className="flex items-center gap-1 h-4">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="w-1.5 h-1.5 rounded-full bg-indigo-400/50"
+            className="w-1.5 h-1.5 rounded-full bg-accent-hover/50"
             style={{
               animation: 'bounce 1.2s ease-in-out infinite',
               animationDelay: `${i * 0.2}s`,
@@ -69,7 +69,7 @@ function MessageBubble({ message }) {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="border-t border-white/[0.05] py-5">
+    <div className="border-t border-border-subtle py-5">
       <div className="flex items-center gap-2 mb-3">
         {isUser ? (
           <>
@@ -84,7 +84,7 @@ function MessageBubble({ message }) {
         ) : (
           <>
             <NeuralNetIcon size={14} idPrefix={iconIdRef.current} />
-            <span className="text-[11px] font-medium text-indigo-300/60">StudyNerve AI</span>
+            <span className="text-[11px] font-medium text-accent/60">StudyNerve AI</span>
             {message.providerUsed && !message.providerUsed.includes('(cached)') && (
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4, fontFamily: 'monospace' }}>
                 ⚡ {message.providerUsed}
@@ -100,7 +100,7 @@ function MessageBubble({ message }) {
           {message.fileName && (
             <div className="mb-2">
               <span
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-indigo-300/80"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-accent-hover/80"
                 style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }}
               >
                 <PaperclipIcon />
@@ -126,10 +126,10 @@ function WelcomeMessage() {
     <div className="py-5">
       <div className="flex items-center gap-2 mb-3">
         <NeuralNetIcon size={14} idPrefix="welcome-msg" />
-        <span className="text-[11px] font-medium text-indigo-300/60">StudyNerve AI</span>
+        <span className="text-[11px] font-medium text-accent/60">StudyNerve AI</span>
       </div>
       <p className="text-sm text-white/80 leading-relaxed">
-        I&apos;m <span className="text-indigo-300 font-semibold">StudyNerve AI</span>, your personal AI tutor.
+        I&apos;m <span className="text-accent-hover font-semibold">StudyNerve AI</span>, your personal AI tutor.
         I know what you&apos;re studying and where you need help.
       </p>
       <p className="text-sm text-white/40 mt-1.5">Ask me anything.</p>
@@ -211,7 +211,7 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, on
       {/* Sessions list */}
       <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5" style={{ scrollbarWidth: 'none' }}>
         {sessions.length === 0 ? (
-          <p className="text-[11px] text-slate-600 text-center mt-6 px-4 leading-relaxed">
+          <p className="text-[11px] text-ink-faint text-center mt-6 px-4 leading-relaxed">
             Your conversations will appear here
           </p>
         ) : (
@@ -246,7 +246,7 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, on
                       </button>
                       <button
                         onClick={handleCancel}
-                        className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
+                        className="text-[11px] text-ink-muted hover:text-ink-secondary transition-colors"
                       >
                         Cancel
                       </button>
@@ -272,15 +272,15 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, on
                           }
                     }
                   >
-                    <p className={`text-xs leading-snug truncate pr-5 ${isActive ? 'text-slate-200' : 'text-slate-400'}`}>
+                    <p className={`text-xs leading-snug truncate pr-5 ${isActive ? 'text-ink-primary' : 'text-ink-muted'}`}>
                       {session.preview}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-[10px] text-slate-600">
+                      <span className="text-[10px] text-ink-faint">
                         {formatRelativeTime(session.last_activity)}
                       </span>
                       <span className="text-[10px] text-slate-700">·</span>
-                      <span className="text-[10px] text-slate-600">
+                      <span className="text-[10px] text-ink-faint">
                         {session.message_count} {session.message_count === 1 ? 'msg' : 'msgs'}
                       </span>
                     </div>
@@ -292,7 +292,7 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, on
                   <button
                     onClick={(e) => handleDeleteClick(e, session.session_id)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md
-                               text-slate-600 hover:text-red-400 transition-colors"
+                               text-ink-faint hover:text-red-400 transition-colors"
                     style={{ background: 'rgba(0,0,0,0.3)' }}
                     aria-label="Delete conversation"
                   >
@@ -353,20 +353,20 @@ function StudyNudge({ onDismiss, onSuggest }) {
         <p className="text-[11px] font-medium text-accent/60 uppercase tracking-wider mb-2">Suggested Focus</p>
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           {topGap && (
-            <span className="text-sm text-slate-300">
+            <span className="text-sm text-ink-secondary">
               Weakest topic: <span className={`font-semibold ${pctColor}`}>{topGap.topic_name}</span>
-              <span className="text-slate-500 ml-1 text-xs">({pct}%)</span>
+              <span className="text-ink-muted ml-1 text-xs">({pct}%)</span>
             </span>
           )}
           {urgentDeadline && (
-            <span className="text-sm text-slate-300">
+            <span className="text-sm text-ink-secondary">
               Due soon: <span className="font-semibold text-amber-300">{urgentDeadline.name}</span>
             </span>
           )}
         </div>
         <button
           onClick={() => onSuggest(suggestion)}
-          className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+          className="mt-2 text-xs text-accent hover:text-accent-hover transition-colors"
         >
           Start here →
         </button>
@@ -610,7 +610,7 @@ export default function Chat() {
           <>
             <div
               className="md:hidden fixed inset-0 z-40"
-              style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+              style={{ background: 'rgba(0,0,0,0.5)' }}
               onClick={() => setShowSidebar(false)}
             />
             <div className="md:hidden fixed top-16 left-0 bottom-0 z-50" style={{ width: 256 }}>
@@ -698,11 +698,8 @@ export default function Chat() {
                       {label}
                     </button>
                     <div
-                      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white/75 whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 z-10"
+                      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white/75 whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 z-10 bg-deep-elevated border border-border-subtle"
                       style={{
-                        background: 'rgba(12,12,24,0.96)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        backdropFilter: 'blur(12px)',
                         boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
                         transition: 'opacity 150ms ease',
                       }}
@@ -725,7 +722,7 @@ export default function Chat() {
                     />
                   ) : null}
                   <span
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-indigo-300/80 truncate max-w-[280px]"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-accent-hover/80 truncate max-w-[280px]"
                     style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }}
                   >
                     <PaperclipIcon />

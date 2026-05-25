@@ -70,8 +70,6 @@ function ToastItem({ toast, onDismiss }) {
         borderRadius: 10,
         background: c.bg,
         border: `1px solid ${c.border}`,
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
         boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
         maxWidth: 320,
         animation: 'toast-slide-in 0.2s ease',

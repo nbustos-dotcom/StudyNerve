@@ -23,9 +23,9 @@ function formatDueShort(iso) {
 const DUE_COLORS = {
   critical: 'text-red-400',
   warning:  'text-amber-400',
-  past:     'text-slate-600',
-  normal:   'text-slate-400',
-  none:     'text-slate-500',
+  past:     'text-ink-faint',
+  normal:   'text-ink-muted',
+  none:     'text-ink-muted',
 }
 
 // ── Relative time helper ──────────────────────────────────────────────────────
@@ -79,11 +79,10 @@ function SmartHeroCard({ gaps, canvasItems, onDismiss, onStudyNow, studyNowLoadi
 
   return (
     <div
-      className="card mb-5 relative"
+      className="card p-5 mb-5 relative"
       style={{ borderLeft: '3px solid rgba(99,102,241,0.6)' }}
     >
-      <div className="p-5 pr-10">
-        <p className="text-[15px] text-slate-200 leading-snug">{message}</p>
+        <p className="text-[15px] text-ink-primary leading-snug">{message}</p>
         <div className="flex items-center gap-2 mt-3 flex-wrap">
           <button
             onClick={onStudyNow}
@@ -103,12 +102,11 @@ function SmartHeroCard({ gaps, canvasItems, onDismiss, onStudyNow, studyNowLoadi
             )}
           </button>
           {showCta && (
-            <Link to="/quiz" className="btn-ghost text-sm text-slate-400 hover:text-slate-200">
+            <Link to="/quiz" className="btn-ghost text-sm text-ink-muted hover:text-ink-primary">
               Custom quiz →
             </Link>
           )}
         </div>
-      </div>
       <button
         onClick={onDismiss}
         className="absolute top-3.5 right-3.5 text-white/20 hover:text-white/50 transition-colors"
@@ -138,7 +136,7 @@ function QuickActions() {
           className="card-solid p-4 flex flex-col items-center gap-2 text-center transition-transform duration-150 hover:scale-[1.02]"
         >
           <span className="text-2xl leading-none">{emoji}</span>
-          <span className="text-sm text-slate-300 font-medium">{label}</span>
+          <span className="text-sm text-ink-secondary font-medium">{label}</span>
         </Link>
       ))}
     </div>
@@ -173,7 +171,7 @@ function WeeklyStudyGrid({ quizHistory, notes }) {
         {days.map(({ date, active }, i) => (
           <div key={i} className="flex flex-col items-center gap-1">
             <div
-              className={`w-7 h-7 rounded-full transition-colors ${active ? 'bg-indigo-500' : 'bg-white/[0.06]'}`}
+              className={`w-7 h-7 rounded-full transition-colors ${active ? 'bg-accent' : 'bg-white/[0.06]'}`}
               title={date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
             />
             <span className="text-[9px] text-slate-700 select-none">{DAY_LABELS[date.getDay()]}</span>
@@ -182,7 +180,7 @@ function WeeklyStudyGrid({ quizHistory, notes }) {
       </div>
       {streak > 0
         ? <span className="text-sm font-medium text-amber-400">🔥 {streak} day{streak !== 1 ? 's' : ''}</span>
-        : <span className="text-xs text-slate-600">No streak yet</span>
+        : <span className="text-xs text-ink-faint">No streak yet</span>
       }
     </div>
   )
@@ -209,17 +207,17 @@ function ActivityFeed({ quizHistory, notes }) {
 
   return (
     <div className="mb-8">
-      <h2 className="text-sm font-medium text-slate-300 mb-3">Recent Activity</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-3">Recent Activity</h2>
       <div className="space-y-2.5">
         {top5.map((item, i) => {
           const dotColor = item.type === 'note'
-            ? 'bg-indigo-500'
+            ? 'bg-accent'
             : item.pct >= 70 ? 'bg-emerald-500' : item.pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
           return (
             <div key={i} className="flex items-center gap-3">
               <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-px ${dotColor}`} />
-              <span className="text-sm text-slate-400 flex-1 truncate">{item.label}</span>
-              <span className="text-xs text-slate-600 flex-shrink-0 tabular-nums">{formatRelative(item.time)}</span>
+              <span className="text-sm text-ink-muted flex-1 truncate">{item.label}</span>
+              <span className="text-xs text-ink-faint flex-shrink-0 tabular-nums">{formatRelative(item.time)}</span>
             </div>
           )
         })}
@@ -250,17 +248,17 @@ function UpcomingDeadlines() {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-medium text-ink-secondary">Upcoming Deadlines</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Upcoming Deadlines</h2>
         {connected && items?.length > 0 && (
-          <Link to="/canvas" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">
+          <Link to="/canvas" className="text-xs text-ink-faint hover:text-ink-muted transition-colors">
             View Canvas →
           </Link>
         )}
       </div>
 
       {items === null && (
-        <div className="card p-4 flex items-center gap-2 text-slate-500 text-sm">
-          <svg className="animate-spin w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+        <div className="card p-4 flex items-center gap-2 text-ink-muted text-sm">
+          <svg className="animate-spin w-4 h-4 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
           </svg>
@@ -270,7 +268,7 @@ function UpcomingDeadlines() {
 
       {items !== null && !connected && (
         <div className="card p-5 flex items-center justify-between">
-          <p className="text-sm text-slate-500">Connect Canvas to see your upcoming deadlines.</p>
+          <p className="text-sm text-ink-muted">Connect Canvas to see your upcoming deadlines.</p>
           <Link to="/canvas" className="btn-secondary text-xs ml-4 flex-shrink-0">
             Connect Canvas
           </Link>
@@ -301,9 +299,9 @@ function UpcomingDeadlines() {
                 }}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-200 truncate">{a.name}</p>
+                  <p className="text-sm text-ink-primary truncate">{a.name}</p>
                   {a.course_name && (
-                    <p className="text-[11px] text-slate-600 truncate mt-0.5">{a.course_name}</p>
+                    <p className="text-[11px] text-ink-faint truncate mt-0.5">{a.course_name}</p>
                   )}
                 </div>
                 <span className={`text-xs flex-shrink-0 tabular-nums ${DUE_COLORS[urgency]}`}>
@@ -324,7 +322,7 @@ function StatCard({ label, value, sub, accent }) {
   return (
     <div className="card p-6 card-lift">
       <p className="text-[11px] font-medium text-white/30 uppercase tracking-widest mb-3">{label}</p>
-      <p className={`text-[2rem] font-bold leading-none ${accent || 'text-slate-100'}`}>{value}</p>
+      <p className={`text-[2rem] font-bold leading-none ${accent || 'text-ink-primary'}`}>{value}</p>
       {sub && <p className="text-xs text-white/30 mt-2 uppercase tracking-wider">{sub}</p>}
     </div>
   )
@@ -352,7 +350,7 @@ function WeakAreaCard({ topic, className = '' }) {
   return (
     <div className={`card p-4 card-lift ${className}`}>
       <div className="flex justify-between items-start mb-2">
-        <p className="text-sm text-slate-200 font-medium truncate max-w-[70%]">{topic.topic_name}</p>
+        <p className="text-sm text-ink-primary font-medium truncate max-w-[70%]">{topic.topic_name}</p>
         <span className={`text-sm font-semibold tabular-nums ${textColor}`}>{pct}%</span>
       </div>
       <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -503,9 +501,9 @@ export default function Dashboard() {
               {/* Weak Areas */}
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-medium text-slate-300">Weak Areas</h2>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Weak Areas</h2>
                   {gaps && gaps.length > 0 && (
-                    <span className="text-xs text-slate-600">ranked by gap score</span>
+                    <span className="text-xs text-ink-faint">ranked by gap score</span>
                   )}
                 </div>
                 {!gaps || gaps.length === 0 ? (
@@ -528,16 +526,16 @@ export default function Dashboard() {
               {/* Top Topics */}
               {stats.topic_accuracies.length > 0 && (
                 <div className="card p-6">
-                  <h2 className="text-sm font-medium text-slate-300 mb-4">Top Topics</h2>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-4">Top Topics</h2>
                   <div className="space-y-3">
                     {stats.topic_accuracies.slice(0, 6).map((t) => {
                       const pct = Math.round(t.accuracy * 100)
                       const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
                       return (
                         <div key={t.topic_id}>
-                          <div className="flex justify-between text-xs text-slate-400 mb-1">
+                          <div className="flex justify-between text-xs text-ink-muted mb-1">
                             <span className="truncate max-w-[60%]">{t.topic_name}</span>
-                            <span className="text-slate-500">
+                            <span className="text-ink-muted">
                               {t.correct_attempts}/{t.total_attempts} · {pct}%
                             </span>
                           </div>
@@ -555,7 +553,7 @@ export default function Dashboard() {
               <div className="mt-6 mb-2">
                 <button
                   onClick={toggleTopics}
-                  className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+                  className="flex items-center gap-2 text-sm font-medium text-ink-muted hover:text-ink-primary transition-colors"
                 >
                   {topicExpanded ? 'Hide Topics ▴' : 'View All Topics ▾'}
                 </button>
@@ -570,42 +568,42 @@ export default function Dashboard() {
                     {!topicLoading && sortedTopicStats.length > 0 && (
                       <div className="card overflow-hidden">
                         <table className="w-full">
-                          <thead className="border-b border-[#1e1e2e]">
+                          <thead className="border-b border-border-subtle">
                             <tr>
                               <th
-                                className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-slate-300 select-none transition-colors"
+                                className="text-left text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-ink-secondary select-none transition-colors"
                                 onClick={() => handleTopicSort('name')}
                               >
                                 Topic{' '}
-                                {topicSortBy !== 'name' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                                {topicSortBy !== 'name' ? <span className="text-ink-faint">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                               </th>
                               <th
-                                className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-slate-300 select-none transition-colors"
+                                className="text-right text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-ink-secondary select-none transition-colors"
                                 onClick={() => handleTopicSort('attempts')}
                               >
                                 Attempts{' '}
-                                {topicSortBy !== 'attempts' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                                {topicSortBy !== 'attempts' ? <span className="text-ink-faint">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                               </th>
-                              <th className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4">Correct</th>
+                              <th className="text-right text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4">Correct</th>
                               <th
-                                className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 min-w-[180px] cursor-pointer hover:text-slate-300 select-none transition-colors"
+                                className="text-left text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4 min-w-[180px] cursor-pointer hover:text-ink-secondary select-none transition-colors"
                                 onClick={() => handleTopicSort('accuracy')}
                               >
                                 Accuracy{' '}
-                                {topicSortBy !== 'accuracy' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                                {topicSortBy !== 'accuracy' ? <span className="text-ink-faint">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                               </th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-[#1e1e2e]">
+                          <tbody className="divide-y divide-white/[0.06]">
                             {sortedTopicStats.map((t) => {
                               const pct = Math.round(t.accuracy * 100)
                               const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
                               const textColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
                               return (
                                 <tr key={t.topic_id} className="hover:bg-white/[0.02] transition-colors">
-                                  <td className="py-3 px-4 text-sm text-slate-200">{t.topic_name}</td>
-                                  <td className="py-3 px-4 text-right text-sm text-slate-400 tabular-nums">{t.total_attempts}</td>
-                                  <td className="py-3 px-4 text-right text-sm text-slate-400 tabular-nums">{t.correct_attempts}</td>
+                                  <td className="py-3 px-4 text-sm text-ink-primary">{t.topic_name}</td>
+                                  <td className="py-3 px-4 text-right text-sm text-ink-muted tabular-nums">{t.total_attempts}</td>
+                                  <td className="py-3 px-4 text-right text-sm text-ink-muted tabular-nums">{t.correct_attempts}</td>
                                   <td className="py-3 px-4">
                                     <div className="flex items-center gap-3 min-w-0">
                                       <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -619,7 +617,7 @@ export default function Dashboard() {
                             })}
                           </tbody>
                         </table>
-                        <div className="px-4 py-3 border-t border-[#1e1e2e] flex justify-between text-xs text-slate-600">
+                        <div className="px-4 py-3 border-t border-border-subtle flex justify-between text-xs text-ink-faint">
                           <span>{topicStats.length} topic{topicStats.length !== 1 ? 's' : ''}</span>
                           <span>
                             {topicStats.reduce((s, t) => s + t.total_attempts, 0)} total attempts ·{' '}
@@ -635,13 +633,13 @@ export default function Dashboard() {
               {stats.total_notes === 0 && (
                 <div className="card p-10 flex flex-col items-center gap-4 text-center">
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
-                    <svg className="w-7 h-7 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="w-7 h-7 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 12v6M9 15h6"/>
                     </svg>
                   </div>
                   <div>
-                    <p className="text-slate-300 font-medium mb-1">No notes yet</p>
-                    <p className="text-sm text-slate-500">Add your first set of study material to get started.</p>
+                    <p className="text-ink-secondary font-medium mb-1">No notes yet</p>
+                    <p className="text-sm text-ink-muted">Add your first set of study material to get started.</p>
                   </div>
                   <Link to="/notes" className="btn-primary">Add a Note</Link>
                 </div>
@@ -657,7 +655,7 @@ export default function Dashboard() {
 function Spinner({ small }) {
   return (
     <svg
-      className={`animate-spin ${small ? 'w-4 h-4' : 'w-6 h-6'} text-indigo-400`}
+      className={`animate-spin ${small ? 'w-4 h-4' : 'w-6 h-6'} text-accent`}
       fill="none"
       viewBox="0 0 24 24"
     >

@@ -27,9 +27,9 @@ function dueUrgency(iso) {
 const U = {
   critical: { text: 'text-red-400',   dot: 'bg-red-400',    shadow: '0 0 6px rgba(248,113,113,0.6)' },
   warning:  { text: 'text-amber-400', dot: 'bg-amber-400',  shadow: '0 0 6px rgba(251,191,36,0.5)'  },
-  past:     { text: 'text-slate-600', dot: 'bg-slate-700',  shadow: 'none'                           },
-  normal:   { text: 'text-slate-400', dot: 'bg-slate-600',  shadow: 'none'                           },
-  none:     { text: 'text-slate-500', dot: 'bg-slate-700',  shadow: 'none'                           },
+  past:     { text: 'text-ink-faint', dot: 'bg-slate-700',  shadow: 'none'                           },
+  normal:   { text: 'text-ink-muted', dot: 'bg-slate-600',  shadow: 'none'                           },
+  none:     { text: 'text-ink-muted', dot: 'bg-slate-700',  shadow: 'none'                           },
 }
 
 // ── Tiny shared components ────────────────────────────────────────────────────
@@ -287,8 +287,8 @@ export default function Canvas() {
       {/* Page header */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-slate-100">Canvas LMS</h1>
-          <p className="text-sm text-slate-500 mt-1">Michigan Technological University</p>
+          <h1 className="text-xl font-semibold text-ink-primary">Canvas LMS</h1>
+          <p className="text-sm text-ink-muted mt-1">Michigan Technological University</p>
         </div>
         {status?.connected && (
           <div className="flex items-center gap-2">
@@ -323,13 +323,13 @@ export default function Canvas() {
                     }}
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">
+                      <span className="text-xs font-medium text-ink-muted uppercase tracking-widest">
                         Courses
                       </span>
                       {hiddenCourses.size > 0 && (
                         <button
                           onClick={showAllCourses}
-                          className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                          className="text-xs text-accent hover:text-accent-hover transition-colors"
                         >
                           Show All
                         </button>
@@ -413,7 +413,7 @@ export default function Canvas() {
       {statusLoading ? (
         <div className="card p-5 mb-8 flex items-center gap-3">
           <Spinner size="sm" />
-          <span className="text-sm text-slate-500">Checking Canvas connection…</span>
+          <span className="text-sm text-ink-muted">Checking Canvas connection…</span>
         </div>
       ) : status?.connected ? (
         <div className="card p-5 mb-8 flex items-center justify-between">
@@ -423,8 +423,8 @@ export default function Canvas() {
               style={{ boxShadow: '0 0 8px rgba(52,211,153,0.7)' }}
             />
             <div>
-              <p className="text-sm font-medium text-slate-200">Connected to Canvas</p>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-sm font-medium text-ink-primary">Connected to Canvas</p>
+              <p className="text-xs text-ink-muted mt-0.5">
                 {status.courses_visible} active course{status.courses_visible !== 1 ? 's' : ''} visible
               </p>
             </div>
@@ -437,14 +437,14 @@ export default function Canvas() {
         <div className="card p-6 mb-8">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-2 h-2 rounded-full bg-slate-600 flex-shrink-0" />
-            <p className="text-sm font-medium text-slate-300">Not connected to Canvas</p>
+            <p className="text-sm font-medium text-ink-secondary">Not connected to Canvas</p>
             {status?.reason && (
-              <span className="text-xs text-slate-600">— {status.reason}</span>
+              <span className="text-xs text-ink-faint">— {status.reason}</span>
             )}
           </div>
-          <p className="text-sm text-slate-500 mb-4">
+          <p className="text-sm text-ink-muted mb-4">
             Connect your Canvas account in{' '}
-            <Link to="/settings" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+            <Link to="/settings" className="text-accent hover:text-accent-hover underline underline-offset-2">
               Settings
             </Link>{' '}
             to import assignments and sync your courses.
@@ -459,7 +459,7 @@ export default function Canvas() {
       {status?.connected && !selectedCourse && (
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-medium text-slate-300">Your Courses</h2>
+            <h2 className="text-sm font-medium text-ink-secondary">Your Courses</h2>
             {!coursesLoading && courses.length > 0 && (
               <span className="text-xs text-white/30">
                 Showing {visibleCourses.length} of {courses.length} course{courses.length !== 1 ? 's' : ''}
@@ -468,7 +468,7 @@ export default function Canvas() {
           </div>
 
           {coursesLoading ? (
-            <div className="flex items-center gap-2 text-slate-500 text-sm">
+            <div className="flex items-center gap-2 text-ink-muted text-sm">
               <Spinner size="sm" />Loading courses…
             </div>
           ) : visibleCourses.length === 0 ? (
@@ -477,7 +477,7 @@ export default function Canvas() {
               {courses.length > 0 ? (
                 <>
                   <p className="text-sm text-white/30">All courses are hidden.</p>
-                  <button onClick={showAllCourses} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                  <button onClick={showAllCourses} className="text-xs text-accent hover:text-accent-hover transition-colors">
                     Show All
                   </button>
                 </>
@@ -493,19 +493,19 @@ export default function Canvas() {
                   <button
                     key={course.id}
                     onClick={() => selectCourse(course)}
-                    className="card p-5 text-left group transition-all duration-200 hover:border-indigo-500/30 card-lift"
+                    className="card p-5 text-left group transition-all duration-200 hover:border-accent/30 card-lift"
                     onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99,102,241,0.06)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = '')}
                     style={{ borderLeft: `3px solid ${accent}` }}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-200 leading-snug">{course.name}</p>
+                        <p className="text-sm font-medium text-ink-primary leading-snug">{course.name}</p>
                         {course.code && (
-                          <p className="text-[11px] font-mono text-slate-600 mt-1">{course.code}</p>
+                          <p className="text-[11px] font-mono text-ink-faint mt-1">{course.code}</p>
                         )}
                       </div>
-                      <span className="flex-shrink-0 text-slate-700 group-hover:text-indigo-400 transition-colors mt-0.5">
+                      <span className="flex-shrink-0 text-slate-700 group-hover:text-accent transition-colors mt-0.5">
                         <ChevronRight />
                       </span>
                     </div>
@@ -531,7 +531,7 @@ export default function Canvas() {
               Courses
             </button>
             <span className="text-slate-700 text-xs">/</span>
-            <span className="text-sm font-medium text-slate-300 truncate max-w-xs">
+            <span className="text-sm font-medium text-ink-secondary truncate max-w-xs">
               {selectedCourse.name}
             </span>
           </div>
@@ -564,7 +564,7 @@ export default function Canvas() {
           )}
 
           {assignmentsLoading ? (
-            <div className="flex items-center gap-2 text-slate-500 text-sm">
+            <div className="flex items-center gap-2 text-ink-muted text-sm">
               <Spinner size="sm" />Loading assignments…
             </div>
           ) : filteredAssignments.length === 0 ? (
@@ -575,7 +575,7 @@ export default function Canvas() {
                   <p className="text-sm text-white/30">No assignments match the current filter.</p>
                   <button
                     onClick={() => { setDueDateFilter('all'); setAssignmentSort('soonest') }}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                    className="text-xs text-accent hover:text-accent-hover transition-colors"
                   >
                     Show all assignments
                   </button>
@@ -599,7 +599,7 @@ export default function Canvas() {
                       style={{ boxShadow: u.shadow }}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-200 leading-snug">{a.name}</p>
+                      <p className="text-sm font-medium text-ink-primary leading-snug">{a.name}</p>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         {a.due_at ? (
                           <span
@@ -628,7 +628,7 @@ export default function Canvas() {
                         )}
                       </div>
                       {a.description && (
-                        <p className="text-xs text-slate-500 mt-2 leading-relaxed line-clamp-2">
+                        <p className="text-xs text-ink-muted mt-2 leading-relaxed line-clamp-2">
                           {a.description}
                         </p>
                       )}

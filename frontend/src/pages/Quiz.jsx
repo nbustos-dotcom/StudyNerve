@@ -38,7 +38,7 @@ function scoreColor(pct) {
 }
 
 function timeColor(secs) {
-  if (secs == null) return 'text-slate-600'
+  if (secs == null) return 'text-ink-faint'
   if (secs < 20) return 'text-emerald-400'
   if (secs < 60) return 'text-amber-400'
   return 'text-red-400'
@@ -437,7 +437,7 @@ export default function Quiz() {
         {/* Study Now banner */}
         {studyNowMeta && (
           <div className="mb-5 px-4 py-3 rounded-lg flex items-center gap-3 bg-accent/[0.07] border border-accent/20">
-            <span className="text-indigo-400 text-base flex-shrink-0">⚡</span>
+            <span className="text-accent text-base flex-shrink-0">⚡</span>
             <div className="min-w-0 flex-1">
               <p className="text-xs text-accent/70 font-medium uppercase tracking-wider">{studyNowMeta.reason}</p>
               <p className="text-sm text-ink-primary font-medium mt-0.5">
@@ -548,8 +548,8 @@ export default function Quiz() {
                     <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
                   </svg>
                   <span className="text-sm font-medium text-red-400">Incorrect</span>
-                  <span className="text-xs text-slate-500 ml-1">
-                    · correct answer: <span className="text-slate-300">{currentResult.correct_answer}</span>
+                  <span className="text-xs text-ink-muted ml-1">
+                    · correct answer: <span className="text-ink-secondary">{currentResult.correct_answer}</span>
                   </span>
                 </>
               )}
@@ -561,7 +561,7 @@ export default function Quiz() {
             )}
             {!currentResult.is_correct && (
               <button
-                className="mt-3 flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                className="mt-3 flex items-center gap-1.5 text-xs text-accent hover:text-accent-hover transition-colors"
                 onClick={() =>
                   navigate(
                     `/chat?question_id=${question.id}&q=${encodeURIComponent(question.content)}`
@@ -622,7 +622,7 @@ export default function Quiz() {
         <div className="text-center mb-10">
           <p className="text-ink-faint text-sm mb-2 uppercase tracking-widest font-medium">Quiz Complete</p>
           <p className={`text-6xl font-bold mb-3 ${color}`}>{pct}%</p>
-          <p className="text-slate-400 text-sm">{correct} of {total} correct</p>
+          <p className="text-ink-muted text-sm">{correct} of {total} correct</p>
         </div>
 
         {slowest?.timeTaken > 20 && (
@@ -653,10 +653,10 @@ export default function Quiz() {
                     {result.is_correct ? '✓' : '✗'}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-slate-300 leading-snug">{question.content}</p>
+                    <p className="text-sm text-ink-secondary leading-snug">{question.content}</p>
                     <div className="flex items-center gap-3 mt-1 flex-wrap">
-                      <p className="text-xs text-slate-500">
-                        Your answer: <span className="text-slate-400">{answer}</span>
+                      <p className="text-xs text-ink-muted">
+                        Your answer: <span className="text-ink-muted">{answer}</span>
                         {!result.is_correct && (
                           <> · Correct: <span className="text-emerald-400">{result.correct_answer}</span></>
                         )}
@@ -672,7 +672,7 @@ export default function Quiz() {
                         className={`mt-2 flex items-center gap-1 text-xs transition-colors ${
                           isFlagged
                             ? 'text-amber-400 hover:text-amber-300'
-                            : 'text-slate-600 hover:text-slate-400'
+                            : 'text-ink-faint hover:text-ink-muted'
                         }`}
                       >
                         <svg className="w-3 h-3" viewBox="0 0 16 16" fill={isFlagged ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
@@ -690,12 +690,12 @@ export default function Quiz() {
 
         {weakTopics.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-sm font-medium text-slate-400 mb-3">What to study next</h2>
+            <h2 className="text-sm font-medium text-ink-muted mb-3">What to study next</h2>
             <div className="space-y-2">
               {weakTopics.map((t, i) => (
                 <div key={i} className="card-solid p-4 flex items-center gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-200 font-medium truncate">{t.name}</p>
+                    <p className="text-sm text-ink-primary font-medium truncate">{t.name}</p>
                     <p className={`text-xs mt-0.5 ${scoreColor(t.pct)}`}>{t.pct}% accuracy</p>
                   </div>
                   <button
@@ -712,8 +712,8 @@ export default function Quiz() {
 
         {studyNowMeta && (
           <div className="mb-6 px-4 py-4 rounded-lg text-center bg-accent/[0.06] border border-accent/[0.15]">
-            <p className="text-xs text-slate-500 mb-1">
-              Your accuracy on <span className="text-slate-300">{studyNowMeta.topic_name}</span> was{' '}
+            <p className="text-xs text-ink-muted mb-1">
+              Your accuracy on <span className="text-ink-secondary">{studyNowMeta.topic_name}</span> was{' '}
               {studyNowMeta.topic_accuracy != null ? `${studyNowMeta.topic_accuracy}%` : 'unknown'}. Let's see how you did.
             </p>
             <button
@@ -794,7 +794,7 @@ function ReviewView({ item, onBack }) {
     <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
       <button
         onClick={onBack}
-        className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-300 transition-colors mb-6"
+        className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink-secondary transition-colors mb-6"
       >
         <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M10 4L6 8l4 4" strokeLinecap="round" strokeLinejoin="round" />
@@ -805,7 +805,7 @@ function ReviewView({ item, onBack }) {
       <div className="text-center mb-8">
         <p className="text-white/30 text-xs mb-1 uppercase tracking-widest font-medium">{item.note_title}</p>
         <p className={`text-5xl font-bold mb-2 ${color}`}>{pct}%</p>
-        <p className="text-slate-400 text-sm">{item.score} of {item.total_questions} correct · {formatDate(item.completed_at)}</p>
+        <p className="text-ink-muted text-sm">{item.score} of {item.total_questions} correct · {formatDate(item.completed_at)}</p>
       </div>
 
       <div className="space-y-3">
@@ -823,7 +823,7 @@ function ReviewView({ item, onBack }) {
                   {q.is_correct ? '✓' : '✗'}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-300 leading-snug mb-2">{q.content}</p>
+                  <p className="text-sm text-ink-secondary leading-snug mb-2">{q.content}</p>
                   {options && (
                     <div className="space-y-1 mb-2">
                       {Object.entries(options).map(([key, value]) => {
@@ -848,7 +848,7 @@ function ReviewView({ item, onBack }) {
                     </div>
                   )}
                   {!options && (
-                    <p className="text-xs text-slate-500 mb-1">
+                    <p className="text-xs text-ink-muted mb-1">
                       Your answer: <span className={q.is_correct ? 'text-emerald-400' : 'text-red-400'}>{q.user_answer}</span>
                       {!q.is_correct && (
                         <> · Correct: <span className="text-emerald-400">{q.correct_answer}</span></>
@@ -856,7 +856,7 @@ function ReviewView({ item, onBack }) {
                     </p>
                   )}
                   {q.explanation && (
-                    <p className="text-xs text-slate-500 mt-1 italic">{q.explanation}</p>
+                    <p className="text-xs text-ink-muted mt-1 italic">{q.explanation}</p>
                   )}
                   <button
                     onClick={() => handleFlag(i)}
@@ -864,7 +864,7 @@ function ReviewView({ item, onBack }) {
                     className={`mt-2 flex items-center gap-1 text-xs transition-colors ${
                       isFlagged
                         ? 'text-amber-400 hover:text-amber-300'
-                        : 'text-slate-600 hover:text-slate-400'
+                        : 'text-ink-faint hover:text-ink-muted'
                     }`}
                   >
                     <svg className="w-3 h-3" viewBox="0 0 16 16" fill={isFlagged ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
@@ -994,45 +994,45 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
 
           {!topicLoading && sortedTopics.length > 0 && (
             <>
-              <h2 className="text-sm font-medium text-slate-300 mb-3">Per-Topic Accuracy</h2>
+              <h2 className="text-sm font-medium text-ink-secondary mb-3">Per-Topic Accuracy</h2>
               <div className="card-solid overflow-hidden mb-8">
                 <table className="w-full">
-                  <thead className="border-b border-[#1e1e2e]">
+                  <thead className="border-b border-border-subtle">
                     <tr>
                       <th
-                        className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-slate-300 select-none transition-colors"
+                        className="text-left text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-ink-secondary select-none transition-colors"
                         onClick={() => handleTopicSort('name')}
                       >
                         Topic{' '}
-                        {topicSortBy !== 'name' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                        {topicSortBy !== 'name' ? <span className="text-ink-faint">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                       </th>
                       <th
-                        className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-slate-300 select-none transition-colors"
+                        className="text-right text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-ink-secondary select-none transition-colors"
                         onClick={() => handleTopicSort('attempts')}
                       >
                         Attempts{' '}
-                        {topicSortBy !== 'attempts' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                        {topicSortBy !== 'attempts' ? <span className="text-ink-faint">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                       </th>
-                      <th className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4">Correct</th>
+                      <th className="text-right text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4">Correct</th>
                       <th
-                        className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider py-3 px-4 min-w-[140px] cursor-pointer hover:text-slate-300 select-none transition-colors"
+                        className="text-left text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4 min-w-[140px] cursor-pointer hover:text-ink-secondary select-none transition-colors"
                         onClick={() => handleTopicSort('accuracy')}
                       >
                         Accuracy{' '}
-                        {topicSortBy !== 'accuracy' ? <span className="text-slate-600">↕</span> : <span className="text-indigo-400">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                        {topicSortBy !== 'accuracy' ? <span className="text-ink-faint">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#1e1e2e]">
+                  <tbody className="divide-y divide-white/[0.06]">
                     {sortedTopics.map((t) => {
                       const pct = Math.round(t.accuracy * 100)
                       const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
                       const textColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
                       return (
                         <tr key={t.topic_id} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="py-3 px-4 text-sm text-slate-200">{t.topic_name}</td>
-                          <td className="py-3 px-4 text-right text-sm text-slate-400 tabular-nums">{t.total_attempts}</td>
-                          <td className="py-3 px-4 text-right text-sm text-slate-400 tabular-nums">{t.correct_attempts}</td>
+                          <td className="py-3 px-4 text-sm text-ink-primary">{t.topic_name}</td>
+                          <td className="py-3 px-4 text-right text-sm text-ink-muted tabular-nums">{t.total_attempts}</td>
+                          <td className="py-3 px-4 text-right text-sm text-ink-muted tabular-nums">{t.correct_attempts}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -1046,7 +1046,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
                     })}
                   </tbody>
                 </table>
-                <div className="px-4 py-3 border-t border-[#1e1e2e] flex justify-between text-xs text-slate-600">
+                <div className="px-4 py-3 border-t border-border-subtle flex justify-between text-xs text-ink-faint">
                   <span>{topicStats.length} topic{topicStats.length !== 1 ? 's' : ''}</span>
                   <span>
                     {topicStats.reduce((s, t) => s + t.total_attempts, 0)} total attempts ·{' '}
@@ -1058,11 +1058,11 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
           )}
 
           {/* Past individual quizzes */}
-          <h2 className="text-sm font-medium text-slate-400 mb-3">Past Quizzes</h2>
+          <h2 className="text-sm font-medium text-ink-muted mb-3">Past Quizzes</h2>
           {historyLoading ? (
             <div className="flex justify-center py-6"><Spinner /></div>
           ) : history.length === 0 ? (
-            <p className="text-xs text-slate-600 text-center py-4">No completed quizzes yet — finish one to see it here.</p>
+            <p className="text-xs text-ink-faint text-center py-4">No completed quizzes yet — finish one to see it here.</p>
           ) : (
             <div className="space-y-2">
               {history.map((item) => {
@@ -1076,11 +1076,11 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
                   >
                     <div className={`text-2xl font-bold tabular-nums w-14 flex-shrink-0 ${color}`}>{pct}%</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-slate-200 truncate">{item.note_title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{item.score}/{item.total_questions} correct · {formatDate(item.completed_at)}</p>
+                      <p className="text-sm text-ink-primary truncate">{item.note_title}</p>
+                      <p className="text-xs text-ink-muted mt-0.5">{item.score}/{item.total_questions} correct · {formatDate(item.completed_at)}</p>
                     </div>
-                    <span className="text-xs text-indigo-400 group-hover:text-indigo-300 transition-colors flex-shrink-0 font-medium">Review</span>
-                    <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                    <span className="text-xs text-accent group-hover:text-accent-hover transition-colors flex-shrink-0 font-medium">Review</span>
+                    <svg className="w-4 h-4 text-ink-faint group-hover:text-ink-muted transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
@@ -1097,15 +1097,15 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
           {/* Resume banner */}
           {savedProgress && (
             <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-lg border border-accent/30 bg-accent/[0.08]">
-              <svg className="w-4 h-4 text-indigo-400 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
+              <svg className="w-4 h-4 text-accent flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM6.5 5.5l4 2.5-4 2.5V5.5z"/>
               </svg>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-slate-200 font-medium">In-progress quiz found</p>
-                <p className="text-xs text-slate-500">Question {savedProgress.currentIdx + 1} of {savedProgress.questions.length}</p>
+                <p className="text-sm text-ink-primary font-medium">In-progress quiz found</p>
+                <p className="text-xs text-ink-muted">Question {savedProgress.currentIdx + 1} of {savedProgress.questions.length}</p>
               </div>
               <button className="btn-primary text-xs px-3 py-1.5" onClick={onResume}>Resume</button>
-              <button className="text-slate-600 hover:text-slate-400 transition-colors ml-1" onClick={onDismissResume} title="Discard">
+              <button className="text-ink-faint hover:text-ink-muted transition-colors ml-1" onClick={onDismissResume} title="Discard">
                 <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round"/>
                 </svg>

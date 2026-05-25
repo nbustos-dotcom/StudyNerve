@@ -58,7 +58,7 @@
     background: #111113;
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 8px;
-    padding: 20px;
+    padding: 0;
   }
 
   .card-solid {
@@ -190,6 +190,24 @@
   );
   background-size: 800px 100%;
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* ── AI message animate-in ───────────────────────────────────────────────── */
+
+@keyframes ai-message-animate {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ai-message-animate {
+  animation: ai-message-animate 0.3s ease-out forwards;
+}
+
+/* ── Typing indicator bounce ─────────────────────────────────────────────── */
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+  40%           { transform: scale(1); opacity: 1; }
 }
 
 /* ── Progress bar animate-in ─────────────────────────────────────────────── */

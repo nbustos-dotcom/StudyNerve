@@ -59,13 +59,13 @@ function DeleteAccountModal({ onConfirm, onCancel, deleting }) {
             </svg>
           </div>
           <div>
-            <h3 className="text-base font-semibold text-slate-100">Delete Account</h3>
-            <p className="text-xs text-slate-500 mt-0.5">This cannot be undone</p>
+            <h3 className="text-base font-semibold text-ink-primary">Delete Account</h3>
+            <p className="text-xs text-ink-muted mt-0.5">This cannot be undone</p>
           </div>
         </div>
 
-        <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-          This permanently deletes your account and <span className="text-slate-300">all your data</span> — notes, quiz history, chat sessions, AI insights, vision boards, and settings. There is no recovery.
+        <p className="text-sm text-ink-muted mb-6 leading-relaxed">
+          This permanently deletes your account and <span className="text-ink-secondary">all your data</span> — notes, quiz history, chat sessions, AI insights, vision boards, and settings. There is no recovery.
         </p>
 
         <div className="flex gap-3">
@@ -119,13 +119,13 @@ function ClearMemoryModal({ onConfirm, onCancel, clearing }) {
             </svg>
           </div>
           <div>
-            <h3 className="text-base font-semibold text-slate-100">Clear AI Memory</h3>
-            <p className="text-xs text-slate-500 mt-0.5">This cannot be undone</p>
+            <h3 className="text-base font-semibold text-ink-primary">Clear AI Memory</h3>
+            <p className="text-xs text-ink-muted mt-0.5">This cannot be undone</p>
           </div>
         </div>
 
-        <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-          This will erase everything the AI has learned about you from past conversations — your learning patterns, strengths, weak spots, and preferences. Your notes, quizzes, and chat history are <span className="text-slate-300">not</span> deleted. The AI just starts learning you from scratch.
+        <p className="text-sm text-ink-muted mb-6 leading-relaxed">
+          This will erase everything the AI has learned about you from past conversations — your learning patterns, strengths, weak spots, and preferences. Your notes, quizzes, and chat history are <span className="text-ink-secondary">not</span> deleted. The AI just starts learning you from scratch.
         </p>
 
         <div className="flex gap-3">
@@ -287,8 +287,8 @@ export default function Settings() {
     <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-xl font-semibold text-slate-100">Settings</h1>
-        <p className="text-sm text-slate-500 mt-1">Configure your AI provider and integrations</p>
+        <h1 className="text-xl font-semibold text-ink-primary">Settings</h1>
+        <p className="text-sm text-ink-muted mt-1">Configure your AI provider and integrations</p>
       </div>
 
       {/* ── AI Provider ───────────────────────────────────────────────────────── */}
@@ -301,13 +301,13 @@ export default function Settings() {
                 className="w-1.5 h-1.5 rounded-full"
                 style={{ background: 'rgba(99,102,241,0.8)', boxShadow: '0 0 6px rgba(99,102,241,0.9)' }}
               />
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-ink-muted">
                 Currently using{' '}
-                <span className="text-slate-300 font-medium">
+                <span className="text-ink-secondary font-medium">
                   {PROVIDERS.find((p) => p.value === currentSettings.llm_provider)?.label ?? currentSettings.llm_provider}
                 </span>
                 {currentSettings.llm_api_key_set && (
-                  <span className="text-slate-600"> · API key saved</span>
+                  <span className="text-ink-faint"> · API key saved</span>
                 )}
               </span>
             </div>
@@ -315,7 +315,7 @@ export default function Settings() {
 
           {/* Provider grid */}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2">Provider</label>
+            <label className="block text-xs font-medium text-ink-muted mb-2">Provider</label>
             <div className="grid grid-cols-2 gap-2">
               {PROVIDERS.map((p) => (
                 <button
@@ -350,7 +350,7 @@ export default function Settings() {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-sm text-indigo-400 hover:text-indigo-300 transition mt-0.5 inline-block"
+                      className="text-sm text-accent hover:text-accent-hover transition mt-0.5 inline-block"
                     >
                       {p.apiKeyLabel}
                     </a>
@@ -359,17 +359,17 @@ export default function Settings() {
               ))}
             </div>
             {selectedMeta && (
-              <p className="text-[11px] text-slate-600 mt-2">{selectedMeta.hint}</p>
+              <p className="text-[11px] text-ink-faint mt-2">{selectedMeta.hint}</p>
             )}
           </div>
 
           {/* API key input */}
           {selectedMeta?.needsKey && (
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+              <label className="block text-xs font-medium text-ink-muted mb-1.5">
                 API Key
                 {currentSettings?.llm_api_key_set && currentSettings.llm_provider === provider && (
-                  <span className="text-slate-600 font-normal ml-1.5">— leave blank to keep existing key</span>
+                  <span className="text-ink-faint font-normal ml-1.5">— leave blank to keep existing key</span>
                 )}
               </label>
               <div className="relative">
@@ -424,12 +424,12 @@ export default function Settings() {
               className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${currentSettings.canvas_connected ? 'bg-emerald-400' : 'bg-slate-600'}`}
               style={currentSettings.canvas_connected ? { boxShadow: '0 0 8px rgba(52,211,153,0.7)' } : {}}
             />
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-ink-muted">
               {currentSettings.canvas_connected ? (
                 <>
                   <span className="text-emerald-400 font-medium">Connected</span>
                   {currentSettings.canvas_url && (
-                    <span className="text-slate-600"> · {currentSettings.canvas_url.replace(/\/api\/v\d+\/?$/, '')}</span>
+                    <span className="text-ink-faint"> · {currentSettings.canvas_url.replace(/\/api\/v\d+\/?$/, '')}</span>
                   )}
                 </>
               ) : (
@@ -462,8 +462,8 @@ export default function Settings() {
               placeholder="https://mtu.instructure.com"
               required
             />
-            <p className="text-[11px] text-slate-600 mt-1.5 leading-relaxed">
-              Enter your university's Canvas domain — do <strong className="text-slate-500">not</strong> include <code className="text-slate-500">/api/v1</code>, we add that automatically.
+            <p className="text-[11px] text-ink-faint mt-1.5 leading-relaxed">
+              Enter your university's Canvas domain — do <strong className="text-ink-muted">not</strong> include <code className="text-ink-muted">/api/v1</code>, we add that automatically.
             </p>
           </div>
           <div>
@@ -487,7 +487,7 @@ export default function Settings() {
                 <EyeIcon open={showCanvasToken} />
               </button>
             </div>
-            <p className="text-[11px] text-slate-600 mt-1.5 leading-relaxed">
+            <p className="text-[11px] text-ink-faint mt-1.5 leading-relaxed">
               Canvas → Account → Settings → Approved Integrations → New Access Token
             </p>
           </div>
@@ -516,7 +516,7 @@ export default function Settings() {
 
       {/* ── Data ──────────────────────────────────────────────────────────────── */}
       <SectionCard title="Data">
-        <p className="text-sm text-slate-500 mb-4">
+        <p className="text-sm text-ink-muted mb-4">
           Reset what the AI has learned about you. Your notes, quizzes, and chat history are not affected.
         </p>
 
@@ -542,7 +542,7 @@ export default function Settings() {
 
       {/* ── Danger Zone ───────────────────────────────────────────────────────── */}
       <SectionCard title="Danger Zone">
-        <p className="text-sm text-slate-500 mb-4">
+        <p className="text-sm text-ink-muted mb-4">
           Permanently delete your account and all associated data. This cannot be undone.
         </p>
 

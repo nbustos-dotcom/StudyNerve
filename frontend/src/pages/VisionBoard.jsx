@@ -77,7 +77,7 @@ function StepCard({ step, index, subSteps, onToggle, onExpand, onToggleSub, isDr
           <Checkbox checked={step.is_completed} onChange={() => onToggle(step)} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium leading-snug ${step.is_completed ? 'line-through text-white/30' : 'text-slate-100'}`}>
+          <p className={`text-sm font-medium leading-snug ${step.is_completed ? 'line-through text-white/30' : 'text-ink-primary'}`}>
             {step.title}
           </p>
           {step.description && (
@@ -177,7 +177,7 @@ function BoardList({ onOpen }) {
   return (
     <div className="px-4 sm:px-6 py-6 max-w-2xl mx-auto fade-in-up">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-100">Vision Board</h1>
+        <h1 className="text-xl font-semibold text-ink-primary">Vision Board</h1>
         <p className="text-sm text-white/50 mt-1">
           Break down any topic, assignment, or project into actionable steps
         </p>
@@ -190,7 +190,7 @@ function BoardList({ onOpen }) {
           placeholder="e.g. Research paper on climate change, Study for calculus midterm..."
           rows={2}
           disabled={creating}
-          className="w-full bg-transparent text-sm text-slate-100 placeholder-white/25 resize-none outline-none leading-relaxed"
+          className="w-full bg-transparent text-sm text-ink-primary placeholder-white/25 resize-none outline-none leading-relaxed"
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCreate(e) }
           }}
@@ -229,7 +229,7 @@ function BoardList({ onOpen }) {
                 className="card p-4 cursor-pointer hover:border-white/15 transition-all duration-200"
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
-                  <h3 className="font-medium text-slate-100 text-sm leading-snug flex-1 line-clamp-2">
+                  <h3 className="font-medium text-ink-primary text-sm leading-snug flex-1 line-clamp-2">
                     {board.title}
                   </h3>
                   <button
@@ -480,11 +480,11 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
                 if (e.key === 'Enter') saveTitle()
                 if (e.key === 'Escape') setEditingTitle(false)
               }}
-              className="w-full text-lg font-semibold text-slate-100 bg-transparent outline-none border-b border-white/20 pb-0.5"
+              className="w-full text-lg font-semibold text-ink-primary bg-transparent outline-none border-b border-white/20 pb-0.5"
             />
           ) : (
             <h1
-              className="text-lg font-semibold text-slate-100 cursor-pointer hover:text-white transition-colors truncate"
+              className="text-lg font-semibold text-ink-primary cursor-pointer hover:text-white transition-colors truncate"
               onClick={() => { setTitleDraft(board.title); setEditingTitle(true) }}
               title="Click to rename"
             >
@@ -518,14 +518,10 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
           </div>
           <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <div
-              className="h-1.5 rounded-full bar-animate"
+              className="h-1.5 rounded-full bar-animate bg-accent"
               style={{
                 width: `${pct}%`,
                 transition: 'width 0.4s ease',
-                background: pct === 100
-                  ? 'linear-gradient(90deg, #6366f1, #8b5cf6, #10b981)'
-                  : '#6366f1',
-                boxShadow: pct === 100 ? '0 0 12px rgba(99,102,241,0.6)' : 'none',
               }}
             />
           </div>
@@ -577,7 +573,7 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
               value={newStepTitle}
               onChange={e => setNewStepTitle(e.target.value)}
               placeholder="Step title…"
-              className="flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder-white/25"
+              className="flex-1 bg-transparent text-sm text-ink-primary outline-none placeholder-white/25"
               onKeyDown={e => {
                 if (e.key === 'Escape') { setAddingStep(false); setNewStepTitle('') }
               }}

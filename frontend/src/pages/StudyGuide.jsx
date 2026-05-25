@@ -336,7 +336,7 @@ export default function StudyGuide() {
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <button
           onClick={() => navigate('/notes')}
-          className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+          className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink-primary transition-colors"
         >
           <BackIcon />
           Back to Notes
@@ -345,7 +345,7 @@ export default function StudyGuide() {
         {!loading && !error && (
           <div className="flex items-center gap-2">
             {editing && (
-              <span className="text-xs text-slate-500 flex items-center gap-1">
+              <span className="text-xs text-ink-muted flex items-center gap-1">
                 {saving ? <><Spinner size="sm" /> Saving…</> : saveError ? <span className="text-red-400">{saveError}</span> : null}
               </span>
             )}
@@ -378,7 +378,7 @@ export default function StudyGuide() {
             Study Guide
           </span>
         </div>
-        <h1 className="text-xl font-semibold text-slate-100">{title || '…'}</h1>
+        <h1 className="text-xl font-semibold text-ink-primary">{title || '…'}</h1>
       </div>
 
       {/* Content */}
@@ -388,8 +388,8 @@ export default function StudyGuide() {
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
         >
           <Spinner size="sm" />
-          <p className="text-sm text-slate-400">Creating your study guide…</p>
-          <p className="text-xs text-slate-600">This usually takes 10–20 seconds</p>
+          <p className="text-sm text-ink-muted">Creating your study guide…</p>
+          <p className="text-xs text-ink-faint">This usually takes 10–20 seconds</p>
         </div>
       ) : error ? (
         <div
@@ -409,7 +409,6 @@ export default function StudyGuide() {
               style={{
                 background: 'rgba(255,255,255,0.03)',
                 border: '1px solid rgba(255,255,255,0.07)',
-                backdropFilter: 'blur(12px)',
                 padding: '32px',
               }}
             >
@@ -472,7 +471,6 @@ export default function StudyGuide() {
                 style={{
                   background: 'rgba(255,255,255,0.03)',
                   border: '1px solid rgba(255,255,255,0.07)',
-                  backdropFilter: 'blur(12px)',
                 }}
               >
                 <TableOfContents toc={toc} />

@@ -45,7 +45,7 @@ function makeComponents(size) {
       <strong className="font-semibold text-white">{children}</strong>
     ),
     em: ({ children }) => (
-      <em className="text-indigo-200/90" style={{ fontStyle: 'italic' }}>{children}</em>
+      <em className="text-accent-hover/90" style={{ fontStyle: 'italic' }}>{children}</em>
     ),
 
     // react-markdown v10: pre wraps block code; inline code has no parent pre
@@ -71,7 +71,7 @@ function makeComponents(size) {
         return (
           <div style={CODE_CONTAINER}>
             <code
-              className="font-mono text-slate-300"
+              className="font-mono text-ink-secondary"
               style={{ fontSize: '0.79em', lineHeight: '1.6', whiteSpace: 'pre' }}
             >
               {children}
@@ -81,7 +81,7 @@ function makeComponents(size) {
       }
       return (
         <code
-          className="px-1.5 py-0.5 rounded-md font-mono text-indigo-300 bg-indigo-500/15"
+          className="px-1.5 py-0.5 rounded-md font-mono text-accent-hover bg-accent-muted"
           style={{ fontSize: '0.85em' }}
         >
           {children}
@@ -96,7 +96,7 @@ function makeComponents(size) {
       <ol className={`my-1.5 space-y-0.5 pl-4 list-decimal ${base} ${text}`}>{children}</ol>
     ),
     li: ({ children }) => (
-      <li className="leading-relaxed list-disc marker:text-indigo-400/70">{children}</li>
+      <li className="leading-relaxed list-disc marker:text-accent/70">{children}</li>
     ),
 
     h1: ({ children }) => (
@@ -106,12 +106,12 @@ function makeComponents(size) {
       <p className="text-sm font-semibold text-white mt-2.5 mb-1">{children}</p>
     ),
     h3: ({ children }) => (
-      <p className={`font-semibold text-slate-200 mt-2 mb-0.5 ${base}`}>{children}</p>
+      <p className={`font-semibold text-ink-primary mt-2 mb-0.5 ${base}`}>{children}</p>
     ),
 
     blockquote: ({ children }) => (
       <blockquote
-        className={`my-2 pl-3 border-l-2 border-indigo-500/50 ${base} text-white/60`}
+        className={`my-2 pl-3 border-l-2 border-accent/50 ${base} text-white/60`}
         style={{ fontStyle: 'italic' }}
       >
         {children}
@@ -129,7 +129,7 @@ function makeComponents(size) {
     tbody: ({ children }) => <tbody>{children}</tbody>,
     tr: ({ children }) => <tr className="border-b border-white/[0.06]">{children}</tr>,
     th: ({ children }) => (
-      <th className="px-3 py-1.5 text-left text-xs font-semibold text-slate-300">{children}</th>
+      <th className="px-3 py-1.5 text-left text-xs font-semibold text-ink-secondary">{children}</th>
     ),
     td: ({ children }) => (
       <td className="px-3 py-1.5 text-left text-white/70">{children}</td>

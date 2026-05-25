@@ -330,14 +330,14 @@ export default function Notes() {
                 className="flex items-center justify-between gap-4 rounded-xl px-4 py-3"
                 style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}
               >
-                <p className="text-sm text-slate-300">
+                <p className="text-sm text-ink-secondary">
                   Merge{' '}
                   <span className="text-white font-medium">'{alias}'</span>
-                  <span className="text-slate-500"> ({aliasCount} {aliasCount === 1 ? 'note' : 'notes'})</span>
+                  <span className="text-ink-muted"> ({aliasCount} {aliasCount === 1 ? 'note' : 'notes'})</span>
                   {' '}into{' '}
                   <span className="text-white font-medium">'{canonical}'</span>
                   {canonicalCount > 0 && (
-                    <span className="text-slate-500"> ({canonicalCount} {canonicalCount === 1 ? 'note' : 'notes'})</span>
+                    <span className="text-ink-muted"> ({canonicalCount} {canonicalCount === 1 ? 'note' : 'notes'})</span>
                   )}
                   ?
                 </p>
@@ -353,7 +353,7 @@ export default function Notes() {
                   </button>
                   <button
                     onClick={() => setMergesDismissed(prev => new Set([...prev, `${alias}→${canonical}`]))}
-                    className="btn-ghost text-xs text-slate-500 hover:text-slate-300"
+                    className="btn-ghost text-xs text-ink-muted hover:text-ink-secondary"
                   >
                     Dismiss
                   </button>
@@ -369,7 +369,7 @@ export default function Notes() {
           className="mb-6 flex items-center justify-between gap-4 rounded-xl px-4 py-3"
           style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}
         >
-          <p className="text-sm text-indigo-300">
+          <p className="text-sm text-accent-hover">
             Some of your subjects look similar. Click here to organize them.
           </p>
           <button
@@ -384,7 +384,7 @@ export default function Notes() {
 
       {/* Create form */}
       <div className="card p-6 mb-8">
-        <h2 className="text-sm font-medium text-slate-300 mb-4">Add Note</h2>
+        <h2 className="text-sm font-medium text-ink-secondary mb-4">Add Note</h2>
 
         {/* Tabs */}
         <div className="pill-tabs mb-5">
@@ -407,12 +407,12 @@ export default function Notes() {
                 <label className="label flex items-center gap-2">
                   Title
                   {suggestingTitle && (
-                    <span className="text-xs text-slate-500 font-normal flex items-center gap-1">
+                    <span className="text-xs text-ink-muted font-normal flex items-center gap-1">
                       <Spinner size="sm" /> suggesting…
                     </span>
                   )}
                   {!suggestingTitle && titleAutoGen && (
-                    <span className="text-xs text-slate-500 font-normal">(auto-generated)</span>
+                    <span className="text-xs text-ink-muted font-normal">(auto-generated)</span>
                   )}
                 </label>
                 <input
@@ -483,23 +483,23 @@ export default function Notes() {
               onClick={() => fileInputRef.current?.click()}
               className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 px-6 py-10
                 ${dragOver
-                  ? 'border-indigo-400 bg-indigo-500/10 scale-[1.01]'
-                  : 'border-white/10 bg-white/[0.02] hover:border-indigo-500/40 hover:bg-indigo-500/5'
+                  ? 'border-accent bg-accent-muted scale-[1.01]'
+                  : 'border-white/10 bg-white/[0.02] hover:border-accent/40 hover:bg-accent/5'
                 }`}
               style={dragOver ? { animation: 'none' } : { animation: 'none' }}
             >
-              <svg className="w-8 h-8 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg className="w-8 h-8 text-ink-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 3v13M8 7l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               {uploadForm.file ? (
                 <div className="text-center">
-                  <p className="text-sm font-medium text-indigo-300">{uploadForm.file.name}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{(uploadForm.file.size / 1024).toFixed(0)} KB</p>
+                  <p className="text-sm font-medium text-accent-hover">{uploadForm.file.name}</p>
+                  <p className="text-xs text-ink-muted mt-0.5">{(uploadForm.file.size / 1024).toFixed(0)} KB</p>
                 </div>
               ) : (
                 <div className="text-center">
-                  <p className="text-sm text-slate-400">Drop your PDF or text file here, or click to browse</p>
-                  <p className="text-xs text-slate-600 mt-1">Accepted: .pdf, .txt &nbsp;·&nbsp; Max 5 MB</p>
+                  <p className="text-sm text-ink-muted">Drop your PDF or text file here, or click to browse</p>
+                  <p className="text-xs text-ink-faint mt-1">Accepted: .pdf, .txt &nbsp;·&nbsp; Max 5 MB</p>
                 </div>
               )}
               <input
@@ -528,14 +528,14 @@ export default function Notes() {
               <div className="col-span-2">
                 <label className="label flex items-center gap-2">
                   Title
-                  <span className="text-slate-600 font-normal">(optional — defaults to filename)</span>
+                  <span className="text-ink-faint font-normal">(optional — defaults to filename)</span>
                   {suggestingUploadTitle && (
-                    <span className="text-xs text-slate-500 font-normal flex items-center gap-1">
+                    <span className="text-xs text-ink-muted font-normal flex items-center gap-1">
                       <Spinner size="sm" /> suggesting…
                     </span>
                   )}
                   {!suggestingUploadTitle && uploadTitleAutoGen && (
-                    <span className="text-xs text-slate-500 font-normal">(auto-generated)</span>
+                    <span className="text-xs text-ink-muted font-normal">(auto-generated)</span>
                   )}
                 </label>
                 <input
@@ -631,8 +631,8 @@ export default function Notes() {
                   title={s.archived ? `Unhide "${s.subject}"` : `Hide "${s.subject}" from recommendations`}
                   className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors ${
                     s.archived
-                      ? 'text-slate-600 bg-white/[0.03] border border-white/[0.05] hover:text-indigo-400'
-                      : 'text-slate-400 bg-white/[0.04] border border-white/[0.07] hover:text-amber-400'
+                      ? 'text-ink-faint bg-white/[0.03] border border-white/[0.05] hover:text-accent'
+                      : 'text-ink-muted bg-white/[0.04] border border-white/[0.07] hover:text-amber-400'
                   }`}
                 >
                   {togglingArchive === s.subject ? (
@@ -661,19 +661,19 @@ export default function Notes() {
       ) : notes.length === 0 ? (
         <div className="card p-10 flex flex-col items-center gap-4 text-center">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
-            <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="w-7 h-7 text-accent/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
             </svg>
           </div>
           <div>
-            <p className="text-slate-300 font-medium mb-1">No notes yet</p>
-            <p className="text-sm text-slate-500">Paste text or upload a file to get started.</p>
+            <p className="text-ink-secondary font-medium mb-1">No notes yet</p>
+            <p className="text-sm text-ink-muted">Paste text or upload a file to get started.</p>
           </div>
         </div>
       ) : filteredNotes.length === 0 ? (
         <div className="card p-8 flex flex-col items-center gap-2 text-center">
-          <p className="text-slate-400 font-medium">No notes match your filters</p>
-          <button className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors" onClick={() => { setSearchQuery(''); setSortOrder('newest'); setSubjectFilter('all') }}>
+          <p className="text-ink-muted font-medium">No notes match your filters</p>
+          <button className="text-sm text-accent hover:text-accent-hover transition-colors" onClick={() => { setSearchQuery(''); setSortOrder('newest'); setSubjectFilter('all') }}>
             Clear filters
           </button>
         </div>
@@ -683,23 +683,23 @@ export default function Notes() {
             const ts = topicState[note.id]
             const ss = summaryState[note.id]
             return (
-              <div key={note.id} className={`card p-6 card-lift fade-in-up stagger-${Math.min(noteIdx + 1, 6)}`}>
+              <div key={note.id} className="card p-6 card-lift fade-in-up">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-semibold text-slate-100 truncate">{note.title}</h3>
+                      <h3 className="text-sm font-semibold text-ink-primary truncate">{note.title}</h3>
                       {note.subject && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex-shrink-0">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-accent-muted text-accent border border-accent/20 flex-shrink-0">
                           {note.subject}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{formatDate(note.created_at)}</p>
+                    <p className="text-xs text-ink-muted mt-0.5">{formatDate(note.created_at)}</p>
                   </div>
                   <button
                     onClick={() => handleDelete(note.id)}
                     disabled={deletingId === note.id}
-                    className="flex-shrink-0 btn-ghost text-xs text-slate-600 hover:text-red-400"
+                    className="flex-shrink-0 btn-ghost text-xs text-ink-faint hover:text-red-400"
                     title="Delete note"
                   >
                     {deletingId === note.id ? <Spinner size="sm" /> : (
@@ -710,7 +710,7 @@ export default function Notes() {
                   </button>
                 </div>
 
-                <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">
+                <p className="text-xs text-ink-muted line-clamp-2 mb-4 leading-relaxed">
                   {note.content}
                 </p>
 
@@ -747,7 +747,7 @@ export default function Notes() {
                   </button>
 
                   {ts?.topics && ts.topics.length > 0 && (
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-ink-muted">
                       {ts.count != null ? `${ts.count} topics created` : `${ts.topics.length} topics`}
                     </span>
                   )}
@@ -763,14 +763,14 @@ export default function Notes() {
 
                 {/* Topics */}
                 {ts?.topics && ts.topics.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-[#1e1e2e]">
-                    <p className="text-xs font-medium text-slate-500 mb-2">Topics</p>
+                  <div className="mt-4 pt-4 border-t border-border-subtle">
+                    <p className="text-xs font-medium text-ink-muted mb-2">Topics</p>
                     <div className="flex flex-wrap gap-1.5">
                       {ts.topics
                         .filter((t) => t.parent_topic_id === null)
                         .map((parent) => (
                           <div key={parent.id} className="flex flex-col gap-1">
-                            <span className="text-xs px-2 py-1 rounded-md bg-[#17171f] border border-[#1e1e2e] text-slate-300">
+                            <span className="text-xs px-2 py-1 rounded-md bg-[#17171f] border border-border-subtle text-ink-secondary">
                               {parent.name}
                             </span>
                             <div className="flex flex-wrap gap-1 ml-2">
@@ -779,7 +779,7 @@ export default function Notes() {
                                 .map((child) => (
                                   <span
                                     key={child.id}
-                                    className="text-xs px-2 py-0.5 rounded-md bg-[#13131a] text-slate-500"
+                                    className="text-xs px-2 py-0.5 rounded-md bg-[#13131a] text-ink-muted"
                                   >
                                     {child.name}
                                   </span>
@@ -793,8 +793,8 @@ export default function Notes() {
 
                 {/* Summary */}
                 {ss?.summary && (
-                  <div className="mt-4 pt-4 border-t border-[#1e1e2e]">
-                    <p className="text-xs font-medium text-slate-500 mb-2">Summary</p>
+                  <div className="mt-4 pt-4 border-t border-border-subtle">
+                    <p className="text-xs font-medium text-ink-muted mb-2">Summary</p>
                     <div
                       className="rounded-xl p-4"
                       style={{
@@ -803,7 +803,7 @@ export default function Notes() {
                       }}
                     >
                       {ss.summary.split('\n').filter(Boolean).map((line, i) => (
-                        <p key={i} className="text-xs text-slate-300 leading-relaxed">
+                        <p key={i} className="text-xs text-ink-secondary leading-relaxed">
                           {line}
                         </p>
                       ))}

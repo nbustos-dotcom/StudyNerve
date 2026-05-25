@@ -44,13 +44,13 @@ function DecksView({ onStudyDeck, onGenerate }) {
           className="w-14 h-14 rounded-2xl flex items-center justify-center"
           style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}
         >
-          <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-7 h-7 text-accent/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
           </svg>
         </div>
         <div>
-          <p className="text-slate-300 font-medium mb-1">No flashcard decks yet</p>
-          <p className="text-sm text-slate-500">Generate cards from your notes to get started.</p>
+          <p className="text-ink-secondary font-medium mb-1">No flashcard decks yet</p>
+          <p className="text-sm text-ink-muted">Generate cards from your notes to get started.</p>
         </div>
         <button className="btn-primary" onClick={onGenerate}>Generate First Deck</button>
       </div>
@@ -62,26 +62,26 @@ function DecksView({ onStudyDeck, onGenerate }) {
       {groups.map((group, idx) => (
         <div
           key={group.note_id ?? 'unlinked'}
-          className={`card p-4 flex items-center gap-4 cursor-pointer hover:border-slate-600 transition-colors group fade-in-up stagger-${Math.min(idx + 1, 6)}`}
+          className="card p-4 flex items-center gap-4 cursor-pointer hover:border-border-hover transition-colors group fade-in-up"
           onClick={() => onStudyDeck(group.flashcards, group.note_title)}
         >
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ background: 'rgba(255,255,255,0.05)' }}
           >
-            <svg className="w-5 h-5 text-slate-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="w-5 h-5 text-ink-muted" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="14" height="12" rx="2"/>
               <path d="M7 8h6M7 12h4"/>
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-200 truncate">{group.note_title}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{group.flashcards.length} card{group.flashcards.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm font-medium text-ink-primary truncate">{group.note_title}</p>
+            <p className="text-xs text-ink-muted mt-0.5">{group.flashcards.length} card{group.flashcards.length !== 1 ? 's' : ''}</p>
           </div>
           {/* FIX 3: delete button */}
           <button
             onClick={(e) => handleDeleteDeck(e, group)}
-            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100"
+            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100"
             title="Delete deck"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -89,7 +89,7 @@ function DecksView({ onStudyDeck, onGenerate }) {
               <rect x="3" y="4" width="10" height="10" rx="1" />
             </svg>
           </button>
-          <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="w-4 h-4 text-ink-faint group-hover:text-ink-muted transition-colors flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M6 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
@@ -133,7 +133,7 @@ function GenerateView({ onStudyDeck }) {
   return (
     <div className="space-y-6">
       <div className="card p-6">
-        <h2 className="text-sm font-medium text-slate-300 mb-4">Generate Flashcards</h2>
+        <h2 className="text-sm font-medium text-ink-secondary mb-4">Generate Flashcards</h2>
         <div className="flex flex-col sm:flex-row gap-3 items-end">
           <div className="flex-1">
             <label className="label">Select Note</label>
@@ -157,9 +157,9 @@ function GenerateView({ onStudyDeck }) {
               )}
             </div>
             {!notesLoading && notes.length === 0 && (
-              <p className="text-sm text-slate-500 mt-2">
+              <p className="text-sm text-ink-muted mt-2">
                 No notes yet —{' '}
-                <a href="/notes" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                <a href="/notes" className="text-accent hover:text-accent-hover transition-colors">
                   create notes first
                 </a>{' '}
                 to generate flashcards.
@@ -380,7 +380,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
   const backLink = onBack && (
     <button
       onClick={onBack}
-      className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-300 transition-colors mb-6"
+      className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink-secondary transition-colors mb-6"
     >
       <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M10 4L6 8l4 4" strokeLinecap="round" strokeLinejoin="round" />
@@ -394,20 +394,20 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
       <div className="max-w-xl mx-auto">
         <div className="card p-8 flex flex-col items-center gap-5 text-center fade-in-up">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
-            <svg className="w-7 h-7 text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="w-7 h-7 text-accent" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z"/>
             </svg>
           </div>
           <div>
-            <p className="text-slate-200 font-semibold text-base mb-1">Resume study session?</p>
-            <p className="text-sm text-slate-500">
+            <p className="text-ink-primary font-semibold text-base mb-1">Resume study session?</p>
+            <p className="text-sm text-ink-muted">
               You were on card {savedProgress.index + 1} of {savedProgress.cards.length}
             </p>
           </div>
           <div className="flex gap-3">
             <button className="btn-primary" onClick={handleResume}>Resume</button>
             <button
-              className="px-4 py-2 rounded-xl text-sm border border-[#1e1e2e] text-slate-400 hover:border-slate-500 hover:text-slate-200 transition-colors"
+              className="px-4 py-2 rounded-xl text-sm border border-border-subtle text-ink-muted hover:border-border-hover hover:text-ink-primary transition-colors"
               onClick={handleStartNew}
             >
               Start New
@@ -437,13 +437,13 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
         {backLink}
         <div className="card p-10 flex flex-col items-center gap-4 text-center">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
-            <svg className="w-7 h-7 text-indigo-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="w-7 h-7 text-accent/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
             </svg>
           </div>
           <div>
-            <p className="text-slate-300 font-medium mb-1">No flashcards yet</p>
-            <p className="text-sm text-slate-500">Generate cards from your notes to get started.</p>
+            <p className="text-ink-secondary font-medium mb-1">No flashcards yet</p>
+            <p className="text-sm text-ink-muted">Generate cards from your notes to get started.</p>
           </div>
           {onGoGenerate && (
             <button className="btn-primary" onClick={onGoGenerate}>Generate Flashcards</button>
@@ -465,8 +465,8 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
             </svg>
           </div>
           <div>
-            <p className="text-slate-200 font-semibold text-lg">Session complete!</p>
-            <p className="text-sm text-slate-500 mt-1">You reviewed {activeDeck.length} card{activeDeck.length !== 1 ? 's' : ''}.</p>
+            <p className="text-ink-primary font-semibold text-lg">Session complete!</p>
+            <p className="text-sm text-ink-muted mt-1">You reviewed {activeDeck.length} card{activeDeck.length !== 1 ? 's' : ''}.</p>
           </div>
           {/* FIX 6: rating breakdown pills */}
           {totalRated > 0 && (
@@ -486,7 +486,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
             <button className="btn-primary" onClick={restart}>Study Again</button>
             {onBack && (
               <button
-                className="px-4 py-2 rounded-xl text-sm border border-[#1e1e2e] text-slate-400 hover:border-slate-500 hover:text-slate-200 transition-colors"
+                className="px-4 py-2 rounded-xl text-sm border border-border-subtle text-ink-muted hover:border-border-hover hover:text-ink-primary transition-colors"
                 onClick={onBack}
               >
                 Back to Decks
@@ -506,18 +506,18 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
       {backLink}
 
       {deckTitle && (
-        <p className="text-xs text-slate-500 uppercase tracking-widest font-medium -mb-2">{deckTitle}</p>
+        <p className="text-xs text-ink-muted uppercase tracking-widest font-medium -mb-2">{deckTitle}</p>
       )}
 
       {/* Progress */}
       <div className="space-y-1.5">
-        <div className="flex justify-between text-xs text-slate-500">
+        <div className="flex justify-between text-xs text-ink-muted">
           <span>Card {index + 1} of {activeDeck.length}</span>
           <span>{progress}%</span>
         </div>
-        <div className="h-1 rounded-full bg-[#1e1e2e] overflow-hidden">
+        <div className="h-1 rounded-full bg-deep-elevated overflow-hidden">
           <div
-            className="h-full rounded-full bg-indigo-500 transition-all duration-300"
+            className="h-full rounded-full bg-accent transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -545,34 +545,24 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
             style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
             className="card-solid flex flex-col items-center justify-center p-8 text-center select-none"
           >
-            <p className="text-xs text-slate-600 mb-3 uppercase tracking-widest">Question</p>
-            <p className="text-base font-medium text-slate-200 leading-relaxed">{card.front}</p>
-            <p className="text-xs text-slate-600 mt-6">Click to flip</p>
+            <p className="text-xs text-ink-muted mb-3 uppercase tracking-widest">Question</p>
+            <p className="text-base font-medium text-ink-primary leading-relaxed">{card.front}</p>
+            <p className="text-xs text-ink-faint mt-6">Click to flip</p>
           </div>
 
           {/* Back */}
           <div
+            className="card-solid flex flex-col items-center justify-center p-8 text-center select-none"
             style={{
               position: 'absolute',
               inset: 0,
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
-              background: 'rgba(0,0,0,0.6)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(24px)',
-              WebkitBackdropFilter: 'blur(24px)',
-              borderRadius: '1rem',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '2rem',
-              textAlign: 'center',
             }}
           >
-            <p className="text-xs text-indigo-400/70 mb-3 uppercase tracking-widest">Answer</p>
-            <p className="text-base text-slate-200 leading-relaxed">{card.back}</p>
+            <p className="text-xs text-ink-muted mb-3 uppercase tracking-widest">Answer</p>
+            <p className="text-base text-ink-primary leading-relaxed">{card.back}</p>
           </div>
         </div>
       </div>
@@ -582,7 +572,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
         <button
           onClick={handlePrev}
           disabled={index === 0}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm border border-[#1e1e2e] text-slate-400 hover:border-slate-500 hover:text-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm border border-border-subtle text-ink-muted hover:border-border-hover hover:text-ink-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           ← Previous
         </button>
@@ -594,7 +584,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
         </button>
         <button
           onClick={handleNext}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm border border-[#1e1e2e] text-slate-400 hover:border-slate-500 hover:text-slate-200 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm border border-border-subtle text-ink-muted hover:border-border-hover hover:text-ink-primary transition-colors"
         >
           Next →
         </button>
@@ -622,7 +612,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
         ))}
       </div>
 
-      <p className="text-center text-xs text-slate-600">
+      <p className="text-center text-xs text-ink-faint">
         Rate to track progress · or navigate freely · Space to flip · ← → to move
       </p>
     </div>
@@ -654,8 +644,8 @@ export default function Flashcards() {
   return (
     <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
       <div className="mb-8">
-        <h1 className="text-xl font-semibold text-slate-100">Flashcards</h1>
-        <p className="text-sm text-slate-500 mt-1">AI-generated cards for active recall practice</p>
+        <h1 className="text-xl font-semibold text-ink-primary">Flashcards</h1>
+        <p className="text-sm text-ink-muted mt-1">AI-generated cards for active recall practice</p>
       </div>
 
       {view !== 'study' && (

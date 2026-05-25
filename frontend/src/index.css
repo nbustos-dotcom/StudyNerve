@@ -268,10 +268,11 @@
 /* ── Button glow ─────────────────────────────────────────────────────────── */
 
 .btn-glow {
-  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 0 18px rgba(99,102,241,0.35), inset 0 0 0 1px rgba(255,255,255,0.12);
+  transition: background 120ms, box-shadow 120ms, transform 100ms;
 }
 .btn-glow:hover {
-  box-shadow: 0 0 20px rgba(99,102,241,0.2);
+  box-shadow: 0 0 28px rgba(99,102,241,0.55), inset 0 0 0 1px rgba(255,255,255,0.18);
 }
 .btn-glow:active {
   transform: scale(0.97);
@@ -280,14 +281,109 @@
 /* ── Progress bar glow ───────────────────────────────────────────────────── */
 
 .progress-glow {
-  box-shadow: 0 0 8px rgba(99,102,241,0.3);
+  position: relative;
+  box-shadow: 0 0 8px rgba(99,102,241,0.45), inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.progress-glow::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: rgba(255,255,255,0.6);
+  box-shadow: 0 0 10px rgba(99,102,241,0.9);
 }
 
 /* ── Nav active glow ─────────────────────────────────────────────────────── */
 
 .nav-active-glow {
   border-bottom: 2px solid #6366f1;
-  box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+  box-shadow: 0 2px 8px rgba(99,102,241,0.55);
+}
+
+/* ── Stat card animated gradient border on hover ─────────────────────────── */
+
+.stat-card {
+  position: relative;
+  isolation: isolate;
+  transition: transform 200ms cubic-bezier(0.2,0.7,0.2,1), box-shadow 200ms cubic-bezier(0.2,0.7,0.2,1), border-color 200ms cubic-bezier(0.2,0.7,0.2,1);
+}
+.stat-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 8px;
+  padding: 1px;
+  background: conic-gradient(from 0deg, #6366f1, #8b5cf6, #6366f1, #8b5cf6, #6366f1);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 200ms cubic-bezier(0.2,0.7,0.2,1);
+  pointer-events: none;
+  animation: rotate-conic 6s linear infinite;
+  z-index: -1;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(99,102,241,0.10);
+  border-color: transparent;
+}
+.stat-card:hover::before {
+  opacity: 1;
+}
+
+@keyframes rotate-conic {
+  to { transform: rotate(1turn); }
+}
+
+/* ── Hero card animated gradient border ──────────────────────────────────── */
+
+.hero-card {
+  position: relative;
+  border-radius: 12px;
+  padding: 1.5px;
+  background: linear-gradient(120deg, #6366f1 0%, #8b5cf6 35%, #6366f1 70%, #8b5cf6 100%);
+  background-size: 300% 300%;
+  animation: hero-border 6s linear infinite;
+}
+.hero-card-inner {
+  background: linear-gradient(180deg, #14141f 0%, #111118 100%);
+  border-radius: 11px;
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.hero-card-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 15% 110%, rgba(99,102,241,0.10), transparent 55%);
+  pointer-events: none;
+}
+
+@keyframes hero-border {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+/* ── Dashboard spotlight glow ────────────────────────────────────────────── */
+
+.dashboard-spotlight {
+  position: absolute;
+  pointer-events: none;
+  width: 700px;
+  height: 700px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99,102,241,0.06) 0%, rgba(99,102,241,0) 60%);
+  left: 50%;
+  top: 320px;
+  transform: translateX(-50%);
+  z-index: 0;
 }
 
 /* ── Mobile touch targets & safe padding ──────────────────────────────────── */

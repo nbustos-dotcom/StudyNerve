@@ -79,10 +79,9 @@ function SmartHeroCard({ gaps, canvasItems, onDismiss, onStudyNow, studyNowLoadi
   }
 
   return (
-    <div
-      className="card p-5 mb-5 relative"
-      style={{ borderLeft: '3px solid rgba(99,102,241,0.6)' }}
-    >
+    <div className="hero-card mb-5">
+      <div className="hero-card-inner relative">
+        <p className="text-[11px] font-semibold tracking-widest uppercase text-accent mb-2">⚡ Smart Pick</p>
         <p className="text-[15px] text-ink-primary leading-snug">{message}</p>
         <div className="flex items-center gap-2 mt-3 flex-wrap">
           <button
@@ -108,15 +107,16 @@ function SmartHeroCard({ gaps, canvasItems, onDismiss, onStudyNow, studyNowLoadi
             </Link>
           )}
         </div>
-      <button
-        onClick={onDismiss}
-        className="absolute top-3.5 right-3.5 text-white/20 hover:text-white/50 transition-colors"
-        aria-label="Dismiss"
-      >
-        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M4 4l8 8M12 4l-8 8" />
-        </svg>
-      </button>
+        <button
+          onClick={onDismiss}
+          className="absolute top-3.5 right-3.5 text-white/20 hover:text-white/50 transition-colors"
+          aria-label="Dismiss"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
+        </button>
+      </div>
     </div>
   )
 }
@@ -215,7 +215,7 @@ function ActivityFeed({ quizHistory, notes }) {
             ? 'bg-accent'
             : item.pct >= 70 ? 'bg-emerald-500' : item.pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
           return (
-            <div key={i} className="flex items-center gap-3">
+            <div key={i} className="flex items-center gap-3 rounded px-2 -mx-2 py-0.5 hover:bg-white/[0.03] transition-colors">
               <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-px ${dotColor}`} />
               <span className="text-sm text-ink-muted flex-1 truncate">{item.label}</span>
               <span className="text-xs text-ink-faint flex-shrink-0 tabular-nums">{formatRelative(item.time)}</span>
@@ -321,7 +321,7 @@ function UpcomingDeadlines() {
 
 function StatCard({ label, value, sub, accent }) {
   return (
-    <div className="card p-6 card-lift card-hover">
+    <div className="card p-6 stat-card">
       <p className="text-[11px] font-medium text-white/30 uppercase tracking-widest mb-3">{label}</p>
       <p className={`text-[2rem] font-bold leading-none ${accent || 'text-ink-primary'}`}>{value}</p>
       {sub && <p className="text-xs text-white/30 mt-2 uppercase tracking-wider">{sub}</p>}
@@ -334,7 +334,7 @@ function AccuracyRing({ value }) {
   const color = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
   const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
   return (
-    <div className="card p-6 card-lift card-hover">
+    <div className="card p-6 stat-card">
       <p className="text-[11px] font-medium text-white/30 uppercase tracking-widest mb-3">Overall Accuracy</p>
       <p className={`text-[2rem] font-bold leading-none ${color}`}>{pct}%</p>
       <div className="mt-3 h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -446,6 +446,7 @@ export default function Dashboard() {
     <div className="relative min-h-screen">
     <NeuralBackground />
     <div className="p-4 sm:p-8 max-w-5xl mx-auto fade-in-up relative z-10">
+      <div className="dashboard-spotlight" />
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-ink-primary">Dashboard</h1>
         <p className="text-sm text-ink-muted mt-1">Your study overview</p>

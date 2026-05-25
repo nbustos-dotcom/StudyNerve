@@ -16,17 +16,26 @@ function parseOptions(optionsStr) {
   }
 }
 
-function optionStyle(key, selectedAnswer, result) {
+function optionButtonClass(key, selectedAnswer, result) {
+  const base = 'flex items-center gap-3.5 w-full px-4 py-3.5 border rounded-lg text-sm font-medium text-left transition-all duration-150 active:scale-[0.99]'
   if (!result) {
-    return selectedAnswer === key
-      ? 'bg-accent/10 border-accent text-ink-primary'
-      : 'border-border-subtle hover:border-border-hover hover:bg-white/[0.03] text-ink-secondary'
+    if (selectedAnswer === key) return `${base} border-accent/35 bg-accent-muted text-ink-primary`
+    return `${base} bg-deep-elevated border-border-subtle text-ink-primary hover:border-border-hover hover:bg-[#181821]`
   }
-  if (key === result.correct_answer)
-    return 'bg-success/10 border-success/60 text-green-300'
-  if (key === selectedAnswer && !result.is_correct)
-    return 'bg-danger/10 border-danger/50 text-red-300'
-  return 'border-border-subtle text-ink-faint opacity-40'
+  if (key === result.correct_answer) return `${base} border-green-400 bg-green-400/[0.08] text-ink-primary`
+  if (key === selectedAnswer && !result.is_correct) return `${base} border-red-400 bg-red-400/[0.08] text-ink-primary`
+  return `${base} bg-deep-elevated border-border-subtle text-ink-faint opacity-40`
+}
+
+function optionBadgeClass(key, selectedAnswer, result) {
+  const base = 'w-6 h-6 rounded flex items-center justify-center text-xs font-semibold flex-shrink-0'
+  if (!result) {
+    if (selectedAnswer === key) return `${base} bg-accent text-white`
+    return `${base} bg-white/[0.05] text-ink-muted`
+  }
+  if (key === result.correct_answer) return `${base} bg-green-400 text-black`
+  if (key === selectedAnswer && !result.is_correct) return `${base} bg-red-400 text-black`
+  return `${base} bg-white/[0.05] text-ink-muted`
 }
 
 function formatDate(iso) {
@@ -88,6 +97,7 @@ export default function Quiz() {
   const [flaggedQuestions, setFlaggedQuestions] = useState(new Set())
   const [flagging, setFlagging] = useState(null)
   const [streak, setStreak] = useState(0)
+  const [flashClass, setFlashClass] = useState('')
 
   useEffect(() => {
     api.getNotes().then(setNotes).catch(console.error)
@@ -156,6 +166,14 @@ export default function Quiz() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [phase, questions, currentIdx, currentResult, submitting, results]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!currentResult) { setFlashClass(''); return }
+    const cls = currentResult.is_correct ? 'flash-correct' : 'flash-wrong'
+    setFlashClass(cls)
+    const t = setTimeout(() => setFlashClass(''), 700)
+    return () => clearTimeout(t)
+  }, [currentResult])
 
   function toggleType(type) {
     setGenerateError(null)
@@ -462,22 +480,23 @@ export default function Quiz() {
           </div>
           <div className="h-1.5 bg-deep-elevated rounded-full overflow-hidden">
             <div
-              className="h-full bg-accent rounded-full transition-all duration-500 ease-out"
+              className="h-full bg-accent rounded-full transition-all duration-500 ease-out progress-glow"
               style={{ width: `${((currentIdx + (isAnswered ? 1 : 0)) / questions.length) * 100}%` }}
             />
           </div>
         </div>
 
         {/* Question */}
-        <div className="card-solid p-7 mb-6">
-          <div className="text-base leading-relaxed text-ink-primary">
+        <div className={`card p-8 mb-6 ${flashClass}`}>
+          <p className="text-xs uppercase tracking-widest text-ink-muted font-semibold mb-3">Question {currentIdx + 1}</p>
+          <div className="text-xl font-semibold leading-relaxed text-ink-primary">
             <MarkdownRenderer>{question.content}</MarkdownRenderer>
           </div>
         </div>
 
         {/* MCQ Options */}
         {isMcq && options && (
-          <div className="space-y-3 mb-5">
+          <div className="space-y-2.5 mb-5">
             {Object.entries(options).map(([key, value]) => (
               <button
                 key={key}
@@ -486,13 +505,10 @@ export default function Quiz() {
                   setSelectedAnswer(key)
                   submitAnswer(key)
                 }}
-                className={`w-full text-left flex items-start gap-4 px-5 py-4 min-h-[60px] rounded-xl border transition-all duration-200 ${optionStyle(
-                  key, selectedAnswer, currentResult
-                )}`}
-                style={selectedAnswer === key && !currentResult ? { boxShadow: '0 0 0 2px rgba(99,102,241,0.5)' } : {}}
+                className={optionButtonClass(key, selectedAnswer, currentResult)}
               >
-                <span className="font-mono font-bold text-sm flex-shrink-0 mt-0.5 w-5">{key}.</span>
-                <span className="text-sm leading-relaxed">{value}</span>
+                <span className={optionBadgeClass(key, selectedAnswer, currentResult)}>{key}</span>
+                <span className="leading-snug">{value}</span>
               </button>
             ))}
           </div>
@@ -577,9 +593,12 @@ export default function Quiz() {
 
         {/* Next */}
         {isAnswered && (
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center mt-6">
+            <span className="hidden sm:flex items-center gap-1.5 text-xs text-ink-faint">
+              Press <kbd className="kbd mx-1">→</kbd> for next
+            </span>
             <button
-              className="btn-primary"
+              className="btn-primary btn-glow ml-auto"
               onClick={() => handleNext(isLast ? results : undefined)}
             >
               {isLast ? 'Finish Quiz' : 'Next Question →'}

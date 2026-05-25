@@ -73,17 +73,19 @@ function MessageBubble({ message }) {
       <div className="flex items-center gap-2 mb-3">
         {isUser ? (
           <>
-            <div
-              className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white/70 flex-shrink-0"
-              style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)' }}
-            >
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-ink-muted flex-shrink-0 bg-deep-elevated border border-border-subtle">
               U
             </div>
             <span className="text-[11px] font-medium text-white/35">You</span>
           </>
         ) : (
           <>
-            <NeuralNetIcon size={14} idPrefix={iconIdRef.current} />
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
+            >
+              S
+            </div>
             <span className="text-[11px] font-medium text-accent/60">StudyNerve AI</span>
             {message.providerUsed && !message.providerUsed.includes('(cached)') && (
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4, fontFamily: 'monospace' }}>
@@ -272,7 +274,7 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, on
                           }
                     }
                   >
-                    <p className={`text-xs leading-snug truncate pr-5 ${isActive ? 'text-ink-primary' : 'text-ink-muted'}`}>
+                    <p className={`text-sm font-medium leading-snug truncate pr-5 ${isActive ? 'text-ink-primary' : 'text-ink-secondary'}`}>
                       {session.preview}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
@@ -628,6 +630,12 @@ export default function Chat() {
         {/* ── Main chat area ────────────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col min-w-0">
 
+          {/* Desktop mode indicator */}
+          <div className="hidden md:flex flex-shrink-0 items-center px-4 py-3 border-b border-border-subtle">
+            <div className="w-2 h-2 rounded-full bg-accent flex-shrink-0 mr-2" />
+            <span className="text-xs font-medium text-ink-muted capitalize">{tutorMode} mode</span>
+          </div>
+
           {/* Mobile-only sessions toggle — no branding, desktop shows nothing */}
           <div className="md:hidden flex-shrink-0 flex items-center px-4 py-2 border-b border-border-subtle">
             <button
@@ -686,14 +694,11 @@ export default function Chat() {
                   <div key={id} className="relative group">
                     <button
                       onClick={() => changeTutorMode(id)}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors duration-150 ${
-                        tutorMode === id ? 'text-accent' : 'text-ink-faint hover:text-ink-muted'
-                      }`}
-                      style={
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-150 ${
                         tutorMode === id
-                          ? { background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)' }
-                          : { background: 'transparent', border: '1px solid transparent' }
-                      }
+                          ? 'bg-accent-muted border-accent/35 text-indigo-200'
+                          : 'border-border-subtle text-ink-muted hover:text-ink-primary hover:border-border-hover'
+                      }`}
                     >
                       {label}
                     </button>
@@ -738,7 +743,7 @@ export default function Chat() {
                 </div>
               )}
 
-              <div className="flex items-end gap-3">
+              <div className="flex items-end gap-2.5">
                 {/* Hidden file input */}
                 <input
                   ref={fileInputRef}
@@ -753,7 +758,7 @@ export default function Chat() {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isTyping}
                   title="Attach a file (PDF, TXT, or image)"
-                  className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center
+                  className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center
                              text-ink-muted hover:text-accent transition-colors duration-150
                              disabled:opacity-30 disabled:cursor-not-allowed"
                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
@@ -762,16 +767,12 @@ export default function Chat() {
                   <PaperclipIcon />
                 </button>
 
-                <div className="flex-1 relative">
+                <div className="flex-1 flex items-end gap-2 bg-deep-elevated border border-border-subtle rounded-lg px-3.5 py-2 focus-within:border-accent/40 transition-colors">
                   <textarea
                     ref={inputRef}
                     rows={1}
-                    className="w-full resize-none rounded-lg px-4 py-3 text-sm text-ink-primary
-                               placeholder-ink-faint border border-border-subtle
-                               focus:outline-none focus:border-accent
-                               transition-colors duration-150 leading-relaxed"
+                    className="flex-1 resize-none text-sm text-ink-primary placeholder-ink-faint bg-transparent focus:outline-none leading-relaxed"
                     style={{
-                      background: 'rgba(255,255,255,0.03)',
                       maxHeight: '140px',
                       overflowY: 'auto',
                       scrollbarWidth: 'none',
@@ -786,19 +787,17 @@ export default function Chat() {
                     onKeyDown={handleKeyDown}
                     disabled={isTyping}
                   />
+                  <button
+                    onClick={() => doSend(input)}
+                    disabled={!canSend}
+                    className={`flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center transition-all duration-150 disabled:cursor-not-allowed ${
+                      canSend ? 'bg-accent hover:bg-indigo-400 text-white' : 'bg-deep-surface text-ink-faint'
+                    }`}
+                    aria-label="Send message"
+                  >
+                    <SendIcon disabled={!canSend} />
+                  </button>
                 </div>
-
-                <button
-                  onClick={() => doSend(input)}
-                  disabled={!canSend}
-                  className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
-                             text-white transition-all duration-200
-                             disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ background: '#6366f1' }}
-                  aria-label="Send message"
-                >
-                  <SendIcon disabled={!canSend} />
-                </button>
               </div>
             </div>
 

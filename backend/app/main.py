@@ -42,7 +42,7 @@ if _frontend_url:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allow_origins,
-    allow_origin_regex=r"https://(studynerve-ai\.vercel\.app|master-teacher.*\.vercel\.app|localhost:.*)",
+    allow_origin_regex=r"https://[a-zA-Z0-9][a-zA-Z0-9-]*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

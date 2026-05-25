@@ -122,7 +122,6 @@ export default function NeuralBackground() {
     graphRef.current.d3Force('charge').strength(-25)
     graphRef.current.d3Force('link').distance(link => link.cross ? 100 : 35)
     graphRef.current.d3Force('center').strength(0.04)
-    graphRef.current.d3AlphaDecay(0.02)
     graphRef.current.d3ReheatSimulation()
   }, [graphData])
 
@@ -151,6 +150,7 @@ export default function NeuralBackground() {
         linkColor={() => '#6366f1'}
         nodeThreeObject={makeNodeObject}
         nodeThreeObjectExtend={false}
+        d3AlphaDecay={0.02}
         width={dims.w}
         height={dims.h}
       />

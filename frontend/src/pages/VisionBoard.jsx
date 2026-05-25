@@ -226,7 +226,7 @@ function BoardList({ onOpen }) {
               <div
                 key={board.id}
                 onClick={() => onOpen(board.id, false)}
-                className="card p-4 cursor-pointer hover:border-white/15 transition-all duration-200"
+                className="card p-4 cursor-pointer card-hover"
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <h3 className="font-medium text-ink-primary text-sm leading-snug flex-1 line-clamp-2">

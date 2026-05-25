@@ -254,6 +254,42 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
 
+/* ── Card hover ──────────────────────────────────────────────────────────── */
+
+.card-hover {
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  border-color: rgba(255,255,255,0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 24px rgba(99,102,241,0.06);
+}
+
+/* ── Button glow ─────────────────────────────────────────────────────────── */
+
+.btn-glow {
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.btn-glow:hover {
+  box-shadow: 0 0 20px rgba(99,102,241,0.2);
+}
+.btn-glow:active {
+  transform: scale(0.97);
+}
+
+/* ── Progress bar glow ───────────────────────────────────────────────────── */
+
+.progress-glow {
+  box-shadow: 0 0 8px rgba(99,102,241,0.3);
+}
+
+/* ── Nav active glow ─────────────────────────────────────────────────────── */
+
+.nav-active-glow {
+  border-bottom: 2px solid #6366f1;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+}
+
 /* ── Mobile touch targets & safe padding ──────────────────────────────────── */
 
 @media (max-width: 767px) {

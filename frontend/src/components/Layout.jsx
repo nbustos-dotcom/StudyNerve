@@ -79,7 +79,7 @@ export default function Layout({ user, onLogout, onOpenPalette }) {
               end={end}
               className={({ isActive }) =>
                 `px-3 py-1 rounded-md text-sm font-medium transition-colors duration-150 ${
-                  isActive ? 'text-accent' : 'text-ink-muted hover:text-ink-primary'
+                  isActive ? 'text-accent nav-active-glow' : 'text-ink-muted hover:text-ink-primary'
                 }`
               }
             >

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import NeuralBackground from '../components/NeuralBackground'
 
 // ── Due-date helpers ──────────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ function SmartHeroCard({ gaps, canvasItems, onDismiss, onStudyNow, studyNowLoadi
           <button
             onClick={onStudyNow}
             disabled={studyNowLoading}
-            className="btn-primary inline-flex items-center gap-2 text-sm"
+            className="btn-primary inline-flex items-center gap-2 text-sm btn-glow"
           >
             {studyNowLoading ? (
               <>
@@ -133,7 +134,7 @@ function QuickActions() {
         <Link
           key={href}
           to={href}
-          className="card-solid p-4 flex flex-col items-center gap-2 text-center transition-transform duration-150 hover:scale-[1.02]"
+          className="card-solid p-4 flex flex-col items-center gap-2 text-center card-hover"
         >
           <span className="text-2xl leading-none">{emoji}</span>
           <span className="text-sm text-ink-secondary font-medium">{label}</span>
@@ -320,7 +321,7 @@ function UpcomingDeadlines() {
 
 function StatCard({ label, value, sub, accent }) {
   return (
-    <div className="card p-6 card-lift">
+    <div className="card p-6 card-lift card-hover">
       <p className="text-[11px] font-medium text-white/30 uppercase tracking-widest mb-3">{label}</p>
       <p className={`text-[2rem] font-bold leading-none ${accent || 'text-ink-primary'}`}>{value}</p>
       {sub && <p className="text-xs text-white/30 mt-2 uppercase tracking-wider">{sub}</p>}
@@ -333,11 +334,11 @@ function AccuracyRing({ value }) {
   const color = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
   const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
   return (
-    <div className="card p-6 card-lift">
+    <div className="card p-6 card-lift card-hover">
       <p className="text-[11px] font-medium text-white/30 uppercase tracking-widest mb-3">Overall Accuracy</p>
       <p className={`text-[2rem] font-bold leading-none ${color}`}>{pct}%</p>
       <div className="mt-3 h-1.5 bg-white/5 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full bar-animate ${barColor}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full rounded-full bar-animate progress-glow ${barColor}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   )
@@ -348,13 +349,13 @@ function WeakAreaCard({ topic, className = '' }) {
   const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
   const textColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
   return (
-    <div className={`card p-4 card-lift ${className}`}>
+    <div className={`card p-4 card-lift card-hover ${className}`}>
       <div className="flex justify-between items-start mb-2">
         <p className="text-sm text-ink-primary font-medium truncate max-w-[70%]">{topic.topic_name}</p>
         <span className={`text-sm font-semibold tabular-nums ${textColor}`}>{pct}%</span>
       </div>
       <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full bar-animate ${barColor}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full rounded-full bar-animate progress-glow ${barColor}`} style={{ width: `${pct}%` }} />
       </div>
       <p className="text-[11px] text-white/25 mt-2">{topic.total_attempts} attempt{topic.total_attempts !== 1 ? 's' : ''}</p>
     </div>
@@ -442,7 +443,9 @@ export default function Dashboard() {
     : []
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto fade-in-up">
+    <div className="relative min-h-screen">
+    <NeuralBackground />
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto fade-in-up relative z-10">
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-ink-primary">Dashboard</h1>
         <p className="text-sm text-ink-muted mt-1">Your study overview</p>
@@ -540,7 +543,7 @@ export default function Dashboard() {
                             </span>
                           </div>
                           <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full bar-animate ${barColor}`} style={{ width: `${pct}%` }} />
+                            <div className={`h-full rounded-full bar-animate progress-glow ${barColor}`} style={{ width: `${pct}%` }} />
                           </div>
                         </div>
                       )
@@ -648,6 +651,7 @@ export default function Dashboard() {
           )}
         </>
       )}
+    </div>
     </div>
   )
 }

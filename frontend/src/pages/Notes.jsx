@@ -683,7 +683,7 @@ export default function Notes() {
             const ts = topicState[note.id]
             const ss = summaryState[note.id]
             return (
-              <div key={note.id} className="card p-6 card-lift fade-in-up">
+              <div key={note.id} className="card p-6 card-lift card-hover fade-in-up">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

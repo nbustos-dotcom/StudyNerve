@@ -16,25 +16,26 @@ function buildGraph(subjects) {
   const links = []
 
   subjects.forEach(({ subject, count }) => {
-    nodes.push({ id: subject, group: subject, size: Math.min(count, 10) + 3 })
-    const numTopics = 2 + Math.floor(Math.random() * 3)
+    nodes.push({ id: subject, group: subject, isSubject: true, size: Math.min(count, 10) + 3 })
+    const numTopics = 4 + Math.floor(Math.random() * 3) // 4–6 per subject
     for (let i = 0; i < numTopics; i++) {
       const tid = `${subject}_topic_${i}`
-      nodes.push({ id: tid, group: subject, size: 2 + Math.random() * 2 })
-      links.push({ source: subject, target: tid })
+      nodes.push({ id: tid, group: subject, isSubject: false, size: 2 + (i % 3) * 0.5 })
+      links.push({ source: subject, target: tid, cross: false })
     }
   })
 
+  // Connect every adjacent pair of subjects with 1–2 cross-links
   const ids = subjects.map(s => s.subject)
-  if (ids.length >= 2) {
-    const numCross = 1 + Math.floor(Math.random() * 2)
-    for (let k = 0; k < numCross; k++) {
-      const a = ids[Math.floor(Math.random() * ids.length)]
-      let b = ids[Math.floor(Math.random() * ids.length)]
-      let tries = 0
-      while (b === a && tries++ < 10) b = ids[Math.floor(Math.random() * ids.length)]
-      if (a !== b) links.push({ source: a, target: b })
+  for (let i = 0; i < ids.length - 1; i++) {
+    const n = 1 + Math.floor(Math.random() * 2)
+    for (let k = 0; k < n; k++) {
+      links.push({ source: ids[i], target: ids[i + 1], cross: true })
     }
+  }
+  // Close the ring if there are enough subjects
+  if (ids.length >= 3) {
+    links.push({ source: ids[ids.length - 1], target: ids[0], cross: true })
   }
 
   return { nodes, links }
@@ -43,6 +44,7 @@ function buildGraph(subjects) {
 export default function NeuralBackground() {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] })
   const [dims, setDims] = useState({ w: window.innerWidth, h: window.innerHeight })
+  const graphRef = useRef()
 
   useEffect(() => {
     console.log('Neural background mounted')
@@ -54,19 +56,49 @@ export default function NeuralBackground() {
       .catch(() => setGraphData(buildGraph(PLACEHOLDER)))
   }, [])
 
+  // Track full scroll height so the canvas covers the whole dashboard
   useEffect(() => {
-    const update = () => setDims({ w: window.innerWidth, h: window.innerHeight })
+    const update = () => {
+      const h = Math.max(
+        window.innerHeight,
+        document.documentElement.scrollHeight,
+        document.body.scrollHeight,
+      )
+      setDims({ w: window.innerWidth, h })
+    }
+    update()
     window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
+    const ro = new ResizeObserver(update)
+    ro.observe(document.body)
+    return () => {
+      window.removeEventListener('resize', update)
+      ro.disconnect()
+    }
   }, [])
 
+  // Tune d3 forces once graph data is available
+  useEffect(() => {
+    if (!graphRef.current || graphData.nodes.length === 0) return
+    graphRef.current.d3Force('charge').strength(-30)
+    graphRef.current.d3Force('center').strength(0.05)
+    graphRef.current.d3Force('link').distance(link => link.cross ? 120 : 40)
+    graphRef.current.d3ReheatSimulation()
+  }, [graphData])
+
   const paintNode = useCallback((node, ctx) => {
-    const r = Math.max(1, node.size || 3)
-    const alpha = Math.min(0.25, Math.max(0.08, 0.08 + ((r - 2) / 11) * 0.17))
-    ctx.beginPath()
-    ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, 2 * Math.PI)
-    ctx.fillStyle = `rgba(99,102,241,${alpha.toFixed(3)})`
-    ctx.fill()
+    if (node.isSubject) {
+      ctx.beginPath()
+      ctx.arc(node.x ?? 0, node.y ?? 0, 5, 0, 2 * Math.PI)
+      ctx.fillStyle = 'rgba(99,102,241,0.30)'
+      ctx.fill()
+    } else {
+      const r = Math.max(2, Math.min(3, node.size || 2))
+      const alpha = 0.12 + (r - 2) * 0.06 // 0.12–0.18 deterministic
+      ctx.beginPath()
+      ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, 2 * Math.PI)
+      ctx.fillStyle = `rgba(99,102,241,${alpha.toFixed(3)})`
+      ctx.fill()
+    }
   }, [])
 
   return (
@@ -76,7 +108,7 @@ export default function NeuralBackground() {
         top: 0,
         left: 0,
         width: '100%',
-        height: '100vh',
+        height: dims.h,
         zIndex: 0,
         pointerEvents: 'none',
         opacity: 0.25,
@@ -84,11 +116,12 @@ export default function NeuralBackground() {
       }}
     >
       <ForceGraph2D
+        ref={graphRef}
         graphData={graphData}
         backgroundColor="rgba(0,0,0,0)"
         nodeCanvasObject={paintNode}
-        linkColor={() => 'rgba(99,102,241,0.04)'}
-        linkWidth={0.5}
+        linkColor={link => link.cross ? 'rgba(99,102,241,0.05)' : 'rgba(99,102,241,0.08)'}
+        linkWidth={link => link.cross ? 0.5 : 1}
         nodeRelSize={1}
         d3AlphaDecay={0.05}
         d3VelocityDecay={0.4}

@@ -3,6 +3,25 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import NeuralBackground from '../components/NeuralBackground'
 
+// ── Greeting helpers ──────────────────────────────────────────────────────────
+
+function getGreeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+
+function getUserFirstName() {
+  try {
+    const raw = localStorage.getItem('user') || ''
+    if (!raw) return ''
+    const u = JSON.parse(raw)
+    const full = u.name || u.full_name || u.username || u.email || ''
+    return full.split(/[\s@]/)[0]
+  } catch { return '' }
+}
+
 // ── Due-date helpers ──────────────────────────────────────────────────────────
 
 function dueUrgency(iso) {
@@ -79,7 +98,7 @@ function SmartHeroCard({ gaps, canvasItems, onDismiss, onStudyNow, studyNowLoadi
   }
 
   return (
-    <div className="hero-card mb-5">
+    <div className="hero-card mb-4">
       <div className="hero-card-inner relative">
         <p className="text-[11px] font-semibold tracking-widest uppercase text-accent mb-2">⚡ Smart Pick</p>
         <p className="text-[15px] text-ink-primary leading-snug">{message}</p>
@@ -125,18 +144,18 @@ function SmartHeroCard({ gaps, canvasItems, onDismiss, onStudyNow, studyNowLoadi
 
 function QuickActions() {
   return (
-    <div className="grid grid-cols-3 gap-3 mb-6">
+    <div className="flex gap-3 mt-4 mb-4">
       {[
-        { emoji: '📝', label: 'Add Notes',  href: '/notes' },
-        { emoji: '🧠', label: 'Take Quiz',  href: '/quiz'  },
-        { emoji: '💬', label: 'Open Tutor', href: '/chat'  },
-      ].map(({ emoji, label, href }) => (
+        { icon: '📝', label: 'Add Notes',  href: '/notes' },
+        { icon: '🧠', label: 'Take Quiz',  href: '/quiz'  },
+        { icon: '💬', label: 'Open Tutor', href: '/chat'  },
+      ].map(({ icon, label, href }) => (
         <Link
           key={href}
           to={href}
-          className="card-solid p-4 flex flex-col items-center gap-2 text-center card-hover"
+          className="flex-1 card p-3.5 flex items-center gap-3 card-hover"
         >
-          <span className="text-2xl leading-none">{emoji}</span>
+          <span className="text-xl leading-none flex-shrink-0">{icon}</span>
           <span className="text-sm text-ink-secondary font-medium">{label}</span>
         </Link>
       ))}
@@ -167,22 +186,25 @@ function WeeklyStudyGrid({ quizHistory, notes }) {
   const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
   return (
-    <div className="flex items-center gap-4 mb-6">
-      <div className="flex items-center gap-1.5">
-        {days.map(({ date, active }, i) => (
-          <div key={i} className="flex flex-col items-center gap-1">
-            <div
-              className={`w-7 h-7 rounded-full transition-colors ${active ? 'bg-accent' : 'bg-white/[0.06]'}`}
-              title={date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-            />
-            <span className="text-[9px] text-slate-700 select-none">{DAY_LABELS[date.getDay()]}</span>
-          </div>
-        ))}
+    <div className="card p-4 mb-5">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted mb-3">This Week</p>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1.5">
+          {days.map(({ date, active }, i) => (
+            <div key={i} className="flex flex-col items-center gap-1">
+              <div
+                className={`w-5 h-5 rounded-full transition-colors ${active ? 'bg-accent' : 'bg-white/[0.06]'}`}
+                title={date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              />
+              <span className="text-[9px] text-slate-700 select-none">{DAY_LABELS[date.getDay()]}</span>
+            </div>
+          ))}
+        </div>
+        {streak > 0
+          ? <span className="text-sm font-medium text-amber-400">🔥 {streak} day{streak !== 1 ? 's' : ''}</span>
+          : <span className="text-xs text-ink-faint">No streak yet</span>
+        }
       </div>
-      {streak > 0
-        ? <span className="text-sm font-medium text-amber-400">🔥 {streak} day{streak !== 1 ? 's' : ''}</span>
-        : <span className="text-xs text-ink-faint">No streak yet</span>
-      }
     </div>
   )
 }
@@ -207,7 +229,7 @@ function ActivityFeed({ quizHistory, notes }) {
   if (top5.length === 0) return null
 
   return (
-    <div className="mb-8">
+    <div className="mb-5">
       <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-3">Recent Activity</h2>
       <div className="space-y-2.5">
         {top5.map((item, i) => {
@@ -247,7 +269,7 @@ function UpcomingDeadlines() {
   }, [])
 
   return (
-    <div className="mb-8">
+    <div className="mb-5">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Upcoming Deadlines</h2>
         {connected && items?.length > 0 && (
@@ -321,10 +343,13 @@ function UpcomingDeadlines() {
 
 function StatCard({ label, value, sub, accent }) {
   return (
-    <div className="card p-6 stat-card">
-      <p className="text-[11px] font-medium text-white/30 uppercase tracking-widest mb-3">{label}</p>
-      <p className={`text-[2rem] font-bold leading-none ${accent || 'text-ink-primary'}`}>{value}</p>
-      {sub && <p className="text-xs text-white/30 mt-2 uppercase tracking-wider">{sub}</p>}
+    <div className="card stat-card overflow-hidden flex flex-col">
+      <div className="p-5 flex-1">
+        <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-3">{label}</p>
+        <p className={`text-3xl font-bold leading-none ${accent || 'text-ink-primary'}`}>{value}</p>
+        {sub && <p className="text-xs text-ink-muted mt-2 uppercase tracking-wider">{sub}</p>}
+      </div>
+      <div className="h-0.5 bg-accent/25" />
     </div>
   )
 }
@@ -334,9 +359,9 @@ function AccuracyRing({ value }) {
   const color = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
   const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
   return (
-    <div className="card p-6 stat-card">
-      <p className="text-[11px] font-medium text-white/30 uppercase tracking-widest mb-3">Overall Accuracy</p>
-      <p className={`text-[2rem] font-bold leading-none ${color}`}>{pct}%</p>
+    <div className="card p-5 stat-card">
+      <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-3">Overall Accuracy</p>
+      <p className={`text-3xl font-bold leading-none ${color}`}>{pct}%</p>
       <div className="mt-3 h-1.5 bg-white/5 rounded-full overflow-hidden">
         <div className={`h-full rounded-full bar-animate progress-glow ${barColor}`} style={{ width: `${pct}%` }} />
       </div>
@@ -442,14 +467,19 @@ export default function Dashboard() {
       })
     : []
 
+  const greeting = getGreeting()
+  const firstName = getUserFirstName()
+
   return (
     <div className="relative min-h-screen">
     <NeuralBackground />
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto fade-in-up relative z-10">
+    <div className="px-4 sm:px-8 pt-6 pb-8 max-w-5xl mx-auto fade-in-up relative z-10">
       <div className="dashboard-spotlight" />
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-ink-primary">Dashboard</h1>
-        <p className="text-sm text-ink-muted mt-1">Your study overview</p>
+      <div className="mb-4">
+        <h1 className="text-xl font-semibold text-ink-primary">{greeting}{firstName ? `, ${firstName}` : ''}</h1>
+        <p className="text-sm text-ink-muted mt-0.5">
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+        </p>
       </div>
 
       {loading && (
@@ -495,15 +525,16 @@ export default function Dashboard() {
               <ActivityFeed quizHistory={quizHistory} notes={recentNotes} />
 
               {/* Stat cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div><StatCard label="Notes" value={stats.total_notes} sub="uploaded" /></div>
-                <div><StatCard label="Questions" value={stats.total_questions} sub="generated" /></div>
-                <div><StatCard label="Attempts" value={stats.total_attempts} sub="answered" /></div>
-                <div><AccuracyRing value={stats.overall_accuracy} /></div>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-3">Your Stats</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <StatCard label="Notes" value={stats.total_notes} sub="uploaded" />
+                <StatCard label="Questions" value={stats.total_questions} sub="generated" />
+                <StatCard label="Attempts" value={stats.total_attempts} sub="answered" />
+                <AccuracyRing value={stats.overall_accuracy} />
               </div>
 
               {/* Weak Areas */}
-              <div className="mb-8">
+              <div className="mb-5">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Weak Areas</h2>
                   {gaps && gaps.length > 0 && (

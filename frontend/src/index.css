@@ -346,10 +346,10 @@
 .hero-card {
   position: relative;
   border-radius: 12px;
-  padding: 1.5px;
+  padding: 1px;
   background: linear-gradient(120deg, #6366f1 0%, #8b5cf6 35%, #6366f1 70%, #8b5cf6 100%);
   background-size: 300% 300%;
-  animation: hero-border 6s linear infinite;
+  animation: hero-border 8s linear infinite;
 }
 .hero-card-inner {
   background: linear-gradient(180deg, #14141f 0%, #111118 100%);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { api } from '../api/client'
+import { useToast } from '../components/Toast'
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -263,7 +264,9 @@ function BoardList({ onOpen }) {
 // ── BoardDetail ───────────────────────────────────────────────────────────────
 
 function BoardDetail({ boardId, onBack, initialBreakdown }) {
+  const showToast = useToast()
   const [board, setBoard] = useState(null)
+  const boardCompleteCelebrated = useRef(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -359,6 +362,15 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
     try {
       const updated = await api.visionUpdateNode(node.id, { is_completed: !node.is_completed })
       updateNode(updated)
+      // Celebrate when all steps are complete for the first time
+      if (!node.is_completed && !boardCompleteCelebrated.current && board) {
+        const allNodes = board.nodes.map(n => n.id === updated.id ? updated : n)
+        const allDone = allNodes.length > 0 && allNodes.every(n => n.is_completed)
+        if (allDone) {
+          boardCompleteCelebrated.current = true
+          showToast?.('Board complete! Great work! 🎯', 'success', 4000)
+        }
+      }
     } catch {}
   }
 
@@ -508,8 +520,15 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
           </div>
           <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <div
-              className="h-1.5 rounded-full bg-indigo-500 bar-animate"
-              style={{ width: `${pct}%`, transition: 'width 0.4s ease' }}
+              className="h-1.5 rounded-full bar-animate"
+              style={{
+                width: `${pct}%`,
+                transition: 'width 0.4s ease',
+                background: pct === 100
+                  ? 'linear-gradient(90deg, #6366f1, #8b5cf6, #10b981)'
+                  : '#6366f1',
+                boxShadow: pct === 100 ? '0 0 12px rgba(99,102,241,0.6)' : 'none',
+              }}
             />
           </div>
         </div>

@@ -85,6 +85,11 @@ function MessageBubble({ message }) {
           <>
             <NeuralNetIcon size={14} idPrefix={iconIdRef.current} />
             <span className="text-[11px] font-medium text-indigo-300/60">StudyNerve AI</span>
+            {message.providerUsed && !message.providerUsed.includes('(cached)') && (
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4, fontFamily: 'monospace' }}>
+                ⚡ {message.providerUsed}
+              </span>
+            )}
           </>
         )}
       </div>
@@ -529,7 +534,7 @@ export default function Chat() {
       })
       sessionIdRef.current = res.session_id
       setSessionId(res.session_id)
-      setMessages((prev) => [...prev, { role: 'assistant', content: res.response }])
+      setMessages((prev) => [...prev, { role: 'assistant', content: res.response, providerUsed: res.provider_used }])
       setPendingQuestion(extractPendingQuestion(res.response))
       fetchSessions()
     } catch (e) {

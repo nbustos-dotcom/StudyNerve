@@ -1,12 +1,208 @@
+import json
 import logging
 from typing import Optional
 
 import httpx
 
 from app.config import settings
+from app.providers.base import LLMProvider, LLMTokenLimitError
 from app.providers.router import get_provider
+from app.services import llm_cache, usage_tracker
 
 logger = logging.getLogger(__name__)
+
+# Fallback order when the primary provider fails or is rate-limited.
+_FALLBACK_ORDER = ["groq", "gemini", "openai", "anthropic", "ollama"]
+
+
+def _has_key(provider_name: str) -> bool:
+    """Return True if this provider has a usable credential."""
+    if provider_name == "ollama":
+        return True
+    key_map = {
+        "groq": settings.GROQ_API_KEY,
+        "gemini": settings.GEMINI_API_KEY,
+        "openai": settings.OPENAI_API_KEY,
+        "anthropic": settings.ANTHROPIC_API_KEY,
+    }
+    return bool(key_map.get(provider_name, ""))
+
+
+async def _try_generate_json(provider_name: str, api_key: Optional[str], prompt: str, system: str) -> Optional[dict]:
+    """Attempt generate_json on one provider. Returns None on failure (not LLMTokenLimitError)."""
+    try:
+        provider = get_provider(provider_name, api_key)
+        return await provider.generate_json(prompt, system)
+    except LLMTokenLimitError:
+        raise
+    except Exception as exc:
+        logger.warning("provider %s generate_json failed: %s", provider_name, exc)
+        return None
+
+
+async def _try_generate_chat(provider_name: str, api_key: Optional[str], messages: list[dict], system: str) -> Optional[str]:
+    """Attempt generate_chat on one provider. Returns None on failure (not LLMTokenLimitError)."""
+    try:
+        provider = get_provider(provider_name, api_key)
+        return await provider.generate_chat(messages, system)
+    except LLMTokenLimitError:
+        raise
+    except Exception as exc:
+        logger.warning("provider %s generate_chat failed: %s", provider_name, exc)
+        return None
+
+
+async def generate_json_ex(
+    prompt: str,
+    system: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+    user_id: Optional[int] = None,
+    feature: str = "json",
+    cache_ttl: int = llm_cache.QUIZ_TTL,
+) -> tuple[Optional[dict], str]:
+    """
+    Generate JSON with cache, auto-fallback, and usage tracking.
+    Returns (result, provider_used_name).
+    """
+    primary = provider_name or settings.LLM_PROVIDER
+
+    cache_key = llm_cache.make_key(system, prompt)
+    cached = llm_cache.get(cache_key)
+    if cached is not None:
+        logger.info("generate_json_ex: cache hit for feature=%s", feature)
+        return cached, f"{primary}(cached)"
+
+    result = await _try_generate_json(primary, api_key, prompt, system)
+    used = primary
+
+    if result is None:
+        fallbacks = [p for p in _FALLBACK_ORDER if p != primary and _has_key(p)]
+        for fb in fallbacks:
+            logger.info("generate_json_ex: falling back to %s", fb)
+            result = await _try_generate_json(fb, None, prompt, system)
+            if result is not None:
+                used = fb
+                logger.info("generate_json_ex: fallback to %s succeeded", fb)
+                break
+
+    if result is not None:
+        llm_cache.put(cache_key, result, ttl=cache_ttl)
+        if user_id is not None:
+            tokens = usage_tracker.estimate_tokens(system + prompt + json.dumps(result))
+            usage_tracker.record(user_id, tokens, used, feature)
+
+    return result, used
+
+
+async def generate_chat_ex(
+    messages: list[dict],
+    system: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+    user_id: Optional[int] = None,
+    feature: str = "chat",
+    cache_ttl: int = llm_cache.CHAT_TTL,
+) -> tuple[Optional[str], str]:
+    """
+    Generate chat with cache, auto-fallback, and usage tracking.
+    Returns (response_text, provider_used_name).
+    """
+    primary = provider_name or settings.LLM_PROVIDER
+
+    msg_str = json.dumps(messages, ensure_ascii=False)
+    cache_key = llm_cache.make_key(system, msg_str)
+    cached = llm_cache.get(cache_key)
+    if cached is not None:
+        logger.info("generate_chat_ex: cache hit for feature=%s", feature)
+        return cached, f"{primary}(cached)"
+
+    result = await _try_generate_chat(primary, api_key, messages, system)
+    used = primary
+
+    if result is None:
+        fallbacks = [p for p in _FALLBACK_ORDER if p != primary and _has_key(p)]
+        for fb in fallbacks:
+            logger.info("generate_chat_ex: falling back to %s", fb)
+            result = await _try_generate_chat(fb, None, messages, system)
+            if result is not None:
+                used = fb
+                logger.info("generate_chat_ex: fallback to %s succeeded", fb)
+                break
+
+    if result is not None:
+        llm_cache.put(cache_key, result, ttl=cache_ttl)
+        if user_id is not None:
+            input_text = system + msg_str
+            tokens = usage_tracker.estimate_tokens(input_text + result)
+            usage_tracker.record(user_id, tokens, used, feature)
+
+    return result, used
+
+
+# ── Backward-compatible shims ─────────────────────────────────────────────────
+
+async def generate_json(
+    prompt: str,
+    system: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[dict]:
+    result, _ = await generate_json_ex(prompt, system, provider_name, api_key)
+    return result
+
+
+async def generate_chat(
+    messages: list[dict],
+    system: str,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Optional[str]:
+    result, _ = await generate_chat_ex(messages, system, provider_name, api_key)
+    return result
+
+
+# ── Health check ─────────────────────────────────────────────────────────────
+
+async def check_health() -> dict:
+    provider_name = settings.LLM_PROVIDER
+
+    if provider_name == "gemini":
+        has_key = bool(settings.GEMINI_API_KEY)
+        return {"provider": "gemini", "model": "gemini-2.0-flash", "api_key_set": has_key, "ready": has_key}
+
+    if provider_name == "openai":
+        has_key = bool(settings.OPENAI_API_KEY)
+        return {"provider": "openai", "model": "gpt-4o-mini", "api_key_set": has_key, "ready": has_key}
+
+    if provider_name == "anthropic":
+        has_key = bool(settings.ANTHROPIC_API_KEY)
+        return {"provider": "anthropic", "model": "claude-sonnet-4-20250514", "api_key_set": has_key, "ready": has_key}
+
+    if provider_name == "groq":
+        has_key = bool(settings.GROQ_API_KEY)
+        return {"provider": "groq", "model": "llama-3.3-70b-versatile", "api_key_set": has_key, "ready": has_key}
+
+    try:
+        async with httpx.AsyncClient(base_url=settings.OLLAMA_BASE_URL, timeout=httpx.Timeout(10.0)) as client:
+            response = await client.get("/api/tags")
+            response.raise_for_status()
+            data = response.json()
+            available_models = [m["name"] for m in data.get("models", [])]
+            model_available = any(settings.OLLAMA_MODEL in name for name in available_models)
+            return {
+                "provider": "ollama",
+                "ollama_reachable": True,
+                "model": settings.OLLAMA_MODEL,
+                "model_available": model_available,
+                "available_models": available_models,
+            }
+    except httpx.ConnectError:
+        logger.warning("Health check failed: Ollama unreachable")
+        return {"provider": "ollama", "ollama_reachable": False, "model": settings.OLLAMA_MODEL, "model_available": False, "available_models": []}
+    except Exception as exc:
+        logger.error("Health check error: %s", exc)
+        return {"provider": "ollama", "ollama_reachable": False, "model": settings.OLLAMA_MODEL, "model_available": False, "available_models": []}
 
 
 # ── Prompt templates ─────────────────────────────────────────────────────────
@@ -140,99 +336,6 @@ Rules:
 - feedback should be 2-4 sentences maximum: direct, not soft"""
 
 
-# ── Public interface ──────────────────────────────────────────────────────────
-
-async def generate_json(
-    prompt: str,
-    system: str,
-    provider_name: Optional[str] = None,
-    api_key: Optional[str] = None,
-) -> Optional[dict]:
-    provider = get_provider(provider_name, api_key)
-    return await provider.generate_json(prompt, system)
-
-
-async def generate_chat(
-    messages: list[dict],
-    system: str,
-    provider_name: Optional[str] = None,
-    api_key: Optional[str] = None,
-) -> Optional[str]:
-    provider = get_provider(provider_name, api_key)
-    return await provider.generate_chat(messages, system)
-
-
-# ── Health check ─────────────────────────────────────────────────────────────
-
-async def check_health() -> dict:
-    provider_name = settings.LLM_PROVIDER
-
-    if provider_name == "gemini":
-        has_key = bool(settings.GEMINI_API_KEY)
-        return {
-            "provider": "gemini",
-            "model": "gemini-2.0-flash",
-            "api_key_set": has_key,
-            "ready": has_key,
-        }
-
-    if provider_name == "openai":
-        has_key = bool(settings.OPENAI_API_KEY)
-        return {
-            "provider": "openai",
-            "model": "gpt-4o-mini",
-            "api_key_set": has_key,
-            "ready": has_key,
-        }
-
-    if provider_name == "anthropic":
-        has_key = bool(settings.ANTHROPIC_API_KEY)
-        return {
-            "provider": "anthropic",
-            "model": "claude-sonnet-4-20250514",
-            "api_key_set": has_key,
-            "ready": has_key,
-        }
-
-    # Ollama health check
-    try:
-        async with httpx.AsyncClient(
-            base_url=settings.OLLAMA_BASE_URL, timeout=httpx.Timeout(10.0)
-        ) as client:
-            response = await client.get("/api/tags")
-            response.raise_for_status()
-            data = response.json()
-            available_models = [m["name"] for m in data.get("models", [])]
-            model_available = any(
-                settings.OLLAMA_MODEL in name for name in available_models
-            )
-            return {
-                "provider": "ollama",
-                "ollama_reachable": True,
-                "model": settings.OLLAMA_MODEL,
-                "model_available": model_available,
-                "available_models": available_models,
-            }
-    except httpx.ConnectError:
-        logger.warning("Health check failed: Ollama unreachable")
-        return {
-            "provider": "ollama",
-            "ollama_reachable": False,
-            "model": settings.OLLAMA_MODEL,
-            "model_available": False,
-            "available_models": [],
-        }
-    except Exception as exc:
-        logger.error("Health check error: %s", exc)
-        return {
-            "provider": "ollama",
-            "ollama_reachable": False,
-            "model": settings.OLLAMA_MODEL,
-            "model_available": False,
-            "available_models": [],
-        }
-
-
 # ── Convenience functions ─────────────────────────────────────────────────────
 
 async def extract_topics(
@@ -286,9 +389,7 @@ async def extract_insights(
     provider_name: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> Optional[dict]:
-    conversation = "\n".join(
-        f"{m['role'].upper()}: {m['content']}" for m in messages
-    )
+    conversation = "\n".join(f"{m['role'].upper()}: {m['content']}" for m in messages)
     prompt = f"Tutoring conversation to analyse:\n\n{conversation}"
     return await generate_json(prompt, INSIGHT_EXTRACTION_SYSTEM, provider_name, api_key)
 
@@ -304,7 +405,6 @@ async def evaluate_teaching(
     if note_content:
         truncated = note_content[:2000]
         context = f"\n\nReference material for this topic:\n{truncated}"
-
     prompt = (
         f"Topic: {topic_name}{context}\n\n"
         f"Student's explanation:\n{student_explanation}\n\n"
@@ -320,9 +420,7 @@ async def generate_flashcards(
     api_key: Optional[str] = None,
     context_hint: str = "",
 ) -> Optional[dict]:
-    prompt = (
-        f"Generate exactly {count} flashcards from this study material:\n\n{note_content}"
-    )
+    prompt = f"Generate exactly {count} flashcards from this study material:\n\n{note_content}"
     system = FLASHCARD_GENERATION_SYSTEM
     if context_hint:
         system = system + f"\n\n{context_hint}"

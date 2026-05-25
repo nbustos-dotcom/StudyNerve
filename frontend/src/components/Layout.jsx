@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import NeuralNetIcon from './NeuralNetIcon'
 import Background from './Background'
+import { api } from '../api/client'
 
 const NAV = [
   { to: '/',        label: 'Dashboard', end: true },
@@ -32,10 +33,37 @@ const inactivePillStyle = {
   border: '1px solid transparent',
 }
 
-export default function Layout({ user, onLogout }) {
+function useUsage() {
+  const [usage, setUsage] = useState(null)
+  useEffect(() => {
+    api.getUsage().then(setUsage).catch(() => {})
+    const t = setInterval(() => {
+      api.getUsage().then(setUsage).catch(() => {})
+    }, 60_000)
+    return () => clearInterval(t)
+  }, [])
+  return usage
+}
+
+export default function Layout({ user, onLogout, onOpenPalette }) {
   const navigate = useNavigate()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const usage = useUsage()
+
+  // Single-key shortcuts when not in an input
+  useEffect(() => {
+    function handler(e) {
+      const active = document.activeElement
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      if (e.key === 'n' || e.key === 'N') { e.preventDefault(); navigate('/notes') }
+      if (e.key === 'q' || e.key === 'Q') { e.preventDefault(); navigate('/quiz') }
+      if (e.key === 't' || e.key === 'T') { e.preventDefault(); navigate('/chat') }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [navigate])
 
   function handleLogout() {
     onLogout()
@@ -100,18 +128,37 @@ export default function Layout({ user, onLogout }) {
           </NavLink>
         </nav>
 
-        {/* Right: provider badge + user — hidden on mobile */}
+        {/* Right: Ctrl+K + usage + user — hidden on mobile */}
         <div className="hidden md:flex items-center gap-3 flex-shrink-0">
-          {/* Provider indicator */}
-          <div className="flex items-center gap-1.5">
-            <div
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ background: 'rgba(var(--indigo-500-rgb),0.7)', boxShadow: '0 0 5px rgba(var(--indigo-500-rgb),0.9)' }}
-            />
-            <span className="text-[11px] text-white/30 tracking-wide whitespace-nowrap">
-              Powered by AI
-            </span>
-          </div>
+
+          {/* Ctrl+K shortcut hint */}
+          <button
+            onClick={onOpenPalette}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all duration-150 hover:bg-white/[0.06]"
+            style={{ border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.35)' }}
+            title="Quick actions (Ctrl+K)"
+          >
+            <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <circle cx="6" cy="6" r="4.5" /><path d="M9 9L11.5 11.5" />
+            </svg>
+            <kbd style={{ fontSize: 10, fontFamily: 'monospace' }}>⌘K</kbd>
+          </button>
+
+          {/* Usage indicator */}
+          {usage && (() => {
+            const pct = Math.min(100, (usage.tokens_used_today / usage.daily_limit) * 100)
+            const barColor = pct >= 95 ? '#ef4444' : pct >= 80 ? '#f59e0b' : 'rgba(var(--indigo-500-rgb),0.7)'
+            return (
+              <div className="flex items-center gap-1.5" title={`${usage.tokens_used_today.toLocaleString()} / ${usage.daily_limit.toLocaleString()} tokens today`}>
+                <div style={{ width: 48, height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.08)' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', borderRadius: 2, background: barColor, transition: 'width 0.4s ease' }} />
+                </div>
+                {pct >= 95 && (
+                  <span style={{ fontSize: 10, color: '#fca5a5' }}>Switching to backup</span>
+                )}
+              </div>
+            )
+          })()}
 
           {/* User menu */}
           <div className="relative">

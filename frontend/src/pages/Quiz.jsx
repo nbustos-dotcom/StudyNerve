@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import Confetti from '../components/Confetti'
 import MarkdownRenderer from '../components/MarkdownRenderer'
 import NeuralNetIcon from '../components/NeuralNetIcon'
 import Spinner from '../components/Spinner'
+import { useToast } from '../components/Toast'
 
 function parseOptions(optionsStr) {
   if (!optionsStr) return null
@@ -49,7 +51,9 @@ const QUIZ_STORAGE_KEY = 'studynerve_quiz_progress'
 
 export default function Quiz() {
   const navigate = useNavigate()
+  const showToast = useToast()
   const [phase, setPhase] = useState(PHASES.CONFIGURE)
+  const [showConfetti, setShowConfetti] = useState(false)
   const [notes, setNotes] = useState([])
   const [mode, setMode] = useState('standard') // 'standard' | 'adaptive'
   const [config, setConfig] = useState({
@@ -219,7 +223,11 @@ export default function Quiz() {
       })
       setCurrentResult(result)
       setResults((prev) => [...prev, { question: questions[currentIdx], result, answer, timeTaken }])
-      setStreak((prev) => (result.is_correct ? prev + 1 : 0))
+      setStreak((prev) => {
+        const next = result.is_correct ? prev + 1 : 0
+        if (next === 5) showToast?.('🔥 On fire! 5 in a row!', 'fire')
+        return next
+      })
     } catch (e) {
       console.error('Submit failed:', e)
     } finally {
@@ -553,6 +561,8 @@ export default function Quiz() {
     const correct = results.filter((r) => r.result.is_correct).length
     const total = results.length
     const pct = Math.round((correct / total) * 100)
+    // Trigger confetti once when entering summary with >80%
+    if (pct > 80 && !showConfetti) setShowConfetti(true)
     const color = scoreColor(pct)
 
     const slowest = results.reduce((max, r) =>
@@ -573,6 +583,8 @@ export default function Quiz() {
       .slice(0, 2)
 
     return (
+      <>
+      <Confetti show={showConfetti} />
       <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
         <div className="text-center mb-10">
           <p className="text-white/30 text-sm mb-2 uppercase tracking-widest font-medium">Quiz Complete</p>
@@ -670,6 +682,7 @@ export default function Quiz() {
           <button className="btn-primary" onClick={handleReset}>Try Another Quiz</button>
         </div>
       </div>
+      </>
     )
   }
 

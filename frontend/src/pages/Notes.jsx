@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import Spinner from '../components/Spinner'
 import SkeletonCard from '../components/SkeletonCard'
+import { useToast } from '../components/Toast'
 
 const EMPTY_FORM = { title: '', content: '', subject: '' }
 const EMPTY_UPLOAD = { title: '', subject: '', file: null }
 
 export default function Notes() {
   const navigate = useNavigate()
+  const showToast = useToast()
   const [notes, setNotes] = useState([])
   const [form, setForm] = useState(EMPTY_FORM)
   const [creating, setCreating] = useState(false)
@@ -180,7 +182,9 @@ export default function Notes() {
       setForm(EMPTY_FORM)
       titleRef.current = ''
       setTitleAutoGen(false)
+      const prevCount = notes.length
       await fetchNotes()
+      if (prevCount === 0) showToast?.('First note added! You\'re on your way 🎉', 'success')
     } catch (err) {
       setCreateError(err.message)
     } finally {

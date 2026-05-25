@@ -400,4 +400,11 @@ export const api = {
   visionMakeSense: (boardId, body) =>
     req('POST', `/vision/boards/${boardId}/make-sense`,
       typeof body === 'string' ? { tldraw_state: body } : body),
+
+  // ── Usage ────────────────────────────────────────────────────────────────────
+  /** @returns {Promise<{ tokens_used_today, estimated_remaining, daily_limit, breakdown_by_feature, date }>} */
+  getUsage: () => req('GET', '/usage'),
+
+  /** Generic GET helper for paths that don't have a named wrapper yet. */
+  get: (path) => req('GET', path.replace(/^\/api/, '')),
 }

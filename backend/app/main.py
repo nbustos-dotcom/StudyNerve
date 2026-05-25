@@ -16,6 +16,7 @@ from app.database import init_db
 from app.llm import check_health
 from app.models import User
 from app.routers import canvas, chat, flashcards, notes, profile, quiz, subjects, topics, vision
+from app.services import usage_tracker
 from app.routers.auth import get_current_user, router as auth_router
 from app.routers.settings import router as settings_router
 
@@ -84,6 +85,11 @@ def assert_user_owns(obj, authenticated_user_id: int, label: str = "") -> None:
         print(f"[SECURITY] {msg}", flush=True)
         from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Access denied")
+
+
+@app.get("/api/usage")
+async def get_usage(current_user: User = Depends(get_current_user)):
+    return usage_tracker.get_usage(current_user.id)
 
 
 @app.get("/api/health")

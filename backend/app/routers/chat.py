@@ -11,7 +11,7 @@ from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.llm import generate_chat
+from app.llm import generate_chat_ex
 from app.models import ChatMessage, Note, Question, StudentInsight, User
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
@@ -28,8 +28,9 @@ from app.services.user_context import build_user_context
 router = APIRouter(prefix="/chat", tags=["chat"])
 _limiter = Limiter(key_func=get_remote_address)
 
-_NOTE_CONTENT_LIMIT = 3000
-_HISTORY_LIMIT = 30
+# Before: _NOTE_CONTENT_LIMIT=3000, _HISTORY_LIMIT=30
+_NOTE_CONTENT_LIMIT = 2000
+_HISTORY_LIMIT = 15
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024   # 10 MB
 _MAX_EXTRACTED_CHARS = 3000
 _OCR_MIN_CHARS = 20
@@ -312,7 +313,7 @@ async def _build_system_prompt(
 
     if insights:
         lines.append("## What you know about this student from past sessions (use this):")
-        for ins in insights[:10]:
+        for ins in insights[:5]:  # before: 10
             topic_ctx = f" [{ins.topic_name}]" if ins.topic_name else ""
             lines.append(f"- ({ins.category}{topic_ctx}) {ins.insight}")
         lines.append("")
@@ -534,7 +535,12 @@ async def send_message(
     llm_messages = history + [{"role": "user", "content": llm_user_content}]
 
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
-    response_text = await generate_chat(llm_messages, system, **llm_kwargs)
+    response_text, provider_used = await generate_chat_ex(
+        llm_messages, system,
+        user_id=current_user.id,
+        feature="chat",
+        **llm_kwargs,
+    )
     if response_text is None:
         raise HTTPException(status_code=502, detail="LLM unavailable or failed to respond")
 
@@ -555,7 +561,7 @@ async def send_message(
     if user_msg_count and user_msg_count % 5 == 0:
         background_tasks.add_task(generate_insights, sid, current_user.id)
 
-    return ChatSendResponse(session_id=sid, response=response_text, file_name=file_name)
+    return ChatSendResponse(session_id=sid, response=response_text, file_name=file_name, provider_used=provider_used)
 
 
 @router.get("/history/{session_id}", response_model=list[ChatMessageResponse])

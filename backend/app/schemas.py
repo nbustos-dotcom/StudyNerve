@@ -225,6 +225,7 @@ class ChatSendResponse(BaseModel):
     response: str
     role: str = "assistant"
     file_name: str | None = None
+    provider_used: str | None = None
 
 
 class ChatMessageResponse(BaseModel):

@@ -401,6 +401,17 @@ export const api = {
     req('POST', `/vision/boards/${boardId}/make-sense`,
       typeof body === 'string' ? { tldraw_state: body } : body),
 
+  // ── Subjects ─────────────────────────────────────────────────────────────────
+  /** @returns {Promise<Array<{ subject: string, count: number, archived: boolean }>>} */
+  getSubjects: () => req('GET', '/notes/subjects'),
+
+  /** @param {string} subject @param {boolean} archived */
+  archiveSubject: (subject, archived) => req('PUT', '/notes/subjects/archive', { subject, archived }),
+
+  // ── Study Now ────────────────────────────────────────────────────────────────
+  /** @returns {Promise<{ topic_name, topic_accuracy, reason, questions } | { error, message }>} */
+  studyNow: () => req('POST', '/quiz/study-now'),
+
   // ── Usage ────────────────────────────────────────────────────────────────────
   /** @returns {Promise<{ tokens_used_today, estimated_remaining, daily_limit, breakdown_by_feature, date }>} */
   getUsage: () => req('GET', '/usage'),

@@ -40,6 +40,7 @@ class Note(Base):
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
     study_guide: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     topics: Mapped[list["Topic"]] = relationship(
         "Topic", back_populates="note", cascade="all, delete-orphan"

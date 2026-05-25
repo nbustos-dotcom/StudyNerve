@@ -50,6 +50,8 @@ export default function Notes() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOrder, setSortOrder] = useState('newest')
   const [subjectFilter, setSubjectFilter] = useState('all')
+  const [subjects, setSubjects] = useState([]) // [{subject, count, archived}]
+  const [togglingArchive, setTogglingArchive] = useState(null)
 
   const subjectCounts = useMemo(() => {
     const counts = {}
@@ -94,6 +96,7 @@ export default function Notes() {
     fetchNotes()
     api.getSubjectList().then(setSubjectList).catch(() => {})
     api.suggestMerges().then(setMergeSuggestions).catch(() => {})
+    api.getSubjects().then(setSubjects).catch(() => {})
   }, [])
 
   async function fetchNotes() {
@@ -103,6 +106,7 @@ export default function Notes() {
       api.checkSubjectNormalization()
         .then(r => setNormalizeBanner(r.needs))
         .catch(() => {})
+      api.getSubjects().then(setSubjects).catch(() => {})
     } catch (e) {
       console.error(e)
     } finally {
@@ -161,6 +165,20 @@ export default function Notes() {
       console.error(e)
     } finally {
       setNormalizing(false)
+    }
+  }
+
+  async function handleToggleArchive(subject, currentlyArchived) {
+    setTogglingArchive(subject)
+    try {
+      await api.archiveSubject(subject, !currentlyArchived)
+      setSubjects(prev => prev.map(s => s.subject === subject ? { ...s, archived: !currentlyArchived } : s))
+      // If we just archived the active filter, reset it
+      if (!currentlyArchived && subjectFilter === subject) setSubjectFilter('all')
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setTogglingArchive(null)
     }
   }
 
@@ -584,14 +602,51 @@ export default function Notes() {
             <option value="az">A–Z</option>
             <option value="za">Z–A</option>
           </select>
-          <select
-            className="input sm:w-44"
-            value={subjectFilter}
-            onChange={e => setSubjectFilter(e.target.value)}
-          >
-            <option value="all">All subjects</option>
-            {uniqueSubjects.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <div className="relative sm:w-52">
+            <select
+              className="input w-full"
+              value={subjectFilter}
+              onChange={e => setSubjectFilter(e.target.value)}
+            >
+              <option value="all">All subjects</option>
+              {subjects.filter(s => !s.archived).map(s => (
+                <option key={s.subject} value={s.subject}>{s.subject} ({s.count})</option>
+              ))}
+              {subjects.some(s => s.archived) && (
+                <option disabled>── archived ──</option>
+              )}
+              {subjects.filter(s => s.archived).map(s => (
+                <option key={s.subject} value={s.subject}>{s.subject} ({s.count}) [hidden]</option>
+              ))}
+            </select>
+          </div>
+          {/* Archive toggle buttons for each subject */}
+          {subjects.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {subjects.map(s => (
+                <button
+                  key={s.subject}
+                  onClick={() => handleToggleArchive(s.subject, s.archived)}
+                  disabled={togglingArchive === s.subject}
+                  title={s.archived ? `Unhide "${s.subject}"` : `Hide "${s.subject}" from recommendations`}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors ${
+                    s.archived
+                      ? 'text-slate-600 bg-white/[0.03] border border-white/[0.05] hover:text-indigo-400'
+                      : 'text-slate-400 bg-white/[0.04] border border-white/[0.07] hover:text-amber-400'
+                  }`}
+                >
+                  {togglingArchive === s.subject ? (
+                    <Spinner size="sm" />
+                  ) : s.archived ? (
+                    <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" strokeLinecap="round"/><circle cx="8" cy="8" r="2"/><path d="M2 2l12 12" strokeLinecap="round"/></svg>
+                  ) : (
+                    <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" strokeLinecap="round"/><circle cx="8" cy="8" r="2"/></svg>
+                  )}
+                  <span className={s.archived ? 'line-through opacity-50' : ''}>{s.subject}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -78,6 +78,7 @@ async def build_user_context(user_id: int, db: AsyncSession) -> str:
         notes = (await db.execute(
             select(Note)
             .where(Note.user_id == user_id)
+            .where(Note.is_archived == False)  # noqa: E712
             .order_by(desc(Note.updated_at))
             .limit(3)
         )).scalars().all()

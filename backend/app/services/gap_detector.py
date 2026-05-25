@@ -52,6 +52,7 @@ async def calculate_gap_scores(
         .join(Note, Topic.note_id == Note.id)
         .where(Attempt.user_id == user_id)
         .where(Note.user_id == user_id)
+        .where(Note.is_archived == False)  # noqa: E712
     )
 
     query = query.order_by(Attempt.created_at)

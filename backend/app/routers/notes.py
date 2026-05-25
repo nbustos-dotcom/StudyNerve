@@ -2,7 +2,7 @@ import io
 import os
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -11,7 +11,7 @@ from app.models import Note, Topic, User
 from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
-from app.schemas import NoteCreate, NoteResponse, StudyGuideUpdate, SuggestTitleRequest
+from app.schemas import ArchiveSubjectRequest, NoteCreate, NoteResponse, StudyGuideUpdate, SubjectInfo, SuggestTitleRequest
 from app.services.subjects import normalize_subject
 
 _MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
@@ -96,6 +96,51 @@ async def suggest_title_endpoint(
     if not title:
         raise HTTPException(status_code=502, detail="Could not generate a title")
     return {"title": title}
+
+
+@router.get("/subjects", response_model=list[SubjectInfo])
+async def list_subjects(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = (await db.execute(
+        select(Note.subject, Note.is_archived, func.count(Note.id).label("cnt"))
+        .where(Note.user_id == current_user.id)
+        .where(Note.subject.isnot(None))
+        .group_by(Note.subject, Note.is_archived)
+    )).all()
+
+    # Collapse per-subject, treating archived if ALL notes in the subject are archived
+    from collections import defaultdict
+    grouped: dict[str, dict] = defaultdict(lambda: {"count": 0, "all_archived": True})
+    for row in rows:
+        s = row.subject
+        grouped[s]["count"] += row.cnt
+        if not row.is_archived:
+            grouped[s]["all_archived"] = False
+
+    return [
+        SubjectInfo(subject=s, count=d["count"], archived=d["all_archived"])
+        for s, d in sorted(grouped.items())
+    ]
+
+
+@router.put("/subjects/archive", response_model=dict)
+async def archive_subject(
+    body: ArchiveSubjectRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Note)
+        .where(Note.user_id == current_user.id)
+        .where(Note.subject == body.subject)
+    )
+    notes = result.scalars().all()
+    for note in notes:
+        note.is_archived = body.archived
+    await db.flush()
+    return {"updated": len(notes), "subject": body.subject, "archived": body.archived}
 
 
 @router.get("", response_model=list[NoteResponse])

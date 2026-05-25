@@ -53,10 +53,22 @@ class NoteResponse(BaseModel):
     title: str
     content: str
     subject: Optional[str]
+    is_archived: bool = False
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class SubjectInfo(BaseModel):
+    subject: str
+    count: int
+    archived: bool
+
+
+class ArchiveSubjectRequest(BaseModel):
+    subject: str
+    archived: bool
 
 
 # ── Topics ───────────────────────────────────────────────────────────────────

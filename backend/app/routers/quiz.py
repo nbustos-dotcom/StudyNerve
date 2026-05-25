@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.llm import evaluate_answer, generate_questions
-from app.models import Attempt, Note, Question, QuizResult, StudySession, Topic, User
+from app.models import Attempt, Note, Question, QuizResult, StudySession, Topic, User, UserSettings
 from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
@@ -254,7 +254,9 @@ async def overview_stats(
     print(f"[query] overview_stats: WHERE note.user_id = {current_user.id}", flush=True)
     total_notes = (
         await db.scalar(
-            select(func.count(Note.id)).where(Note.user_id == current_user.id)
+            select(func.count(Note.id))
+            .where(Note.user_id == current_user.id)
+            .where(Note.is_archived == False)  # noqa: E712
         )
         or 0
     )
@@ -263,6 +265,7 @@ async def overview_stats(
             select(func.count(Question.id))
             .join(Note, Question.note_id == Note.id)
             .where(Note.user_id == current_user.id)
+            .where(Note.is_archived == False)  # noqa: E712
         )
         or 0
     )
@@ -273,6 +276,7 @@ async def overview_stats(
             .join(Note, Question.note_id == Note.id)
             .where(Attempt.user_id == current_user.id)
             .where(Note.user_id == current_user.id)
+            .where(Note.is_archived == False)  # noqa: E712
         )
         or 0
     )
@@ -283,6 +287,7 @@ async def overview_stats(
             .join(Note, Question.note_id == Note.id)
             .where(Attempt.user_id == current_user.id)
             .where(Note.user_id == current_user.id)
+            .where(Note.is_archived == False)  # noqa: E712
             .where(Attempt.is_correct.is_(True))
         )
         or 0
@@ -323,6 +328,7 @@ async def _topic_accuracies(db: AsyncSession, user_id: int) -> list[TopicAccurac
         .join(Note, Question.note_id == Note.id)
         .where(Attempt.user_id == user_id)
         .where(Note.user_id == user_id)
+        .where(Note.is_archived == False)  # noqa: E712
         .group_by(Topic.id, Topic.name)
         .order_by(Topic.name)
     )
@@ -523,6 +529,152 @@ async def generate_adaptive_quiz(
         )
         for q, tname in saved_with_topics
     ]
+
+
+# ── Study Now ────────────────────────────────────────────────────────────────
+
+@router.post("/study-now")
+@_limiter.limit("10/minute")
+async def study_now(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    uid = current_user.id
+    llm_kwargs = await get_user_llm_kwargs(db, uid)
+
+    note_count = await db.scalar(
+        select(func.count(Note.id))
+        .where(Note.user_id == uid)
+        .where(Note.is_archived == False)  # noqa: E712
+    ) or 0
+    if not note_count:
+        return {"error": "no_notes", "message": "Add some notes first to get started"}
+
+    gaps = await calculate_gap_scores(db, user_id=uid)
+
+    async def _generate_and_save(note: Note, topic: Topic, topic_name: str, difficulty: int) -> list[QuestionResponse]:
+        try:
+            llm_result = await generate_questions(
+                note_content=note.content[:_MAX_NOTE_CHARS],
+                topic_name=topic_name,
+                count=10,
+                question_type="mcq",
+                context_hint="",
+                **llm_kwargs,
+            )
+        except LLMTokenLimitError as exc:
+            raise HTTPException(status_code=422, detail=exc.message)
+        if llm_result is None:
+            raise HTTPException(status_code=502, detail="LLM unavailable or failed to generate questions")
+
+        saved: list[Question] = []
+        for q_data in llm_result.get("questions", []):
+            options = q_data.get("options")
+            db_q = Question(
+                topic_id=topic.id,
+                note_id=note.id,
+                type=q_data.get("type", "mcq"),
+                content=q_data.get("content", ""),
+                options=json.dumps(options) if options else None,
+                correct_answer=str(q_data.get("correct_answer", "")),
+                explanation=q_data.get("explanation"),
+                difficulty=difficulty,
+            )
+            db.add(db_q)
+            saved.append(db_q)
+        await db.flush()
+        for q in saved:
+            await db.refresh(q)
+        return [
+            QuestionResponse(
+                id=q.id, topic_id=q.topic_id, topic_name=topic_name,
+                note_id=q.note_id, type=q.type, content=q.content,
+                options=q.options, correct_answer=q.correct_answer,
+                explanation=q.explanation, difficulty=q.difficulty,
+                created_at=q.created_at,
+            )
+            for q in saved
+        ]
+
+    if not gaps:
+        # No quiz history yet — use the most recent note
+        note = (await db.execute(
+            select(Note)
+            .where(Note.user_id == uid)
+            .where(Note.is_archived == False)  # noqa: E712
+            .order_by(Note.created_at.desc())
+            .limit(1)
+        )).scalar_one_or_none()
+        if not note:
+            return {"error": "no_notes", "message": "Add some notes first to get started"}
+
+        topic = (await db.execute(
+            select(Topic).where(Topic.note_id == note.id).limit(1)
+        )).scalar_one_or_none()
+        if topic is None:
+            topic = Topic(name=note.title, subject=note.subject, note_id=note.id)
+            db.add(topic)
+            await db.flush()
+
+        questions = await _generate_and_save(note, topic, topic.name, difficulty=3)
+        return {
+            "topic_name": topic.name,
+            "topic_accuracy": None,
+            "reason": "Let's start with your latest notes",
+            "questions": questions,
+        }
+
+    # Pick top gap topic, optionally boosted by Canvas deadline match
+    top_gap = gaps[0]
+    reason = "Weakest topic"
+
+    try:
+        user_settings = (await db.execute(
+            select(UserSettings).where(UserSettings.user_id == uid)
+        )).scalar_one_or_none()
+
+        if user_settings and user_settings.canvas_url and user_settings.canvas_token:
+            from app.services.canvas import get_upcoming_assignments  # noqa: PLC0415
+            assignments = await get_upcoming_assignments(
+                user_settings.canvas_url, user_settings.canvas_token, days=3
+            )
+            for assignment in assignments:
+                a_name = assignment.get("name", "").lower()
+                for gap in gaps[:5]:
+                    if any(w in a_name for w in gap.topic_name.lower().split()):
+                        top_gap = gap
+                        due_raw = assignment.get("due_at", "")
+                        try:
+                            dt = datetime.fromisoformat(due_raw.replace("Z", "+00:00"))
+                            day_name = dt.strftime("%A")
+                        except Exception:
+                            day_name = "soon"
+                        reason = f"Due {day_name} + weak area"
+                        break
+                else:
+                    continue
+                break
+    except Exception:
+        pass
+
+    note = await db.get(Note, top_gap.note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    topic = await db.get(Topic, top_gap.topic_id)
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+
+    difficulty = 2 if top_gap.accuracy < 0.4 else (3 if top_gap.accuracy < 0.7 else 4)
+    questions = await _generate_and_save(note, topic, top_gap.topic_name, difficulty)
+
+    return {
+        "topic_name": top_gap.topic_name,
+        "topic_accuracy": round(top_gap.accuracy * 100),
+        "reason": reason,
+        "questions": questions,
+    }
 
 
 # ── Quiz history ──────────────────────────────────────────────────────────────

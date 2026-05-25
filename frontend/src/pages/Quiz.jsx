@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import Confetti from '../components/Confetti'
 import MarkdownRenderer from '../components/MarkdownRenderer'
@@ -51,8 +51,11 @@ const QUIZ_STORAGE_KEY = 'studynerve_quiz_progress'
 
 export default function Quiz() {
   const navigate = useNavigate()
+  const location = useLocation()
   const showToast = useToast()
   const [phase, setPhase] = useState(PHASES.CONFIGURE)
+  const [studyNowMeta, setStudyNowMeta] = useState(null) // {topic_name, topic_accuracy, reason}
+  const [studyNowLoading, setStudyNowLoading] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const [notes, setNotes] = useState([])
   const [mode, setMode] = useState('standard') // 'standard' | 'adaptive'
@@ -92,11 +95,26 @@ export default function Quiz() {
       .then(setHistory)
       .catch(console.error)
       .finally(() => setHistoryLoading(false))
+
+    // Pre-load questions from Study Now (Dashboard → navigate with state)
+    const sn = location.state?.studyNow
+    if (sn?.questions?.length) {
+      setStudyNowMeta({ topic_name: sn.topic_name, topic_accuracy: sn.topic_accuracy, reason: sn.reason })
+      setQuestions(sn.questions)
+      setCurrentIdx(0)
+      setSelectedAnswer('')
+      setShortAnswer('')
+      setCurrentResult(null)
+      questionStartTime.current = Date.now()
+      setPhase(PHASES.ACTIVE)
+      return
+    }
+
     try {
       const saved = localStorage.getItem(QUIZ_STORAGE_KEY)
       if (saved) setSavedProgress(JSON.parse(saved))
     } catch {}
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (phase === PHASES.ACTIVE && questions.length > 0) {
@@ -416,6 +434,22 @@ export default function Quiz() {
 
     return (
       <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
+        {/* Study Now banner */}
+        {studyNowMeta && (
+          <div className="mb-5 px-4 py-3 rounded-xl flex items-center gap-3"
+            style={{ background: 'rgba(var(--indigo-500-rgb),0.07)', border: '1px solid rgba(var(--indigo-500-rgb),0.2)' }}>
+            <span className="text-indigo-400 text-base flex-shrink-0">⚡</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-indigo-300/70 font-medium uppercase tracking-wider">{studyNowMeta.reason}</p>
+              <p className="text-sm text-slate-200 font-medium mt-0.5">
+                {studyNowMeta.topic_name}
+                {studyNowMeta.topic_accuracy != null && (
+                  <span className="text-slate-500 font-normal"> · {studyNowMeta.topic_accuracy}% accuracy</span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
         {/* Progress */}
         <div className="mb-8">
           <div className="flex justify-between text-xs text-slate-500 mb-2">
@@ -678,6 +712,43 @@ export default function Quiz() {
           </div>
         )}
 
+        {studyNowMeta && (
+          <div className="mb-6 px-4 py-4 rounded-xl text-center"
+            style={{ background: 'rgba(var(--indigo-500-rgb),0.06)', border: '1px solid rgba(var(--indigo-500-rgb),0.15)' }}>
+            <p className="text-xs text-slate-500 mb-1">
+              Your accuracy on <span className="text-slate-300">{studyNowMeta.topic_name}</span> was{' '}
+              {studyNowMeta.topic_accuracy != null ? `${studyNowMeta.topic_accuracy}%` : 'unknown'}. Let's see how you did.
+            </p>
+            <button
+              className="btn-primary text-sm mt-2 inline-flex items-center gap-2"
+              disabled={studyNowLoading}
+              onClick={async () => {
+                setStudyNowLoading(true)
+                try {
+                  const result = await api.studyNow()
+                  if (!result.error && result.questions?.length) {
+                    setStudyNowMeta({ topic_name: result.topic_name, topic_accuracy: result.topic_accuracy, reason: result.reason })
+                    setQuestions(result.questions)
+                    setCurrentIdx(0)
+                    setResults([])
+                    setSelectedAnswer('')
+                    setShortAnswer('')
+                    setCurrentResult(null)
+                    setStreak(0)
+                    setShowConfetti(false)
+                    questionStartTime.current = Date.now()
+                    setPhase(PHASES.ACTIVE)
+                  }
+                } catch (e) { console.error(e) }
+                finally { setStudyNowLoading(false) }
+              }}
+            >
+              {studyNowLoading ? (
+                <><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg> Finding next topic…</>
+              ) : '⚡ Keep Going'}
+            </button>
+          </div>
+        )}
         <div className="flex justify-center">
           <button className="btn-primary" onClick={handleReset}>Try Another Quiz</button>
         </div>

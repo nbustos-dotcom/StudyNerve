@@ -89,6 +89,7 @@ async def study_universe(
     for r in (await db.execute(
         select(Note.subject, func.count(Note.id).label("cnt"))
         .where(Note.user_id == uid)
+        .where(Note.is_archived == False)  # noqa: E712
         .group_by(Note.subject)
     )).all():
         key = normalize_subject(r.subject) if r.subject else ""
@@ -106,6 +107,7 @@ async def study_universe(
         .join(Note, Question.note_id == Note.id)
         .where(Attempt.user_id == uid)
         .where(Note.user_id == uid)
+        .where(Note.is_archived == False)  # noqa: E712
         .group_by(Note.subject)
     )).all():
         key = normalize_subject(r.subject) if r.subject else ""
@@ -129,6 +131,7 @@ async def study_universe(
     notes_rows = (await db.execute(
         select(Note.id, Note.subject, func.length(Note.content).label("cl"))
         .where(Note.user_id == uid)
+        .where(Note.is_archived == False)  # noqa: E712
         .order_by(Note.id)
     )).all()
     notes_list = [

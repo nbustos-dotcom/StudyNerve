@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 
 // ── Due-date helpers ──────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ function formatRelative(iso) {
 
 // ── Smart Hero Card ───────────────────────────────────────────────────────────
 
-function SmartHeroCard({ gaps, canvasItems, onDismiss }) {
+function SmartHeroCard({ gaps, canvasItems, onDismiss, onStudyNow, studyNowLoading }) {
   const topGap = gaps?.[0] ?? null
 
   const criticalDeadline = (canvasItems ?? []).find((a) => {
@@ -84,11 +84,30 @@ function SmartHeroCard({ gaps, canvasItems, onDismiss }) {
     >
       <div className="p-5 pr-10">
         <p className="text-[15px] text-slate-200 leading-snug">{message}</p>
-        {showCta && (
-          <Link to="/quiz" className="btn-primary mt-3 inline-flex text-sm">
-            Practice now
-          </Link>
-        )}
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          <button
+            onClick={onStudyNow}
+            disabled={studyNowLoading}
+            className="btn-primary inline-flex items-center gap-2 text-sm"
+          >
+            {studyNowLoading ? (
+              <>
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Finding your weakest spot…
+              </>
+            ) : (
+              <>⚡ Study Now</>
+            )}
+          </button>
+          {showCta && (
+            <Link to="/quiz" className="btn-ghost text-sm text-slate-400 hover:text-slate-200">
+              Custom quiz →
+            </Link>
+          )}
+        </div>
       </div>
       <button
         onClick={onDismiss}
@@ -347,6 +366,7 @@ function WeakAreaCard({ topic, className = '' }) {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [gaps, setGaps] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -360,6 +380,7 @@ export default function Dashboard() {
   const [heroHidden, setHeroHidden] = useState(false)
   const [quizHistory, setQuizHistory] = useState([])
   const [recentNotes, setRecentNotes] = useState([])
+  const [studyNowLoading, setStudyNowLoading] = useState(false)
 
   useEffect(() => {
     Promise.allSettled([
@@ -377,6 +398,22 @@ export default function Dashboard() {
       setRecentNotes(notesRes.status === 'fulfilled' ? (notesRes.value ?? []).slice(0, 5) : [])
     }).finally(() => setLoading(false))
   }, [])
+
+  async function handleStudyNow() {
+    setStudyNowLoading(true)
+    try {
+      const result = await api.studyNow()
+      if (result.error) {
+        navigate('/notes')
+        return
+      }
+      navigate('/quiz', { state: { studyNow: result } })
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setStudyNowLoading(false)
+    }
+  }
 
   function toggleTopics() {
     if (!topicExpanded && topicStats === null) {
@@ -439,6 +476,8 @@ export default function Dashboard() {
               gaps={gaps}
               canvasItems={heroCanvas}
               onDismiss={() => setHeroHidden(true)}
+              onStudyNow={handleStudyNow}
+              studyNowLoading={studyNowLoading}
             />
           )}
 

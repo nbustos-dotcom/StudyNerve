@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.llm import generate_chat_ex
-from app.models import ChatMessage, Note, Question, StudentInsight, User
+from app.models import ChatMessage, Note, Question, StudentInsight, Topic, User
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
 from app.schemas import (
@@ -481,6 +481,18 @@ async def send_message(
 
     msg_keywords = _extract_keywords(message)
     all_insights = await get_insights(db, user_id=current_user.id)
+
+    # Strip insights whose topic belongs to an archived subject
+    _archived_topic_rows = await db.execute(
+        select(Topic.name)
+        .join(Note, Topic.note_id == Note.id)
+        .where(Note.user_id == current_user.id)
+        .where(Note.is_archived == True)  # noqa: E712
+        .distinct()
+    )
+    _archived_topic_names: set[str] = {r[0] for r in _archived_topic_rows.all() if r[0]}
+    if _archived_topic_names:
+        all_insights = [i for i in all_insights if i.topic_name not in _archived_topic_names]
 
     # Only inject insights when the message shares keywords with a topic the student has studied.
     # Zero overlap means a casual/general question — skip insight injection entirely.

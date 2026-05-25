@@ -1,13 +1,4 @@
 import { Link } from 'react-router-dom'
-import NeuralBackground from '../components/NeuralBackground'
-
-const glassCard = {
-  background: 'rgba(15, 15, 35, 0.6)',
-  backdropFilter: 'blur(32px)',
-  WebkitBackdropFilter: 'blur(32px)',
-  border: '1px solid rgba(255, 255, 255, 0.08)',
-  boxShadow: '0 8px 48px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
-}
 
 const sections = [
   {
@@ -52,36 +43,28 @@ export default function Privacy() {
   return (
     <div
       className="min-h-screen flex flex-col items-center px-4 py-16"
-      style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.1) 0%, transparent 70%)' }}
+      style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 70%)' }}
     >
-      <NeuralBackground />
-
-      <div className="w-full max-w-2xl relative z-10">
-        {/* Header */}
+      <div className="w-full max-w-2xl">
         <div className="text-center mb-10">
-          <h1
-            className="text-3xl font-bold tracking-tight bg-clip-text text-transparent mb-2"
-            style={{ backgroundImage: 'linear-gradient(115deg, #a5b4fc 0%, #c4b5fd 45%, #818cf8 100%)' }}
-          >
+          <h1 className="text-3xl font-bold tracking-tight text-ink-primary mb-2">
             Privacy Policy
           </h1>
-          <p className="text-sm text-slate-500">Effective date: April 14, 2026</p>
+          <p className="text-sm text-ink-muted">Effective date: April 14, 2026</p>
         </div>
 
-        {/* Sections */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {sections.map(({ title, body }) => (
-            <div key={title} className="rounded-2xl p-6" style={glassCard}>
-              <h2 className="text-sm font-semibold text-indigo-300 mb-2">{title}</h2>
-              <p className="text-sm text-slate-400 leading-relaxed">{body}</p>
+            <div key={title} className="card p-6">
+              <h2 className="text-sm font-semibold text-accent-hover mb-2">{title}</h2>
+              <p className="text-sm text-ink-secondary leading-relaxed">{body}</p>
             </div>
           ))}
         </div>
 
-        {/* Footer nav */}
-        <div className="flex justify-center gap-6 mt-10 text-xs text-slate-600">
-          <Link to="/terms" className="hover:text-slate-400 transition-colors">Terms of Service</Link>
-          <Link to="/login" className="hover:text-slate-400 transition-colors">Back to Login</Link>
+        <div className="flex justify-center gap-6 mt-10 text-xs text-ink-faint">
+          <Link to="/terms" className="hover:text-ink-secondary transition-colors">Terms of Service</Link>
+          <Link to="/login" className="hover:text-ink-secondary transition-colors">Back to Login</Link>
         </div>
       </div>
     </div>

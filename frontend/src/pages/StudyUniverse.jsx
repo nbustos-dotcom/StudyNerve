@@ -52,12 +52,10 @@ function makeNodeObject(node) {
       new THREE.SphereGeometry(5, 32, 32),
       new THREE.MeshPhongMaterial({ color: '#7c3aed', emissive: '#7c3aed', emissiveIntensity: 0.6, transparent: true, opacity: 0.9, shininess: 100, depthWrite: false })
     ))
-    const spriteMat = new THREE.SpriteMaterial({ color: '#7c3aed', transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false })
-    const sprite = new THREE.Sprite(spriteMat)
-    sprite.material.depthWrite = false
-    sprite.renderOrder = 999
-    sprite.scale.set(22, 22, 1)
-    group.add(sprite)
+    group.add(new THREE.Mesh(
+      new THREE.SphereGeometry(15, 16, 16),
+      new THREE.MeshBasicMaterial({ color: '#7c3aed', transparent: true, opacity: 0.06, blending: THREE.AdditiveBlending, depthWrite: false })
+    ))
     return group
   }
 
@@ -67,12 +65,10 @@ function makeNodeObject(node) {
       new THREE.SphereGeometry(3, 20, 20),
       new THREE.MeshPhongMaterial({ color: '#8b5cf6', emissive: '#8b5cf6', emissiveIntensity: 0.5, transparent: true, opacity: 0.9, depthWrite: false })
     ))
-    const spriteMat = new THREE.SpriteMaterial({ color: '#8b5cf6', transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false })
-    const sprite = new THREE.Sprite(spriteMat)
-    sprite.material.depthWrite = false
-    sprite.renderOrder = 999
-    sprite.scale.set(10, 10, 1)
-    group.add(sprite)
+    group.add(new THREE.Mesh(
+      new THREE.SphereGeometry(9, 16, 16),
+      new THREE.MeshBasicMaterial({ color: '#8b5cf6', transparent: true, opacity: 0.06, blending: THREE.AdditiveBlending, depthWrite: false })
+    ))
     return group
   }
 

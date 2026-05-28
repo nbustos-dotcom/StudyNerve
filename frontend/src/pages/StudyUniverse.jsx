@@ -29,7 +29,6 @@ function buildGraph(insights, topicStats) {
   }]
   const links = []
 
-  // Which categories have data?
   const activeCategories = new Set()
   for (const ins of insights) {
     if (ins.category && CATEGORY_META[ins.category]) activeCategories.add(ins.category)
@@ -70,7 +69,7 @@ function buildGraph(insights, topicStats) {
   return { nodes, links }
 }
 
-// ── Three.js node objects ─────────────────────────────────────────────────────
+// ── Three.js node objects (all SphereGeometry use 32, 32) ─────────────────────
 
 function makeNodeObject(node) {
   if (node.type === 'core') {
@@ -80,7 +79,7 @@ function makeNodeObject(node) {
       new THREE.MeshPhongMaterial({ color: '#7c3aed', emissive: '#7c3aed', emissiveIntensity: 0.7, transparent: true, opacity: 0.95, shininess: 100, depthWrite: false })
     ))
     group.add(new THREE.Mesh(
-      new THREE.SphereGeometry(15, 16, 16),
+      new THREE.SphereGeometry(15, 32, 32),
       new THREE.MeshBasicMaterial({ color: '#7c3aed', transparent: true, opacity: 0.06, blending: THREE.AdditiveBlending, depthWrite: false })
     ))
     return group
@@ -90,11 +89,11 @@ function makeNodeObject(node) {
     const meta = CATEGORY_META[node.id] ?? { color: '#6366f1' }
     const group = new THREE.Group()
     group.add(new THREE.Mesh(
-      new THREE.SphereGeometry(3.5, 20, 20),
+      new THREE.SphereGeometry(3.5, 32, 32),
       new THREE.MeshPhongMaterial({ color: meta.color, emissive: meta.color, emissiveIntensity: 0.55, transparent: true, opacity: 0.95, depthWrite: false })
     ))
     group.add(new THREE.Mesh(
-      new THREE.SphereGeometry(10, 16, 16),
+      new THREE.SphereGeometry(10, 32, 32),
       new THREE.MeshBasicMaterial({ color: meta.color, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false })
     ))
     return group
@@ -103,7 +102,7 @@ function makeNodeObject(node) {
   if (node.type === 'insight') {
     const color = CATEGORY_META[node.category]?.color ?? '#8b5cf6'
     return new THREE.Mesh(
-      new THREE.SphereGeometry(1.2, 12, 12),
+      new THREE.SphereGeometry(1.2, 32, 32),
       new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.3, transparent: true, opacity: 0.8, depthWrite: false })
     )
   }
@@ -112,13 +111,13 @@ function makeNodeObject(node) {
     const color = topicColor(node.accuracy ?? 0)
     const r = 1.2 + (node.accuracy ?? 0) * 0.8
     return new THREE.Mesh(
-      new THREE.SphereGeometry(r, 12, 12),
+      new THREE.SphereGeometry(r, 32, 32),
       new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.25 + (node.accuracy ?? 0) * 0.4, transparent: true, opacity: 0.85, depthWrite: false })
     )
   }
 
   return new THREE.Mesh(
-    new THREE.SphereGeometry(1, 8, 8),
+    new THREE.SphereGeometry(1, 32, 32),
     new THREE.MeshBasicMaterial({ color: '#6366f1', depthWrite: false })
   )
 }
@@ -145,39 +144,62 @@ export default function StudyUniverse() {
   const [error, setError] = useState(null)
   const [hoveredNode, setHoveredNode] = useState(null)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const [notification, setNotification] = useState(null)
+  const [notifFading, setNotifFading] = useState(false)
 
   const graphRef = useRef()
   const rafRef = useRef()
   const containerRef = useRef()
   const isInteractingRef = useRef(false)
   const resumeTimeoutRef = useRef(null)
+  const prevInsightCountRef = useRef(0)
+  const prevNodeIdsRef = useRef(new Set())
+  const notifTimerRef = useRef(null)
 
   useEffect(() => {
     Promise.allSettled([
       api.getInsights(),
       api.getTopicStats(),
     ]).then(([insRes, topRes]) => {
-      const ins  = insRes.status  === 'fulfilled' ? (insRes.value  ?? []) : []
-      const tops = topRes.status  === 'fulfilled' ? (topRes.value  ?? []) : []
+      const ins  = insRes.status === 'fulfilled' ? (insRes.value  ?? []) : []
+      const tops = topRes.status === 'fulfilled' ? (topRes.value  ?? []) : []
       console.log('Universe insights:', ins, 'topics:', tops)
+
+      // Brain update notification — only after first load
+      if (prevInsightCountRef.current > 0 && ins.length > prevInsightCountRef.current) {
+        if (notifTimerRef.current) clearTimeout(notifTimerRef.current)
+        setNotifFading(false)
+        setNotification('StudyNerve learned something new')
+        notifTimerRef.current = setTimeout(() => {
+          setNotifFading(true)
+          setTimeout(() => setNotification(null), 300)
+        }, 4000)
+      }
+      prevInsightCountRef.current = ins.length
+
       setInsights(ins)
       setTopicStats(tops)
       setGraphData(buildGraph(ins, tops))
     }).catch(e => setError(e.message)).finally(() => setLoading(false))
+
+    return () => { if (notifTimerRef.current) clearTimeout(notifTimerRef.current) }
   }, [])
 
-  // Measure container
+  // Measure container — use offsetWidth/offsetHeight for true pixel dims
   useEffect(() => {
     if (!containerRef.current) return
-    const ro = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect
-      if (width > 0 && height > 0) setDims({ w: Math.floor(width), h: Math.floor(height) })
+    const ro = new ResizeObserver(() => {
+      const el = containerRef.current
+      if (!el) return
+      const w = el.offsetWidth
+      const h = el.offsetHeight
+      if (w > 0 && h > 0) setDims({ w, h })
     })
     ro.observe(containerRef.current)
     return () => ro.disconnect()
   }, [])
 
-  // Bloom + lights — runs once after ForceGraph3D mounts
+  // Bloom + lights
   useEffect(() => {
     if (!graphRef.current) return
 
@@ -199,7 +221,7 @@ export default function StudyUniverse() {
     scene.add(pt)
   }, [])
 
-  // Camera auto-orbit + core pulse
+  // Camera auto-orbit + core pulse — pauses when isInteractingRef is true
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (!graphRef.current) return
@@ -248,6 +270,36 @@ export default function StudyUniverse() {
     graphRef.current.d3ReheatSimulation()
   }, [graphData])
 
+  // Node entry animation — scale 0→1 with 30ms stagger, cubic ease-out
+  useEffect(() => {
+    if (graphData.nodes.length === 0) return
+    const animTimeout = setTimeout(() => {
+      const nodes = graphRef.current?.graphData?.()?.nodes ?? []
+      const newNodes = nodes.filter(n => !prevNodeIdsRef.current.has(n.id))
+      prevNodeIdsRef.current = new Set(nodes.map(n => n.id))
+
+      newNodes.forEach((node, i) => {
+        const obj = node.__threeObj
+        if (!obj) return
+        obj.scale.set(0, 0, 0)
+        const startTime = Date.now() + i * 30
+        const duration = 800
+
+        function tick() {
+          const elapsed = Date.now() - startTime
+          if (elapsed < 0) { requestAnimationFrame(tick); return }
+          const t = Math.min(elapsed / duration, 1)
+          const ease = 1 - Math.pow(1 - t, 3)
+          obj.scale.set(ease, ease, ease)
+          if (t < 1) requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      })
+    }, 500)
+
+    return () => clearTimeout(animTimeout)
+  }, [graphData])
+
   function handleInteractionStart() {
     isInteractingRef.current = true
     if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current)
@@ -258,14 +310,18 @@ export default function StudyUniverse() {
     resumeTimeoutRef.current = setTimeout(() => { isInteractingRef.current = false }, 5000)
   }
 
+  // Scroll pauses orbit for 5s (same pattern as pointer interaction)
+  function handleScrollPause() {
+    isInteractingRef.current = true
+    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current)
+    resumeTimeoutRef.current = setTimeout(() => { isInteractingRef.current = false }, 5000)
+  }
+
   const isEmpty = !loading && insights.length === 0 && topicStats.length === 0
 
-  // Tooltip content by node type
   function tooltipContent(node) {
     if (!node || node.type === 'core') return null
-    if (node.type === 'category') {
-      return { title: node.name, sub: null }
-    }
+    if (node.type === 'category') return { title: node.name, sub: null }
     if (node.type === 'insight') {
       return {
         title: node.name,
@@ -299,12 +355,14 @@ export default function StudyUniverse() {
         style={{ height: 'calc(100vh - 200px)', minHeight: 400, background: '#050508', border: '1px solid rgba(255,255,255,0.06)' }}
         onPointerDown={handleInteractionStart}
         onPointerUp={handleInteractionEnd}
+        onWheel={handleScrollPause}
         onMouseMove={e => setMousePos({ x: e.clientX, y: e.clientY })}
       >
         <ForceGraph3D
           ref={graphRef}
           graphData={graphData}
           backgroundColor="#050508"
+          controlType="orbit"
           showNavInfo={false}
           enableNavigationControls={true}
           enablePointerInteraction={true}
@@ -326,6 +384,35 @@ export default function StudyUniverse() {
           width={dims.w}
           height={dims.h}
         />
+
+        {/* Brain update notification */}
+        {notification && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 14,
+              right: 14,
+              zIndex: 20,
+              pointerEvents: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'rgba(18,18,22,0.92)',
+              border: '1px solid rgba(124,58,237,0.2)',
+              borderRadius: 10,
+              padding: '8px 14px',
+              opacity: notifFading ? 0 : 1,
+              transform: notifFading ? 'translateY(-4px)' : 'translateY(0)',
+              transition: 'opacity 0.3s ease, transform 0.3s ease',
+              animation: notifFading ? 'none' : 'notifSlideDown 0.3s ease',
+            }}
+          >
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#7c3aed', flexShrink: 0, boxShadow: '0 0 6px rgba(124,58,237,0.8)' }} />
+            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: 500 }}>
+              StudyNerve learned something new
+            </span>
+          </div>
+        )}
 
         {/* Loading */}
         {loading && (
@@ -351,7 +438,9 @@ export default function StudyUniverse() {
         {isEmpty && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 pointer-events-none px-8">
             <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.2)' }}>
-              <svg className="w-6 h-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 5v2M12 17v2M5 12H3M21 12h-2M7.05 7.05 5.64 5.64M18.36 18.36l-1.41-1.41M7.05 16.95l-1.41 1.41M18.36 5.64l-1.41 1.41"/></svg>
+              <svg className="w-6 h-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="12" cy="12" r="3"/><path d="M12 5v2M12 17v2M5 12H3M21 12h-2M7.05 7.05 5.64 5.64M18.36 18.36l-1.41-1.41M7.05 16.95l-1.41 1.41M18.36 5.64l-1.41 1.41"/>
+              </svg>
             </div>
             <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
               StudyNerve is learning about you. Take quizzes and chat with the tutor to see your AI brain grow.
@@ -372,7 +461,6 @@ export default function StudyUniverse() {
               border: '1px solid rgba(255,255,255,0.09)',
               borderRadius: 8,
               padding: '7px 11px',
-              whiteSpace: 'nowrap',
               maxWidth: 280,
               whiteSpace: 'normal',
             }}
@@ -383,18 +471,6 @@ export default function StudyUniverse() {
             {tip.sub && (
               <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)' }}>{tip.sub}</p>
             )}
-          </div>
-        )}
-
-        {/* Legend */}
-        {!loading && !isEmpty && (
-          <div style={{ position: 'absolute', bottom: 14, left: 16, display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'none' }}>
-            {Object.entries(CATEGORY_META).map(([key, { label, color }]) => (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.03em' }}>{label}</span>
-              </div>
-            ))}
           </div>
         )}
 

@@ -167,6 +167,11 @@
   to   { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes notifSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Confetti fall ───────────────────────────────────────────────────────── */
 
 @keyframes confetti-fall {

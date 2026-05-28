@@ -76,7 +76,7 @@ function MessageBubble({ message }) {
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-ink-muted flex-shrink-0 bg-deep-elevated border border-border-subtle">
               U
             </div>
-            <span className="text-[11px] font-medium text-white/35">You</span>
+            <span className="text-[11px] font-medium text-ink-faint">You</span>
           </>
         ) : (
           <>
@@ -281,7 +281,7 @@ function ChatSidebar({ sessions, activeSessionId, onSelectSession, onNewChat, on
                       <span className="text-[10px] text-ink-faint">
                         {formatRelativeTime(session.last_activity)}
                       </span>
-                      <span className="text-[10px] text-slate-700">·</span>
+                      <span className="text-[10px] text-zinc-700">·</span>
                       <span className="text-[10px] text-ink-faint">
                         {session.message_count} {session.message_count === 1 ? 'msg' : 'msgs'}
                       </span>
@@ -735,7 +735,7 @@ export default function Chat() {
                   </span>
                   <button
                     onClick={removeAttachedFile}
-                    className="text-white/30 hover:text-white/70 transition-colors text-base leading-none ml-auto"
+                    className="text-ink-faint hover:text-ink-muted transition-colors text-base leading-none ml-auto"
                     aria-label="Remove file"
                   >
                     ×

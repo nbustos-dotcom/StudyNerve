@@ -20,7 +20,7 @@ function optionButtonClass(key, selectedAnswer, result) {
   const base = 'flex items-center gap-3.5 w-full px-4 py-3.5 border rounded-lg text-sm font-medium text-left transition-all duration-150 active:scale-[0.99]'
   if (!result) {
     if (selectedAnswer === key) return `${base} border-accent/35 bg-accent-muted text-ink-primary`
-    return `${base} bg-deep-elevated border-border-subtle text-ink-primary hover:border-border-hover hover:bg-[#181821]`
+    return `${base} bg-deep-elevated border-border-subtle text-ink-primary hover:border-border-hover hover:bg-deep-elevated`
   }
   if (key === result.correct_answer) return `${base} border-green-400 bg-green-400/[0.08] text-ink-primary`
   if (key === selectedAnswer && !result.is_correct) return `${base} border-red-400 bg-red-400/[0.08] text-ink-primary`
@@ -822,7 +822,7 @@ function ReviewView({ item, onBack }) {
       </button>
 
       <div className="text-center mb-8">
-        <p className="text-white/30 text-xs mb-1 uppercase tracking-widest font-medium">{item.note_title}</p>
+        <p className="text-ink-faint text-xs mb-1 uppercase tracking-widest font-medium">{item.note_title}</p>
         <p className={`text-5xl font-bold mb-2 ${color}`}>{pct}%</p>
         <p className="text-ink-muted text-sm">{item.score} of {item.total_questions} correct · {formatDate(item.completed_at)}</p>
       </div>
@@ -982,7 +982,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
   return (
     <div className="p-4 sm:p-8 max-w-xl mx-auto fade-in-up">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-ink-primary">Quiz</h1>
+        <h1 className="text-xl font-bold text-ink-primary">Quiz</h1>
         <p className="text-sm text-ink-muted mt-1">Generate questions from your notes with AI</p>
       </div>
 
@@ -1007,7 +1007,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
               <svg className="w-8 h-8 text-white/10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
               </svg>
-              <p className="text-sm text-white/30">Complete a quiz to see per-topic results here.</p>
+              <p className="text-sm text-ink-faint">Complete a quiz to see per-topic results here.</p>
             </div>
           )}
 
@@ -1173,7 +1173,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
                 ))}
               </select>
               {notes.length === 0 && (
-                <p className="text-xs text-white/30 mt-1.5">No notes yet — add one on the Notes page first.</p>
+                <p className="text-xs text-ink-faint mt-1.5">No notes yet — add one on the Notes page first.</p>
               )}
             </div>
 

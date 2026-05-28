@@ -314,7 +314,7 @@ export default function Notes() {
       </datalist>
 
       <div className="mb-8">
-        <h1 className="text-xl font-semibold text-ink-primary">Notes</h1>
+        <h1 className="text-xl font-bold text-ink-primary">Notes</h1>
         <p className="text-sm text-ink-muted mt-1">Paste study material and extract topics for quizzing</p>
       </div>
 
@@ -770,7 +770,7 @@ export default function Notes() {
                         .filter((t) => t.parent_topic_id === null)
                         .map((parent) => (
                           <div key={parent.id} className="flex flex-col gap-1">
-                            <span className="text-xs px-2 py-1 rounded-md bg-[#17171f] border border-border-subtle text-ink-secondary">
+                            <span className="text-xs px-2 py-1 rounded-md bg-white/[0.06] border border-border-subtle text-ink-secondary">
                               {parent.name}
                             </span>
                             <div className="flex flex-wrap gap-1 ml-2">
@@ -779,7 +779,7 @@ export default function Notes() {
                                 .map((child) => (
                                   <span
                                     key={child.id}
-                                    className="text-xs px-2 py-0.5 rounded-md bg-[#13131a] text-ink-muted"
+                                    className="text-xs px-2 py-0.5 rounded-md bg-white/[0.03] text-ink-muted"
                                   >
                                     {child.name}
                                   </span>

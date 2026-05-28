@@ -27,9 +27,9 @@ function dueUrgency(iso) {
 const U = {
   critical: { text: 'text-red-400',   dot: 'bg-red-400',    shadow: '0 0 6px rgba(248,113,113,0.6)' },
   warning:  { text: 'text-amber-400', dot: 'bg-amber-400',  shadow: '0 0 6px rgba(251,191,36,0.5)'  },
-  past:     { text: 'text-ink-faint', dot: 'bg-slate-700',  shadow: 'none'                           },
-  normal:   { text: 'text-ink-muted', dot: 'bg-slate-600',  shadow: 'none'                           },
-  none:     { text: 'text-ink-muted', dot: 'bg-slate-700',  shadow: 'none'                           },
+  past:     { text: 'text-ink-faint', dot: 'bg-zinc-700',   shadow: 'none'                           },
+  normal:   { text: 'text-ink-muted', dot: 'bg-zinc-600',   shadow: 'none'                           },
+  none:     { text: 'text-ink-muted', dot: 'bg-zinc-700',   shadow: 'none'                           },
 }
 
 // ── Tiny shared components ────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ function Toggle({ on, onChange }) {
         width: 34,
         height: 18,
         borderRadius: 9,
-        background: on ? '#6366f1' : 'rgba(255,255,255,0.06)',
+        background: on ? 'var(--accent)' : 'rgba(255,255,255,0.06)',
         border: '1px solid rgba(255,255,255,0.10)',
         position: 'relative',
         cursor: 'pointer',
@@ -436,7 +436,7 @@ export default function Canvas() {
       ) : (
         <div className="card p-6 mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-2 h-2 rounded-full bg-slate-600 flex-shrink-0" />
+            <div className="w-2 h-2 rounded-full bg-zinc-600 flex-shrink-0" />
             <p className="text-sm font-medium text-ink-secondary">Not connected to Canvas</p>
             {status?.reason && (
               <span className="text-xs text-ink-faint">— {status.reason}</span>
@@ -505,7 +505,7 @@ export default function Canvas() {
                           <p className="text-[11px] font-mono text-ink-faint mt-1">{course.code}</p>
                         )}
                       </div>
-                      <span className="flex-shrink-0 text-slate-700 group-hover:text-accent transition-colors mt-0.5">
+                      <span className="flex-shrink-0 text-zinc-700 group-hover:text-accent transition-colors mt-0.5">
                         <ChevronRight />
                       </span>
                     </div>
@@ -530,7 +530,7 @@ export default function Canvas() {
               </svg>
               Courses
             </button>
-            <span className="text-slate-700 text-xs">/</span>
+            <span className="text-zinc-700 text-xs">/</span>
             <span className="text-sm font-medium text-ink-secondary truncate max-w-xs">
               {selectedCourse.name}
             </span>

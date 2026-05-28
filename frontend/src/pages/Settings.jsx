@@ -287,7 +287,7 @@ export default function Settings() {
     <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-xl font-semibold text-ink-primary">Settings</h1>
+        <h1 className="text-xl font-bold text-ink-primary">Settings</h1>
         <p className="text-sm text-ink-muted mt-1">Configure your AI provider and integrations</p>
       </div>
 
@@ -335,10 +335,7 @@ export default function Settings() {
                         }
                   }
                 >
-                  <div
-                    className="text-sm font-medium"
-                    style={{ color: provider === p.value ? '#818cf8' : '#a1a1aa' }}
-                  >
+                  <div className={`text-sm font-medium ${provider === p.value ? 'text-accent-hover' : 'text-ink-secondary'}`}>
                     {p.label}
                   </div>
                   {!p.needsKey && (
@@ -388,7 +385,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => setShowApiKey((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-muted transition-colors"
                   tabIndex={-1}
                 >
                   <EyeIcon open={showApiKey} />
@@ -421,7 +418,7 @@ export default function Settings() {
         {currentSettings && (
           <div className="flex items-center gap-2 mb-5">
             <div
-              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${currentSettings.canvas_connected ? 'bg-emerald-400' : 'bg-slate-600'}`}
+              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${currentSettings.canvas_connected ? 'bg-emerald-400' : 'bg-zinc-600'}`}
               style={currentSettings.canvas_connected ? { boxShadow: '0 0 8px rgba(52,211,153,0.7)' } : {}}
             />
             <span className="text-xs text-ink-muted">
@@ -481,7 +478,7 @@ export default function Settings() {
               <button
                 type="button"
                 onClick={() => setShowCanvasToken((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-muted transition-colors"
                 tabIndex={-1}
               >
                 <EyeIcon open={showCanvasToken} />

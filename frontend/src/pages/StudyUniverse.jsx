@@ -50,9 +50,9 @@ function makeNodeObject(node) {
     const group = new THREE.Group()
     group.add(new THREE.Mesh(
       new THREE.SphereGeometry(5, 32, 32),
-      new THREE.MeshPhongMaterial({ color: '#7c3aed', emissive: '#7c3aed', emissiveIntensity: 0.6, transparent: true, opacity: 0.9, shininess: 100 })
+      new THREE.MeshPhongMaterial({ color: '#7c3aed', emissive: '#7c3aed', emissiveIntensity: 0.6, transparent: true, opacity: 0.9, shininess: 100, depthWrite: false })
     ))
-    const spriteMat = new THREE.SpriteMaterial({ color: '#7c3aed', transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending })
+    const spriteMat = new THREE.SpriteMaterial({ color: '#7c3aed', transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false })
     const sprite = new THREE.Sprite(spriteMat)
     sprite.scale.set(22, 22, 1)
     group.add(sprite)
@@ -63,9 +63,9 @@ function makeNodeObject(node) {
     const group = new THREE.Group()
     group.add(new THREE.Mesh(
       new THREE.SphereGeometry(3, 20, 20),
-      new THREE.MeshPhongMaterial({ color: '#8b5cf6', emissive: '#8b5cf6', emissiveIntensity: 0.5, transparent: true, opacity: 0.9 })
+      new THREE.MeshPhongMaterial({ color: '#8b5cf6', emissive: '#8b5cf6', emissiveIntensity: 0.5, transparent: true, opacity: 0.9, depthWrite: false })
     ))
-    const spriteMat = new THREE.SpriteMaterial({ color: '#8b5cf6', transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending })
+    const spriteMat = new THREE.SpriteMaterial({ color: '#8b5cf6', transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false })
     const sprite = new THREE.Sprite(spriteMat)
     sprite.scale.set(10, 10, 1)
     group.add(sprite)
@@ -74,7 +74,7 @@ function makeNodeObject(node) {
 
   return new THREE.Mesh(
     new THREE.SphereGeometry(1.2, 12, 12),
-    new THREE.MeshPhongMaterial({ color: '#6366f1', emissive: '#6366f1', emissiveIntensity: 0.35, transparent: true, opacity: 0.8 })
+    new THREE.MeshPhongMaterial({ color: '#6366f1', emissive: '#6366f1', emissiveIntensity: 0.35, transparent: true, opacity: 0.8, depthWrite: false })
   )
 }
 
@@ -108,7 +108,7 @@ export default function StudyUniverse() {
 
   useEffect(() => {
     api.studyUniverse()
-      .then(d => { setData(d); setGraphData(buildGraph(d)); setLoading(false) })
+      .then(d => { console.log('Universe data:', d); setData(d); setGraphData(buildGraph(d)); setLoading(false) })
       .catch(e => { setError(e.message); setLoading(false) })
   }, [])
 
@@ -219,7 +219,7 @@ export default function StudyUniverse() {
       <div
         ref={containerRef}
         className="relative rounded-2xl overflow-hidden mb-5"
-        style={{ height: 'calc(100vh - 280px)', minHeight: 400, background: '#09090b', border: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ height: 'calc(100vh - 200px)', minHeight: 400, background: '#050508', border: '1px solid rgba(255,255,255,0.06)' }}
         onPointerDown={handleInteractionStart}
         onPointerUp={handleInteractionEnd}
         onMouseMove={e => setMousePos({ x: e.clientX, y: e.clientY })}
@@ -228,7 +228,7 @@ export default function StudyUniverse() {
         <ForceGraph3D
           ref={graphRef}
           graphData={graphData}
-          backgroundColor="#09090b"
+          backgroundColor="#050508"
           showNavInfo={false}
           enableNavigationControls={true}
           enablePointerInteraction={true}

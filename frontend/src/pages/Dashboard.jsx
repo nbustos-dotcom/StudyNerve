@@ -208,7 +208,7 @@ function ActivityFeed({ quizHistory, notes }) {
 
   return (
     <div className="card p-4">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">Recent Activity</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3"><span className="w-1 h-1 rounded-full bg-accent inline-block mr-2 align-middle" />Recent Activity</h2>
       {top5.length === 0 ? (
         <p className="text-sm text-zinc-600 py-2">No activity yet.</p>
       ) : (
@@ -335,6 +335,7 @@ function StatCard({ label, value, sub, icon: Icon }) {
       <div className="h-[3px] mx-5 mb-4 rounded-full bg-zinc-800 overflow-hidden">
         <div className="h-full w-1/3 rounded-full bg-accent/40 progress-glow" />
       </div>
+      <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(to right, transparent, rgba(124,58,237,0.4) 50%, transparent)' }} />
     </div>
   )
 }
@@ -342,7 +343,7 @@ function StatCard({ label, value, sub, icon: Icon }) {
 function AccuracyRing({ value }) {
   const pct = Math.round(value * 100)
   return (
-    <div className="card p-5 stat-card">
+    <div className="card p-5 stat-card overflow-hidden relative">
       <div className="flex items-center gap-1.5 mb-3">
         <TrendingUp size={14} strokeWidth={1.5} className="text-zinc-500" />
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Overall Accuracy</p>
@@ -351,6 +352,7 @@ function AccuracyRing({ value }) {
       <div className="mt-3 h-[3px] bg-zinc-800 rounded-full overflow-hidden">
         <div className="h-full rounded-full bar-animate bg-accent progress-glow" style={{ width: `${pct}%` }} />
       </div>
+      <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(to right, transparent, rgba(124,58,237,0.4) 50%, transparent)' }} />
     </div>
   )
 }
@@ -456,10 +458,11 @@ export default function Dashboard() {
     <div className="px-4 sm:px-8 pt-6 pb-8 max-w-5xl mx-auto fade-in-up">
       <div className="dashboard-spotlight" />
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-zinc-100">{greeting}{firstName ? `, ${firstName}` : ''}</h1>
+        <h1 className="text-2xl font-bold text-zinc-100">{greeting}{firstName ? `, ${firstName}` : ''}</h1>
         <p className="text-sm text-zinc-500 mt-0.5">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · StudyNerve
         </p>
+        <div className="h-0.5 w-16 bg-accent/30 rounded-full mt-2" />
       </div>
 
       {loading && (
@@ -501,7 +504,7 @@ export default function Dashboard() {
               <WeeklyStudyGrid quizHistory={quizHistory} notes={recentNotes} />
 
               {/* Stat cards */}
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">Your Stats</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3"><span className="w-1 h-1 rounded-full bg-accent inline-block mr-2 align-middle" />Your Stats</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <StatCard label="Notes"     value={stats.total_notes}     sub="uploaded"  icon={FileStack}  />
                 <StatCard label="Questions" value={stats.total_questions} sub="generated" icon={CircleHelp} />
@@ -509,12 +512,12 @@ export default function Dashboard() {
                 <AccuracyRing value={stats.overall_accuracy} />
               </div>
 
-              {/* Recent Activity + Weak Areas — 2-col grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-                <ActivityFeed quizHistory={quizHistory} notes={recentNotes} />
-                <div className="card p-4">
+              {/* Recent Activity + Weak Areas — 5-col grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-5">
+                <div className="lg:col-span-3"><ActivityFeed quizHistory={quizHistory} notes={recentNotes} /></div>
+                <div className="card p-4 lg:col-span-2">
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Weak Areas</h2>
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500"><span className="w-1 h-1 rounded-full bg-accent inline-block mr-2 align-middle" />Weak Areas</h2>
                     {gaps && gaps.length > 0 && (
                       <span className="text-xs text-zinc-600">ranked by gap score</span>
                     )}

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import NeuralBackground from '../components/NeuralBackground'
 import {
   NotebookPen, GraduationCap, MessagesSquare,
   FileStack, CircleHelp, Target, TrendingUp,
@@ -454,8 +453,7 @@ export default function Dashboard() {
 
   return (
     <div className="relative min-h-screen">
-    <NeuralBackground />
-    <div className="px-4 sm:px-8 pt-6 pb-8 max-w-5xl mx-auto fade-in-up relative z-10">
+    <div className="px-4 sm:px-8 pt-6 pb-8 max-w-5xl mx-auto fade-in-up">
       <div className="dashboard-spotlight" />
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-zinc-100">{greeting}{firstName ? `, ${firstName}` : ''}</h1>

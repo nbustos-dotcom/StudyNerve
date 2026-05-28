@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import Logo from '../components/Logo'
 
 export default function Login({ onAuth }) {
   const navigate = useNavigate()
@@ -38,6 +39,7 @@ export default function Login({ onAuth }) {
       <div className="w-full max-w-sm fade-in-up">
         {/* Brand */}
         <div className="text-center mb-6">
+          <Logo size={48} className="text-accent mx-auto mb-4" />
           <h1 className="text-xl font-bold text-ink-primary">StudyNerve AI</h1>
           <p className="text-sm text-ink-muted mt-1">Your personal AI tutor</p>
         </div>

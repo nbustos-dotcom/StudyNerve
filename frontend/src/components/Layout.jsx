@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import Logo from './Logo'
 
 const NAV_MAIN = [
   { to: '/',           label: 'Dashboard',  end: true },
@@ -66,8 +67,8 @@ export default function Layout({ user, onLogout, onOpenPalette }) {
         }}
       >
         {/* Brand */}
-        <div className="flex items-center flex-shrink-0">
-          <img src="/logo-64.png" alt="" className="nav-logo" style={{height:'28px',width:'auto',marginRight:'8px'}} />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Logo size={20} className="text-accent" />
           <span className="text-sm font-semibold text-ink-primary">StudyNerve</span>
         </div>
 

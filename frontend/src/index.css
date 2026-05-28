@@ -55,9 +55,7 @@
   /* ── Cards ───────────────────────────────────────────────────────────────── */
 
   .card {
-    background: rgba(17,17,20,0.75);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: #111113;
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 8px;
     padding: 0;
@@ -325,8 +323,6 @@
 
 /* ── Dashboard spotlight glow ────────────────────────────────────────────── */
 
-/* ── Dashboard spotlight glow ────────────────────────────────────────────── */
-
 .dashboard-spotlight {
   position: absolute;
   pointer-events: none;
@@ -338,6 +334,41 @@
   top: 320px;
   transform: translateX(-50%);
   z-index: 0;
+}
+
+/* ── Hero card — animated gradient border ────────────────────────────────── */
+
+@keyframes hero-border-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.hero-card {
+  position: relative;
+  border-radius: 9px;
+  padding: 1px;
+  overflow: hidden;
+}
+
+.hero-card::before {
+  content: '';
+  position: absolute;
+  inset: -100%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 200deg,
+    rgba(124,58,237,0.65) 240deg,
+    rgba(139,92,246,0.45) 280deg,
+    transparent 320deg
+  );
+  animation: hero-border-rotate 6s linear infinite;
+}
+
+.hero-card-inner {
+  position: relative;
+  background: #111113;
+  border-radius: 8px;
+  padding: 1.5rem;
 }
 
 /* ── Keyboard key badge ──────────────────────────────────────────────────── */

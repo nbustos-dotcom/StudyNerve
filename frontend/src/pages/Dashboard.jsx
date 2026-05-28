@@ -70,75 +70,57 @@ function formatRelative(iso) {
 
 // ── Smart Hero Card ───────────────────────────────────────────────────────────
 
-function SmartHeroCard({ gaps, canvasItems, onDismiss, onStudyNow, studyNowLoading }) {
+function SmartHeroCard({ gaps, onDismiss, onStudyNow, studyNowLoading }) {
   const topGap = gaps?.[0] ?? null
-
-  const criticalDeadline = (canvasItems ?? []).find((a) => {
-    if (!a.due_at) return false
-    const diff = new Date(a.due_at) - Date.now()
-    return diff > 0 && diff < 2 * 86400000
-  }) ?? null
-
-  const nextDeadline = !criticalDeadline
-    ? (canvasItems ?? []).find((a) => a.due_at && new Date(a.due_at) > new Date()) ?? null
-    : null
+  const showCta = !!topGap
 
   let message
-  let showCta = false
-
-  if (criticalDeadline && topGap) {
-    const pct = Math.round(topGap.accuracy * 100)
-    message = `${criticalDeadline.name} is due ${formatDueShort(criticalDeadline.due_at)} and ${topGap.topic_name} is your weakest area (${pct}%)`
-    showCta = true
-  } else if (criticalDeadline) {
-    message = `${criticalDeadline.name} is due ${formatDueShort(criticalDeadline.due_at)}`
-  } else if (topGap) {
+  if (topGap) {
     const pct = Math.round(topGap.accuracy * 100)
     message = `Your weakest topic is ${topGap.topic_name} (${pct}% accuracy)`
-    showCta = true
-  } else if (nextDeadline) {
-    message = `Next up: ${nextDeadline.name} due ${formatDueShort(nextDeadline.due_at)}`
   } else {
     message = "You're on track. Add notes or take a quiz to keep going."
   }
 
   return (
-    <div className="card p-6 mb-4 relative" style={{ borderLeft: '3px solid #7c3aed' }}>
-      <p className="text-[11px] font-semibold tracking-widest uppercase text-zinc-500 mb-2">Smart Pick</p>
-      <p className="text-[15px] text-zinc-100 leading-snug">{message}</p>
-      <div className="flex items-center gap-3 mt-4 flex-wrap">
-        <button
-          onClick={onStudyNow}
-          disabled={studyNowLoading}
-          className="btn-primary inline-flex items-center gap-2 text-sm btn-glow"
-        >
-          {studyNowLoading ? (
-            <>
-              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-              Finding your weakest spot…
-            </>
-          ) : (
-            'Study Now'
+    <div className="hero-card mb-4">
+      <div className="hero-card-inner relative">
+        <p className="text-[11px] font-semibold tracking-widest uppercase text-zinc-500 mb-2">Smart Pick</p>
+        <p className="text-[15px] text-zinc-100 leading-snug">{message}</p>
+        <div className="flex items-center gap-3 mt-4 flex-wrap">
+          <button
+            onClick={onStudyNow}
+            disabled={studyNowLoading}
+            className="btn-primary inline-flex items-center gap-2 text-sm btn-glow"
+          >
+            {studyNowLoading ? (
+              <>
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Finding your weakest spot…
+              </>
+            ) : (
+              'Study Now'
+            )}
+          </button>
+          {showCta && (
+            <Link to="/quiz" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
+              Custom quiz →
+            </Link>
           )}
+        </div>
+        <button
+          onClick={onDismiss}
+          className="absolute top-4 right-4 text-white/20 hover:text-white/50 transition-colors"
+          aria-label="Dismiss"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
         </button>
-        {showCta && (
-          <Link to="/quiz" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
-            Custom quiz →
-          </Link>
-        )}
       </div>
-      <button
-        onClick={onDismiss}
-        className="absolute top-4 right-4 text-white/20 hover:text-white/50 transition-colors"
-        aria-label="Dismiss"
-      >
-        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M4 4l8 8M12 4l-8 8" />
-        </svg>
-      </button>
     </div>
   )
 }
@@ -192,7 +174,7 @@ function WeeklyStudyGrid({ quizHistory, notes }) {
           {days.map(({ date, active }, i) => (
             <div key={i} className="flex flex-col items-center gap-1">
               <div
-                className={`w-5 h-5 rounded-full transition-colors ${active ? 'bg-[#7c3aed]' : 'bg-white/[0.06]'}`}
+                className={`w-5 h-5 rounded-full transition-colors ${active ? 'bg-accent' : 'bg-white/[0.06]'}`}
                 title={date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
               />
               <span className="text-[9px] text-zinc-600 select-none">{DAY_LABELS[date.getDay()]}</span>
@@ -280,7 +262,7 @@ function UpcomingDeadlines() {
 
       {items === null && (
         <div className="card p-4 flex items-center gap-2 text-zinc-500 text-sm">
-          <svg className="animate-spin w-4 h-4 flex-shrink-0" style={{ color: '#7c3aed' }} fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin w-4 h-4 flex-shrink-0 text-accent" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
           </svg>
@@ -352,7 +334,7 @@ function StatCard({ label, value, sub, icon: Icon }) {
         {sub && <p className="text-xs text-zinc-500 mt-2 uppercase tracking-wider">{sub}</p>}
       </div>
       <div className="h-[3px] mx-5 mb-4 rounded-full bg-zinc-800 overflow-hidden">
-        <div className="h-full w-1/3 rounded-full" style={{ background: 'rgba(124,58,237,0.4)' }} />
+        <div className="h-full w-1/3 rounded-full bg-accent/40 progress-glow" />
       </div>
     </div>
   )
@@ -366,9 +348,9 @@ function AccuracyRing({ value }) {
         <TrendingUp size={14} strokeWidth={1.5} className="text-zinc-500" />
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Overall Accuracy</p>
       </div>
-      <p className="text-3xl font-semibold leading-none" style={{ color: '#7c3aed' }}>{pct}%</p>
+      <p className="text-3xl font-semibold leading-none text-accent">{pct}%</p>
       <div className="mt-3 h-[3px] bg-zinc-800 rounded-full overflow-hidden">
-        <div className="h-full rounded-full bar-animate" style={{ width: `${pct}%`, background: '#7c3aed' }} />
+        <div className="h-full rounded-full bar-animate bg-accent progress-glow" style={{ width: `${pct}%` }} />
       </div>
     </div>
   )
@@ -377,13 +359,13 @@ function AccuracyRing({ value }) {
 function WeakAreaCard({ topic, className = '' }) {
   const pct = Math.round(topic.accuracy * 100)
   return (
-    <div className={`card p-4 card-lift card-hover ${className}`}>
+    <div className={`card p-4 card-hover ${className}`}>
       <div className="flex justify-between items-start mb-2">
         <p className="text-sm text-zinc-100 font-medium truncate max-w-[70%]">{topic.topic_name}</p>
         <span className="text-sm font-semibold tabular-nums text-zinc-400">{pct}%</span>
       </div>
       <div className="h-[3px] bg-zinc-800 rounded-full overflow-hidden">
-        <div className="h-full rounded-full bar-animate" style={{ width: `${pct}%`, background: '#7c3aed' }} />
+        <div className="h-full rounded-full bar-animate bg-accent progress-glow" style={{ width: `${pct}%` }} />
       </div>
       <p className="text-[11px] text-zinc-600 mt-2">{topic.total_attempts} attempt{topic.total_attempts !== 1 ? 's' : ''}</p>
     </div>
@@ -403,7 +385,6 @@ export default function Dashboard() {
   const [topicLoading, setTopicLoading] = useState(false)
   const [topicSortBy, setTopicSortBy] = useState('accuracy')
   const [topicSortDir, setTopicSortDir] = useState('desc')
-  const [heroCanvas, setHeroCanvas] = useState([])
   const [heroHidden, setHeroHidden] = useState(false)
   const [quizHistory, setQuizHistory] = useState([])
   const [recentNotes, setRecentNotes] = useState([])
@@ -413,14 +394,12 @@ export default function Dashboard() {
     Promise.allSettled([
       api.getOverviewStats(),
       api.getGaps(),
-      api.canvasUpcoming(7),
       api.getQuizHistory(),
       api.getNotes(),
-    ]).then(([statsRes, gapsRes, canvasRes, historyRes, notesRes]) => {
+    ]).then(([statsRes, gapsRes, historyRes, notesRes]) => {
       if (statsRes.status === 'fulfilled') setStats(statsRes.value)
       else setError(statsRes.reason?.message ?? 'Failed to load stats')
       setGaps(gapsRes.status === 'fulfilled' ? (gapsRes.value ?? []) : [])
-      setHeroCanvas(canvasRes.status === 'fulfilled' ? (canvasRes.value ?? []) : [])
       setQuizHistory(historyRes.status === 'fulfilled' ? (historyRes.value ?? []) : [])
       setRecentNotes(notesRes.status === 'fulfilled' ? (notesRes.value ?? []).slice(0, 5) : [])
     }).finally(() => setLoading(false))
@@ -509,7 +488,6 @@ export default function Dashboard() {
           {!heroHidden && (
             <SmartHeroCard
               gaps={gaps}
-              canvasItems={heroCanvas}
               onDismiss={() => setHeroHidden(true)}
               onStudyNow={handleStudyNow}
               studyNowLoading={studyNowLoading}
@@ -575,7 +553,7 @@ export default function Dashboard() {
                             <span className="tabular-nums">{t.correct_attempts}/{t.total_attempts} · {pct}%</span>
                           </div>
                           <div className="h-[3px] bg-zinc-800 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full bar-animate" style={{ width: `${pct}%`, background: '#7c3aed' }} />
+                            <div className="h-full rounded-full bar-animate bg-accent progress-glow" style={{ width: `${pct}%` }} />
                           </div>
                         </div>
                       )
@@ -610,14 +588,14 @@ export default function Dashboard() {
                                 onClick={() => handleTopicSort('name')}
                               >
                                 Topic{' '}
-                                {topicSortBy !== 'name' ? <span className="text-zinc-700">↕</span> : <span style={{ color: '#7c3aed' }}>{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                                {topicSortBy !== 'name' ? <span className="text-zinc-700">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                               </th>
                               <th
                                 className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-zinc-300 select-none transition-colors"
                                 onClick={() => handleTopicSort('attempts')}
                               >
                                 Attempts{' '}
-                                {topicSortBy !== 'attempts' ? <span className="text-zinc-700">↕</span> : <span style={{ color: '#7c3aed' }}>{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                                {topicSortBy !== 'attempts' ? <span className="text-zinc-700">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                               </th>
                               <th className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider py-3 px-4">Correct</th>
                               <th
@@ -625,7 +603,7 @@ export default function Dashboard() {
                                 onClick={() => handleTopicSort('accuracy')}
                               >
                                 Accuracy{' '}
-                                {topicSortBy !== 'accuracy' ? <span className="text-zinc-700">↕</span> : <span style={{ color: '#7c3aed' }}>{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                                {topicSortBy !== 'accuracy' ? <span className="text-zinc-700">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                               </th>
                             </tr>
                           </thead>
@@ -640,7 +618,7 @@ export default function Dashboard() {
                                   <td className="py-3 px-4">
                                     <div className="flex items-center gap-3 min-w-0">
                                       <div className="flex-1 h-[3px] bg-zinc-800 rounded-full overflow-hidden">
-                                        <div className="h-full rounded-full bar-animate" style={{ width: `${pct}%`, background: '#7c3aed' }} />
+                                        <div className="h-full rounded-full bar-animate bg-accent progress-glow" style={{ width: `${pct}%` }} />
                                       </div>
                                       <span className="text-xs font-medium tabular-nums w-8 text-right text-zinc-400">{pct}%</span>
                                     </div>
@@ -665,8 +643,8 @@ export default function Dashboard() {
 
               {stats.total_notes === 0 && (
                 <div className="card p-10 flex flex-col items-center gap-4 text-center">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.15)' }}>
-                    <svg className="w-7 h-7" style={{ color: '#7c3aed' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-accent/[0.08] border border-accent/[0.15]">
+                    <svg className="w-7 h-7 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 12v6M9 15h6"/>
                     </svg>
                   </div>
@@ -689,8 +667,7 @@ export default function Dashboard() {
 function Spinner({ small }) {
   return (
     <svg
-      className={`animate-spin ${small ? 'w-4 h-4' : 'w-6 h-6'}`}
-      style={{ color: '#7c3aed' }}
+      className={`animate-spin text-accent ${small ? 'w-4 h-4' : 'w-6 h-6'}`}
       fill="none"
       viewBox="0 0 24 24"
     >

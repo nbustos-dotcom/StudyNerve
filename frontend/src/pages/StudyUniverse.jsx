@@ -3,41 +3,68 @@ import ForceGraph3D from 'react-force-graph-3d'
 import * as THREE from 'three'
 import { api } from '../api/client'
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const CATEGORY_META = {
+  learning_pattern: { label: 'Learning Patterns', color: '#8b5cf6' },
+  misconception:    { label: 'Misconceptions',    color: '#f87171' },
+  preference:       { label: 'Preferences',       color: '#60a5fa' },
+  strength:         { label: 'Strengths',         color: '#34d399' },
+  knowledge:        { label: 'Knowledge',         color: '#6366f1' },
+}
+
+function topicColor(accuracy) {
+  if (accuracy >= 0.8) return '#34d399'
+  if (accuracy >= 0.6) return '#6366f1'
+  if (accuracy >= 0.4) return '#f59e0b'
+  return '#f87171'
+}
+
 // ── Graph builder ─────────────────────────────────────────────────────────────
 
-function buildGraph(data) {
-  const nodes = [{ id: 'core', name: 'StudyNerve', type: 'core', val: 50, fx: 0, fy: 0, fz: 0 }]
+function buildGraph(insights, topicStats) {
+  const nodes = [{
+    id: 'core', name: 'StudyNerve AI', type: 'core',
+    val: 60, fx: 0, fy: 0, fz: 0,
+  }]
   const links = []
 
-  const notesBySubject = {}
-  for (const note of (data.notes || [])) {
-    const key = note.subject || 'General'
-    if (!notesBySubject[key]) notesBySubject[key] = []
-    notesBySubject[key].push(note)
+  // Which categories have data?
+  const activeCategories = new Set()
+  for (const ins of insights) {
+    if (ins.category && CATEGORY_META[ins.category]) activeCategories.add(ins.category)
+  }
+  if (topicStats.length > 0) activeCategories.add('knowledge')
+
+  for (const cat of activeCategories) {
+    nodes.push({ id: cat, name: CATEGORY_META[cat].label, type: 'category', val: 18 })
+    links.push({ source: 'core', target: cat })
   }
 
-  for (const sub of (data.subjects || [])) {
+  for (const ins of insights) {
+    if (!ins.category || !CATEGORY_META[ins.category]) continue
     nodes.push({
-      id: sub.name,
-      name: sub.name,
-      type: 'subject',
-      val: 8,
-      noteCount: sub.note_count || 0,
-      accuracy: sub.accuracy,
+      id: `insight-${ins.id}`,
+      name: ins.insight,
+      type: 'insight',
+      category: ins.category,
+      topicName: ins.topic_name || null,
+      val: 3,
     })
-    links.push({ source: 'core', target: sub.name })
+    links.push({ source: ins.category, target: `insight-${ins.id}` })
+  }
 
-    const visible = (notesBySubject[sub.name] || []).slice(0, 6)
-    for (const note of visible) {
-      nodes.push({
-        id: `note-${note.id}`,
-        name: note.title,
-        type: 'note',
-        val: 2,
-        subject: sub.name,
-      })
-      links.push({ source: sub.name, target: `note-${note.id}` })
-    }
+  for (const t of topicStats) {
+    nodes.push({
+      id: `topic-${t.topic_id}`,
+      name: t.topic_name,
+      type: 'topic',
+      accuracy: t.accuracy,
+      totalAttempts: t.total_attempts,
+      correctAttempts: t.correct_attempts,
+      val: 3 + Math.round(t.accuracy * 5),
+    })
+    links.push({ source: 'knowledge', target: `topic-${t.topic_id}` })
   }
 
   return { nodes, links }
@@ -50,7 +77,7 @@ function makeNodeObject(node) {
     const group = new THREE.Group()
     group.add(new THREE.Mesh(
       new THREE.SphereGeometry(5, 32, 32),
-      new THREE.MeshPhongMaterial({ color: '#7c3aed', emissive: '#7c3aed', emissiveIntensity: 0.6, transparent: true, opacity: 0.9, shininess: 100, depthWrite: false })
+      new THREE.MeshPhongMaterial({ color: '#7c3aed', emissive: '#7c3aed', emissiveIntensity: 0.7, transparent: true, opacity: 0.95, shininess: 100, depthWrite: false })
     ))
     group.add(new THREE.Mesh(
       new THREE.SphereGeometry(15, 16, 16),
@@ -59,22 +86,40 @@ function makeNodeObject(node) {
     return group
   }
 
-  if (node.type === 'subject') {
+  if (node.type === 'category') {
+    const meta = CATEGORY_META[node.id] ?? { color: '#6366f1' }
     const group = new THREE.Group()
     group.add(new THREE.Mesh(
-      new THREE.SphereGeometry(3, 20, 20),
-      new THREE.MeshPhongMaterial({ color: '#8b5cf6', emissive: '#8b5cf6', emissiveIntensity: 0.5, transparent: true, opacity: 0.9, depthWrite: false })
+      new THREE.SphereGeometry(3.5, 20, 20),
+      new THREE.MeshPhongMaterial({ color: meta.color, emissive: meta.color, emissiveIntensity: 0.55, transparent: true, opacity: 0.95, depthWrite: false })
     ))
     group.add(new THREE.Mesh(
-      new THREE.SphereGeometry(9, 16, 16),
-      new THREE.MeshBasicMaterial({ color: '#8b5cf6', transparent: true, opacity: 0.06, blending: THREE.AdditiveBlending, depthWrite: false })
+      new THREE.SphereGeometry(10, 16, 16),
+      new THREE.MeshBasicMaterial({ color: meta.color, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false })
     ))
     return group
   }
 
+  if (node.type === 'insight') {
+    const color = CATEGORY_META[node.category]?.color ?? '#8b5cf6'
+    return new THREE.Mesh(
+      new THREE.SphereGeometry(1.2, 12, 12),
+      new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.3, transparent: true, opacity: 0.8, depthWrite: false })
+    )
+  }
+
+  if (node.type === 'topic') {
+    const color = topicColor(node.accuracy ?? 0)
+    const r = 1.2 + (node.accuracy ?? 0) * 0.8
+    return new THREE.Mesh(
+      new THREE.SphereGeometry(r, 12, 12),
+      new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.25 + (node.accuracy ?? 0) * 0.4, transparent: true, opacity: 0.85, depthWrite: false })
+    )
+  }
+
   return new THREE.Mesh(
-    new THREE.SphereGeometry(1.2, 12, 12),
-    new THREE.MeshPhongMaterial({ color: '#6366f1', emissive: '#6366f1', emissiveIntensity: 0.35, transparent: true, opacity: 0.8, depthWrite: false })
+    new THREE.SphereGeometry(1, 8, 8),
+    new THREE.MeshBasicMaterial({ color: '#6366f1', depthWrite: false })
   )
 }
 
@@ -92,8 +137,9 @@ function StatCard({ label, value }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function StudyUniverse() {
-  const [data, setData] = useState(null)
   const [graphData, setGraphData] = useState({ nodes: [], links: [] })
+  const [insights, setInsights] = useState([])
+  const [topicStats, setTopicStats] = useState([])
   const [dims, setDims] = useState({ w: 800, h: 600 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -107,12 +153,20 @@ export default function StudyUniverse() {
   const resumeTimeoutRef = useRef(null)
 
   useEffect(() => {
-    api.studyUniverse()
-      .then(d => { console.log('Universe data:', d); setData(d); setGraphData(buildGraph(d)); setLoading(false) })
-      .catch(e => { setError(e.message); setLoading(false) })
+    Promise.allSettled([
+      api.getInsights(),
+      api.getTopicStats(),
+    ]).then(([insRes, topRes]) => {
+      const ins  = insRes.status  === 'fulfilled' ? (insRes.value  ?? []) : []
+      const tops = topRes.status  === 'fulfilled' ? (topRes.value  ?? []) : []
+      console.log('Universe insights:', ins, 'topics:', tops)
+      setInsights(ins)
+      setTopicStats(tops)
+      setGraphData(buildGraph(ins, tops))
+    }).catch(e => setError(e.message)).finally(() => setLoading(false))
   }, [])
 
-  // Measure container for ForceGraph3D dims
+  // Measure container
   useEffect(() => {
     if (!containerRef.current) return
     const ro = new ResizeObserver(entries => {
@@ -123,7 +177,7 @@ export default function StudyUniverse() {
     return () => ro.disconnect()
   }, [])
 
-  // Bloom + scene lights — runs once after ForceGraph3D mounts
+  // Bloom + lights — runs once after ForceGraph3D mounts
   useEffect(() => {
     if (!graphRef.current) return
 
@@ -131,24 +185,21 @@ export default function StudyUniverse() {
       .then(({ UnrealBloomPass }) => {
         if (!graphRef.current) return
         const bp = new UnrealBloomPass()
-        bp.strength = 0.8
+        bp.strength = 0.9
         bp.radius = 0.6
-        bp.threshold = 0.2
+        bp.threshold = 0.1
         graphRef.current.postProcessingComposer().addPass(bp)
       })
       .catch(() => {})
 
     const scene = graphRef.current.scene()
-    scene.add(new THREE.AmbientLight('#4a2888', 0.6))
-    const dir = new THREE.DirectionalLight('#7c3aed', 0.3)
-    dir.position.set(50, 50, 50)
-    scene.add(dir)
-    const pt = new THREE.PointLight('#7c3aed', 1, 300)
+    scene.add(new THREE.AmbientLight('#3b1f6e', 0.6))
+    const pt = new THREE.PointLight('#7c3aed', 1.2, 400)
     pt.position.set(0, 0, 0)
     scene.add(pt)
   }, [])
 
-  // Camera auto-orbit + core pulse (orbit pauses while user interacts)
+  // Camera auto-orbit + core pulse
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (!graphRef.current) return
@@ -156,17 +207,17 @@ export default function StudyUniverse() {
       let angle = 0
       const animate = () => {
         if (!isInteractingRef.current) {
-          angle += 0.0006
+          angle += 0.0005
           graphRef.current?.cameraPosition({
             x: 280 * Math.sin(angle),
-            y: 40 + 10 * Math.sin(angle * 0.4),
+            y: 40 + 12 * Math.sin(angle * 0.35),
             z: 280 * Math.cos(angle),
           })
           const gData = graphRef.current?.graphData?.()
           const coreNode = gData?.nodes?.find(n => n.type === 'core')
           const coreMesh = coreNode?.__threeObj?.children?.[0]
           if (coreMesh?.material) {
-            coreMesh.material.emissiveIntensity = 0.6 + Math.sin(Date.now() * 0.002) * 0.15
+            coreMesh.material.emissiveIntensity = 0.7 + Math.sin(Date.now() * 0.0018) * 0.2
           }
         }
         rafRef.current = requestAnimationFrame(animate)
@@ -184,10 +235,14 @@ export default function StudyUniverse() {
   // d3 forces
   useEffect(() => {
     if (!graphRef.current || graphData.nodes.length === 0) return
-    graphRef.current.d3Force('charge').strength(n => n.type === 'core' ? -300 : n.type === 'subject' ? -60 : -20)
+    graphRef.current.d3Force('charge').strength(n => {
+      if (n.type === 'core')     return -400
+      if (n.type === 'category') return -80
+      return -25
+    })
     graphRef.current.d3Force('link').distance(link => {
       const src = typeof link.source === 'object' ? link.source.type : null
-      return src === 'core' ? 100 : 45
+      return src === 'core' ? 110 : 50
     })
     graphRef.current.d3Force('center').strength(0.02)
     graphRef.current.d3ReheatSimulation()
@@ -203,16 +258,38 @@ export default function StudyUniverse() {
     resumeTimeoutRef.current = setTimeout(() => { isInteractingRef.current = false }, 5000)
   }
 
-  const isEmpty = !loading && data && data.total_notes === 0
-  const accuracy = data && data.total_questions_answered > 0
-    ? Math.round((data.total_correct / data.total_questions_answered) * 100) : 0
+  const isEmpty = !loading && insights.length === 0 && topicStats.length === 0
+
+  // Tooltip content by node type
+  function tooltipContent(node) {
+    if (!node || node.type === 'core') return null
+    if (node.type === 'category') {
+      return { title: node.name, sub: null }
+    }
+    if (node.type === 'insight') {
+      return {
+        title: node.name,
+        sub: node.topicName ? `Topic: ${node.topicName}` : CATEGORY_META[node.category]?.label ?? node.category,
+      }
+    }
+    if (node.type === 'topic') {
+      const pct = Math.round((node.accuracy ?? 0) * 100)
+      return {
+        title: node.name,
+        sub: `${pct}% mastery · ${node.totalAttempts} attempt${node.totalAttempts !== 1 ? 's' : ''}`,
+      }
+    }
+    return null
+  }
+
+  const tip = hoveredNode ? tooltipContent(hoveredNode) : null
 
   return (
     <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto fade-in-up">
       <div className="mb-5">
-        <h1 className="text-xl font-semibold text-zinc-100">My Universe</h1>
+        <h1 className="text-xl font-semibold text-zinc-100">AI Brain</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Drag nodes, scroll to zoom, click to interact. Your knowledge as a living constellation.
+          Every insight StudyNerve has learned about you — your patterns, gaps, strengths, and knowledge.
         </p>
       </div>
 
@@ -224,7 +301,6 @@ export default function StudyUniverse() {
         onPointerUp={handleInteractionEnd}
         onMouseMove={e => setMousePos({ x: e.clientX, y: e.clientY })}
       >
-        {/* 3D graph — always mounted so ref is available for bloom setup */}
         <ForceGraph3D
           ref={graphRef}
           graphData={graphData}
@@ -234,12 +310,13 @@ export default function StudyUniverse() {
           enablePointerInteraction={true}
           enableNodeDrag={true}
           nodeResolution={16}
-          linkOpacity={0.18}
-          linkWidth={0.5}
-          linkColor={() => 'rgba(139, 92, 246, 0.3)'}
+          nodeLabel={() => ''}
+          linkOpacity={0.15}
+          linkWidth={0.4}
+          linkColor={() => 'rgba(139, 92, 246, 0.25)'}
           linkDirectionalParticles={2}
-          linkDirectionalParticleWidth={1}
-          linkDirectionalParticleSpeed={0.005}
+          linkDirectionalParticleWidth={0.8}
+          linkDirectionalParticleSpeed={0.004}
           linkDirectionalParticleColor={() => '#a78bfa'}
           nodeThreeObject={makeNodeObject}
           nodeThreeObjectExtend={false}
@@ -250,7 +327,7 @@ export default function StudyUniverse() {
           height={dims.h}
         />
 
-        {/* Loading overlay */}
+        {/* Loading */}
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: '#050508' }}>
             <div className="flex flex-col items-center gap-3">
@@ -258,12 +335,12 @@ export default function StudyUniverse() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
-              <p className="text-sm text-zinc-500">Mapping your universe…</p>
+              <p className="text-sm text-zinc-500">Loading AI memory…</p>
             </div>
           </div>
         )}
 
-        {/* Error overlay */}
+        {/* Error */}
         {error && !loading && (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
             <p className="text-sm text-red-400">{error}</p>
@@ -272,15 +349,18 @@ export default function StudyUniverse() {
 
         {/* Empty state */}
         {isEmpty && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 pointer-events-none">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 pointer-events-none px-8">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.2)' }}>
+              <svg className="w-6 h-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 5v2M12 17v2M5 12H3M21 12h-2M7.05 7.05 5.64 5.64M18.36 18.36l-1.41-1.41M7.05 16.95l-1.41 1.41M18.36 5.64l-1.41 1.41"/></svg>
+            </div>
             <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
-              Your universe is empty — add notes and take quizzes to see it grow
+              StudyNerve is learning about you. Take quizzes and chat with the tutor to see your AI brain grow.
             </p>
           </div>
         )}
 
         {/* Hover tooltip */}
-        {hoveredNode && hoveredNode.type !== 'core' && (
+        {tip && (
           <div
             style={{
               position: 'fixed',
@@ -293,34 +373,54 @@ export default function StudyUniverse() {
               borderRadius: 8,
               padding: '7px 11px',
               whiteSpace: 'nowrap',
+              maxWidth: 280,
+              whiteSpace: 'normal',
             }}
           >
-            <p style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.92)', marginBottom: 2 }}>
-              {hoveredNode.name}
+            <p style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.92)', marginBottom: tip.sub ? 3 : 0, lineHeight: 1.4 }}>
+              {tip.title}
             </p>
-            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)' }}>
-              {hoveredNode.type === 'subject'
-                ? `${hoveredNode.noteCount} ${hoveredNode.noteCount === 1 ? 'note' : 'notes'}${hoveredNode.accuracy !== undefined ? ` · ${Math.round(hoveredNode.accuracy * 100)}%` : ''}`
-                : hoveredNode.subject || ''}
-            </p>
+            {tip.sub && (
+              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)' }}>{tip.sub}</p>
+            )}
+          </div>
+        )}
+
+        {/* Legend */}
+        {!loading && !isEmpty && (
+          <div style={{ position: 'absolute', bottom: 14, left: 16, display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'none' }}>
+            {Object.entries(CATEGORY_META).map(([key, { label, color }]) => (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.03em' }}>{label}</span>
+              </div>
+            ))}
           </div>
         )}
 
         {/* Hint */}
         {!loading && !isEmpty && (
           <div style={{ position: 'absolute', bottom: 14, right: 16, fontSize: 10, color: 'rgba(255,255,255,0.2)', pointerEvents: 'none', letterSpacing: '0.04em' }}>
-            scroll to zoom · drag to orbit · pull nodes
+            scroll to zoom · drag to orbit · hover nodes
           </div>
         )}
       </div>
 
       {/* Stat cards */}
-      {data && !loading && (
+      {!loading && (
         <div className="flex gap-3 overflow-x-auto pb-1">
-          <StatCard label="Subjects" value={data.subjects.length} />
-          <StatCard label="Notes" value={data.total_notes} />
-          <StatCard label="Accuracy" value={`${accuracy}%`} />
-          <StatCard label="Study Streak" value={`${data.study_streak}d`} />
+          <StatCard label="Insights" value={insights.length} />
+          <StatCard label="Topics Quizzed" value={topicStats.length} />
+          <StatCard
+            label="Avg Mastery"
+            value={topicStats.length > 0
+              ? `${Math.round(topicStats.reduce((s, t) => s + t.accuracy, 0) / topicStats.length * 100)}%`
+              : '—'}
+          />
+          <StatCard
+            label="Learning Patterns"
+            value={insights.filter(i => i.category === 'learning_pattern').length}
+          />
         </div>
       )}
     </div>

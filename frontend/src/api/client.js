@@ -98,6 +98,9 @@ export const api = {
   /** Permanently delete the authenticated user and all their data. */
   deleteAccount: () => req('DELETE', '/auth/delete-account'),
 
+  /** Fetch all StudentInsight records for the current user. */
+  getInsights: () => req('GET', '/profile/insights'),
+
   /** Erase all AI memory (StudentInsight rows) for the current user. */
   clearAllInsights: () => req('DELETE', '/profile/insights'),
 

@@ -1,9 +1,9 @@
 :root {
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-muted: rgba(99,102,241,0.15);
+  --accent: #7c3aed;
+  --accent-hover: #8b5cf6;
+  --accent-muted: rgba(124,58,237,0.15);
   --deep-bg: #09090b;
-  --deep-surface: #111113;
+  --deep-surface: #111114;
   --deep-elevated: #18181b;
   --border-subtle: rgba(255,255,255,0.06);
   --border-hover: rgba(255,255,255,0.1);
@@ -55,10 +55,19 @@
   /* ── Cards ───────────────────────────────────────────────────────────────── */
 
   .card {
-    background: #111113;
+    background: rgba(17,17,20,0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 8px;
     padding: 0;
+  }
+
+  /* ── Nav logo ────────────────────────────────────────────────────────────── */
+
+  .nav-logo {
+    height: 28px;
+    width: auto;
   }
 
   .card-solid {
@@ -239,7 +248,7 @@
 }
 
 .pill-tab.active {
-  background: #6366f1;
+  background: #7c3aed;
   color: #fff;
   border-color: transparent;
 }
@@ -257,22 +266,21 @@
 /* ── Card hover ──────────────────────────────────────────────────────────── */
 
 .card-hover {
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition: background-color 150ms ease, transform 0.2s ease;
 }
 .card-hover:hover {
-  border-color: rgba(255,255,255,0.1);
+  background-color: #18181b;
   transform: translateY(-1px);
-  box-shadow: 0 4px 24px rgba(99,102,241,0.06);
 }
 
 /* ── Button glow ─────────────────────────────────────────────────────────── */
 
 .btn-glow {
-  box-shadow: 0 0 18px rgba(99,102,241,0.35), inset 0 0 0 1px rgba(255,255,255,0.12);
+  box-shadow: 0 0 18px rgba(124,58,237,0.35), inset 0 0 0 1px rgba(255,255,255,0.12);
   transition: background 120ms, box-shadow 120ms, transform 100ms;
 }
 .btn-glow:hover {
-  box-shadow: 0 0 28px rgba(99,102,241,0.55), inset 0 0 0 1px rgba(255,255,255,0.18);
+  box-shadow: 0 0 28px rgba(124,58,237,0.55), inset 0 0 0 1px rgba(255,255,255,0.18);
 }
 .btn-glow:active {
   transform: scale(0.97);
@@ -282,7 +290,7 @@
 
 .progress-glow {
   position: relative;
-  box-shadow: 0 0 8px rgba(99,102,241,0.45), inset 0 0 0 1px rgba(255,255,255,0.08);
+  box-shadow: 0 0 8px rgba(124,58,237,0.45), inset 0 0 0 1px rgba(255,255,255,0.08);
 }
 .progress-glow::after {
   content: "";
@@ -294,82 +302,28 @@
   transform: translateY(-50%);
   border-radius: 50%;
   background: rgba(255,255,255,0.6);
-  box-shadow: 0 0 10px rgba(99,102,241,0.9);
+  box-shadow: 0 0 10px rgba(124,58,237,0.9);
 }
 
 /* ── Nav active glow ─────────────────────────────────────────────────────── */
 
 .nav-active-glow {
-  border-bottom: 2px solid #6366f1;
-  box-shadow: 0 2px 8px rgba(99,102,241,0.55);
+  border-bottom: 2px solid #7c3aed;
+  box-shadow: 0 2px 8px rgba(124,58,237,0.55);
 }
 
-/* ── Stat card animated gradient border on hover ─────────────────────────── */
+/* ── Stat card hover ─────────────────────────────────────────────────────── */
 
 .stat-card {
   position: relative;
-  isolation: isolate;
-  transition: transform 200ms cubic-bezier(0.2,0.7,0.2,1), box-shadow 200ms cubic-bezier(0.2,0.7,0.2,1), border-color 200ms cubic-bezier(0.2,0.7,0.2,1);
-}
-.stat-card::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: 8px;
-  padding: 1px;
-  background: conic-gradient(from 0deg, #6366f1, #8b5cf6, #6366f1, #8b5cf6, #6366f1);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 200ms cubic-bezier(0.2,0.7,0.2,1);
-  pointer-events: none;
-  animation: rotate-conic 6s linear infinite;
-  z-index: -1;
+  transition: transform 200ms cubic-bezier(0.2,0.7,0.2,1), background-color 150ms ease;
 }
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(99,102,241,0.10);
-  border-color: transparent;
-}
-.stat-card:hover::before {
-  opacity: 1;
+  background-color: #18181b;
 }
 
-@keyframes rotate-conic {
-  to { transform: rotate(1turn); }
-}
-
-/* ── Hero card animated gradient border ──────────────────────────────────── */
-
-.hero-card {
-  position: relative;
-  border-radius: 12px;
-  padding: 1px;
-  background: linear-gradient(120deg, #6366f1 0%, #8b5cf6 35%, #6366f1 70%, #8b5cf6 100%);
-  background-size: 300% 300%;
-  animation: hero-border 8s linear infinite;
-}
-.hero-card-inner {
-  background: linear-gradient(180deg, #14141f 0%, #111118 100%);
-  border-radius: 11px;
-  padding: 28px;
-  position: relative;
-  overflow: hidden;
-}
-.hero-card-inner::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 15% 110%, rgba(99,102,241,0.10), transparent 55%);
-  pointer-events: none;
-}
-
-@keyframes hero-border {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 300% 50%; }
-}
+/* ── Dashboard spotlight glow ────────────────────────────────────────────── */
 
 /* ── Dashboard spotlight glow ────────────────────────────────────────────── */
 
@@ -379,7 +333,7 @@
   width: 700px;
   height: 700px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(99,102,241,0.06) 0%, rgba(99,102,241,0) 60%);
+  background: radial-gradient(circle, rgba(124,58,237,0.06) 0%, rgba(124,58,237,0) 60%);
   left: 50%;
   top: 320px;
   transform: translateX(-50%);
@@ -410,6 +364,29 @@
 }
 .flash-correct { animation: flash-correct 0.7s ease-out; }
 .flash-wrong   { animation: flash-wrong 0.7s ease-out; }
+
+/* ── Quick action pill buttons ───────────────────────────────────────────── */
+
+.pill-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 9999px;
+  background: transparent;
+  color: #71717a;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.pill-action:hover {
+  background: rgba(17,17,20,0.6);
+  color: #e4e4e7;
+  border-color: rgba(255,255,255,0.14);
+}
 
 /* ── Mobile touch targets & safe padding ──────────────────────────────────── */
 

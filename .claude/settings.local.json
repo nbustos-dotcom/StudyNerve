@@ -40,7 +40,12 @@
       "Bash(git reset *)",
       "Bash(Remove-Item \"C:\\\\Users\\\\nateb\\\\ai-teacher\\\\frontend\\\\src\\\\pages\\\\Results.jsx\" -Force)",
       "Bash(pip install *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(pkill -f \"uvicorn app.main\")",
+      "Bash(del \"C:\\\\Users\\\\nateb\\\\ai-teacher\\\\frontend\\\\src\\\\components\\\\Background.jsx\")",
+      "Bash(del \"C:\\\\Users\\\\nateb\\\\ai-teacher\\\\frontend\\\\src\\\\components\\\\NeuralBackground.jsx\")",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 *)"
     ]
   }
 }

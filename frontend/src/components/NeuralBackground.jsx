@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
 import * as THREE from 'three'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { api } from '../api/client'
 
 const PLACEHOLDER = [
@@ -42,33 +43,28 @@ function buildGraph(subjects) {
 }
 
 function makeNodeObject(node) {
-  const group = new THREE.Group()
-
-  const sphere = new THREE.Mesh(
-    new THREE.SphereGeometry(node.isSubject ? 1.5 : 0.6, 16, 16),
-    new THREE.MeshBasicMaterial({
-      color: '#6366f1',
-      transparent: true,
-      opacity: node.isSubject ? 0.5 : 0.25,
-    })
-  )
-  group.add(sphere)
-
   if (node.isSubject) {
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(4, 16, 16),
-      new THREE.MeshBasicMaterial({
-        color: '#6366f1',
+    return new THREE.Mesh(
+      new THREE.SphereGeometry(1.5, 16, 16),
+      new THREE.MeshPhongMaterial({
+        color: '#7c3aed',
+        emissive: '#7c3aed',
+        emissiveIntensity: 0.8,
         transparent: true,
-        opacity: 0.06,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
+        opacity: 0.9,
       })
     )
-    group.add(glow)
   }
-
-  return group
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(0.6, 12, 12),
+    new THREE.MeshPhongMaterial({
+      color: '#6366f1',
+      emissive: '#6366f1',
+      emissiveIntensity: 0.5,
+      transparent: true,
+      opacity: 0.8,
+    })
+  )
 }
 
 export default function NeuralBackground() {
@@ -92,18 +88,38 @@ export default function NeuralBackground() {
     return () => window.removeEventListener('resize', update)
   }, [])
 
+  // Bloom post-processing + scene lighting
+  useEffect(() => {
+    if (!graphRef.current) return
+
+    try {
+      const bloomPass = new UnrealBloomPass()
+      bloomPass.strength = 1.5
+      bloomPass.radius = 0.8
+      bloomPass.threshold = 0.1
+      graphRef.current.postProcessingComposer().addPass(bloomPass)
+    } catch (e) {
+      // bloom unavailable in this three.js build
+    }
+
+    const scene = graphRef.current.scene()
+    scene.add(new THREE.AmbientLight('#4a2888', 0.6))
+    const dir = new THREE.DirectionalLight('#7c3aed', 0.3)
+    scene.add(dir)
+  }, [])
+
   // Camera auto-orbit — starts after 1s to let the simulation settle
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (!graphRef.current) return
-      graphRef.current.cameraPosition({ x: 0, y: 40, z: 250 })
+      graphRef.current.cameraPosition({ x: 0, y: 40, z: 350 })
       let angle = 0
       const animate = () => {
         angle += 0.0008
         graphRef.current?.cameraPosition({
-          x: 250 * Math.sin(angle),
+          x: 350 * Math.sin(angle),
           y: 40 + 10 * Math.sin(angle * 0.5),
-          z: 250 * Math.cos(angle),
+          z: 350 * Math.cos(angle),
         })
         rafRef.current = requestAnimationFrame(animate)
       }
@@ -132,22 +148,22 @@ export default function NeuralBackground() {
         inset: 0,
         zIndex: 0,
         pointerEvents: 'none',
-        opacity: 0.35,
+        opacity: 0.5,
         overflow: 'hidden',
       }}
     >
       <ForceGraph3D
         ref={graphRef}
         graphData={graphData}
-        backgroundColor="rgba(0,0,0,0)"
+        backgroundColor="#09090b"
         showNavInfo={false}
         enableNavigationControls={false}
         enablePointerInteraction={false}
         enableNodeDrag={false}
         nodeResolution={16}
-        linkOpacity={0.1}
+        linkOpacity={0.06}
         linkWidth={0.3}
-        linkColor={() => '#6366f1'}
+        linkColor={() => 'rgba(139, 92, 246, 0.08)'}
         nodeThreeObject={makeNodeObject}
         nodeThreeObjectExtend={false}
         d3AlphaDecay={0.02}

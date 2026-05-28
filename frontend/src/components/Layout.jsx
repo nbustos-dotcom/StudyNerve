@@ -67,6 +67,7 @@ export default function Layout({ user, onLogout, onOpenPalette }) {
       >
         {/* Brand */}
         <div className="flex items-center flex-shrink-0">
+          <img src="/logo-64.png" alt="" className="nav-logo" style={{height:'28px',width:'auto',marginRight:'8px'}} />
           <span className="text-sm font-semibold text-ink-primary">StudyNerve</span>
         </div>
 

@@ -54,6 +54,8 @@ function makeNodeObject(node) {
     ))
     const spriteMat = new THREE.SpriteMaterial({ color: '#7c3aed', transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false })
     const sprite = new THREE.Sprite(spriteMat)
+    sprite.material.depthWrite = false
+    sprite.renderOrder = 999
     sprite.scale.set(22, 22, 1)
     group.add(sprite)
     return group
@@ -67,6 +69,8 @@ function makeNodeObject(node) {
     ))
     const spriteMat = new THREE.SpriteMaterial({ color: '#8b5cf6', transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false })
     const sprite = new THREE.Sprite(spriteMat)
+    sprite.material.depthWrite = false
+    sprite.renderOrder = 999
     sprite.scale.set(10, 10, 1)
     group.add(sprite)
     return group
@@ -252,7 +256,7 @@ export default function StudyUniverse() {
 
         {/* Loading overlay */}
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: '#09090b' }}>
+          <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: '#050508' }}>
             <div className="flex flex-col items-center gap-3">
               <svg className="animate-spin w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

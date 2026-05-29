@@ -163,8 +163,6 @@ export default function StudyUniverse() {
     ]).then(([insRes, topRes]) => {
       const ins  = insRes.status === 'fulfilled' ? (insRes.value  ?? []) : []
       const tops = topRes.status === 'fulfilled' ? (topRes.value  ?? []) : []
-      console.log('Universe insights:', ins, 'topics:', tops)
-
       // Brain update notification — only after first load
       if (prevInsightCountRef.current > 0 && ins.length > prevInsightCountRef.current) {
         if (notifTimerRef.current) clearTimeout(notifTimerRef.current)

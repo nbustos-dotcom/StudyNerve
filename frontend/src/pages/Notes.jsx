@@ -314,7 +314,7 @@ export default function Notes() {
       </datalist>
 
       <div className="mb-8">
-        <h1 className="text-xl font-bold text-ink-primary">Notes</h1>
+        <h1 className="text-2xl font-bold text-ink-primary">Notes</h1>
         <p className="text-sm text-ink-muted mt-1">Paste study material and extract topics for quizzing</p>
       </div>
 

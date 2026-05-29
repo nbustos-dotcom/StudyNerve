@@ -1,7 +1,7 @@
 :root {
-  --accent: #7c3aed;
-  --accent-hover: #8b5cf6;
-  --accent-muted: rgba(124,58,237,0.15);
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-muted: rgba(99,102,241,0.15);
   --deep-bg: #09090b;
   --deep-surface: #111114;
   --deep-elevated: #18181b;

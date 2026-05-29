@@ -81,7 +81,7 @@ function StepCard({ step, index, subSteps, onToggle, onExpand, onToggleSub, isDr
             {step.title}
           </p>
           {step.description && (
-            <p className={`text-xs mt-0.5 leading-relaxed ${step.is_completed ? 'text-white/20' : 'text-white/45'}`}>
+            <p className={`text-xs mt-0.5 leading-relaxed ${step.is_completed ? 'text-ink-faint' : 'text-ink-secondary'}`}>
               {step.description}
             </p>
           )}
@@ -96,7 +96,7 @@ function StepCard({ step, index, subSteps, onToggle, onExpand, onToggleSub, isDr
           </button>
         )}
         <span
-          className="text-white/20 shrink-0 select-none"
+          className="text-ink-faint shrink-0 select-none"
           style={{ fontSize: 13, lineHeight: 1, marginTop: 1 }}
           title="Drag to reorder"
         >
@@ -116,11 +116,11 @@ function StepCard({ step, index, subSteps, onToggle, onExpand, onToggleSub, isDr
                 <Checkbox checked={sub.is_completed} onChange={() => onToggleSub(sub)} size={13} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className={`text-xs font-medium leading-snug ${sub.is_completed ? 'line-through text-white/25' : 'text-white/80'}`}>
+                <p className={`text-xs font-medium leading-snug ${sub.is_completed ? 'line-through text-ink-faint' : 'text-white/80'}`}>
                   {sub.title}
                 </p>
                 {sub.description && (
-                  <p className={`text-xs mt-0.5 ${sub.is_completed ? 'text-white/15' : 'text-white/35'}`}>
+                  <p className={`text-xs mt-0.5 ${sub.is_completed ? 'text-ink-faint' : 'text-ink-muted'}`}>
                     {sub.description}
                   </p>
                 )}
@@ -177,8 +177,8 @@ function BoardList({ onOpen }) {
   return (
     <div className="px-4 sm:px-6 py-6 max-w-2xl mx-auto fade-in-up">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-ink-primary">Vision Board</h1>
-        <p className="text-sm text-white/50 mt-1">
+        <h1 className="text-2xl font-bold text-ink-primary">Vision Board</h1>
+        <p className="text-sm text-ink-muted mt-1">
           Break down any topic, assignment, or project into actionable steps
         </p>
       </div>
@@ -212,7 +212,7 @@ function BoardList({ onOpen }) {
         </div>
       ) : boards.length === 0 ? (
         <div className="card p-10 text-center">
-          <p className="text-white/35 text-sm leading-relaxed">
+          <p className="text-ink-muted text-sm leading-relaxed">
             No vision boards yet — create one to break down your first big task
           </p>
         </div>
@@ -234,7 +234,7 @@ function BoardList({ onOpen }) {
                   </h3>
                   <button
                     onClick={e => handleDelete(e, board.id)}
-                    className="btn-ghost text-xs text-white/25 hover:text-red-400 shrink-0 -mt-0.5 w-6 h-6 flex items-center justify-center"
+                    className="btn-ghost text-xs text-ink-faint hover:text-red-400 shrink-0 -mt-0.5 w-6 h-6 flex items-center justify-center"
                   >
                     ✕
                   </button>
@@ -245,7 +245,7 @@ function BoardList({ onOpen }) {
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <p className="text-xs text-white/35">
+                <p className="text-xs text-ink-muted">
                   {total} {total === 1 ? 'step' : 'steps'}
                   {total > 0 ? ` · ${done} done` : ''}
                   {' · '}{relativeTime(board.updated_at)}
@@ -540,7 +540,7 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
 
         {!aiLoading && sortedTopSteps.length === 0 && (
           <div className="card p-8 text-center">
-            <p className="text-white/35 text-sm leading-relaxed">
+            <p className="text-ink-muted text-sm leading-relaxed">
               No steps yet — click{' '}
               <span className="text-accent-hover font-medium">✦ AI Breakdown</span>{' '}
               to generate them, or add one manually below.

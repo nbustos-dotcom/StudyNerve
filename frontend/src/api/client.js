@@ -13,10 +13,6 @@ async function reqMultipart(method, path, formData) {
   // Do NOT set Content-Type — browser sets multipart/form-data + boundary automatically
 
   const url = `${BASE}${path}`
-  console.log('[reqMultipart] url:', url)
-  console.log('[reqMultipart] form fields:', [...formData.entries()].map(([k, v]) =>
-    `${k}=${v instanceof File ? `File(${v.name}, ${v.size}B)` : v}`
-  ))
 
   const res = await fetch(url, { method, headers, body: formData })
 

@@ -696,7 +696,7 @@ export default function Chat() {
                       onClick={() => changeTutorMode(id)}
                       className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-150 ${
                         tutorMode === id
-                          ? 'bg-accent-muted border-accent/35 text-indigo-200'
+                          ? 'bg-accent-muted border-accent/35 text-white/80'
                           : 'border-border-subtle text-ink-muted hover:text-ink-primary hover:border-border-hover'
                       }`}
                     >
@@ -791,7 +791,7 @@ export default function Chat() {
                     onClick={() => doSend(input)}
                     disabled={!canSend}
                     className={`flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center transition-all duration-150 disabled:cursor-not-allowed ${
-                      canSend ? 'bg-accent hover:bg-indigo-400 text-white' : 'bg-deep-surface text-ink-faint'
+                      canSend ? 'bg-accent hover:bg-accent-hover text-white' : 'bg-deep-surface text-ink-faint'
                     }`}
                     aria-label="Send message"
                   >

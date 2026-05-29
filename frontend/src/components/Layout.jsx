@@ -59,10 +59,9 @@ export default function Layout({ user, onLogout, onOpenPalette }) {
 
       {/* ── Top navigation bar ──────────────────────────────────────────────── */}
       <header
-        className="fixed top-0 left-0 right-0 z-50 flex items-center px-4 md:px-6"
+        className="fixed top-0 left-0 right-0 z-50 flex items-center px-4 md:px-6 bg-deep-bg"
         style={{
           height: 48,
-          background: '#09090b',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}
       >
@@ -104,8 +103,8 @@ export default function Layout({ user, onLogout, onOpenPalette }) {
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowMore(false)} />
                 <div
-                  className="absolute top-full left-0 mt-1 w-40 rounded-lg py-1 z-40"
-                  style={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
+                  className="absolute top-full left-0 mt-1 w-40 rounded-lg py-1 z-40 bg-deep-elevated"
+                  style={{ border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
                 >
                   {NAV_MORE.map(({ to, label }) => (
                     <NavLink
@@ -193,8 +192,8 @@ export default function Layout({ user, onLogout, onOpenPalette }) {
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowUserMenu(false)} />
                 <div
-                  className="absolute right-0 top-full mt-1 w-44 rounded-lg py-1 z-40"
-                  style={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
+                  className="absolute right-0 top-full mt-1 w-44 rounded-lg py-1 z-40 bg-deep-elevated"
+                  style={{ border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
                 >
                   <div className="px-3 py-2 border-b border-border-subtle">
                     <p className="text-xs font-medium text-ink-primary truncate">{user?.name}</p>
@@ -247,10 +246,10 @@ export default function Layout({ user, onLogout, onOpenPalette }) {
       )}
 
       <div
-        className={`md:hidden fixed top-0 left-0 bottom-0 z-50 w-64 flex flex-col transition-transform duration-200 ease-out ${
+        className={`md:hidden fixed top-0 left-0 bottom-0 z-50 w-64 flex flex-col transition-transform duration-200 ease-out bg-deep-surface ${
           showMobileMenu ? 'translate-x-0' : '-translate-x-full'
         }`}
-        style={{ background: '#111113', borderRight: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
           <span className="text-sm font-semibold text-ink-primary">StudyNerve</span>

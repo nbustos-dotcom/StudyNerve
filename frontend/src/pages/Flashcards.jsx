@@ -17,7 +17,6 @@ function DecksView({ onStudyDeck, onGenerate }) {
       .finally(() => setLoading(false))
   }, [])
 
-  // FIX 3: delete all cards in a deck
   async function handleDeleteDeck(e, group) {
     e.stopPropagation()
     if (!window.confirm(`Delete all ${group.flashcards.length} card${group.flashcards.length !== 1 ? 's' : ''} in "${group.note_title}"?`)) return
@@ -78,7 +77,6 @@ function DecksView({ onStudyDeck, onGenerate }) {
             <p className="text-sm font-medium text-ink-primary truncate">{group.note_title}</p>
             <p className="text-xs text-ink-muted mt-0.5">{group.flashcards.length} card{group.flashcards.length !== 1 ? 's' : ''}</p>
           </div>
-          {/* FIX 3: delete button */}
           <button
             onClick={(e) => handleDeleteDeck(e, group)}
             className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100"
@@ -102,14 +100,13 @@ function DecksView({ onStudyDeck, onGenerate }) {
 
 function GenerateView({ onStudyDeck }) {
   const [notes, setNotes] = useState([])
-  const [notesLoading, setNotesLoading] = useState(true) // FIX 4
+  const [notesLoading, setNotesLoading] = useState(true)
   const [selectedNote, setSelectedNote] = useState('')
   const [count, setCount] = useState(10)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    // FIX 4: track loading state and handle empty
     api.getNotes()
       .then(setNotes)
       .catch(console.error)
@@ -137,7 +134,6 @@ function GenerateView({ onStudyDeck }) {
         <div className="flex flex-col sm:flex-row gap-3 items-end">
           <div className="flex-1">
             <label className="label">Select Note</label>
-            {/* FIX 4: spinner while loading, empty state after */}
             <div className="relative">
               <select
                 className="input"
@@ -210,11 +206,11 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const [reviewing, setReviewing] = useState(false)
-  const [reviewingDifficulty, setReviewingDifficulty] = useState(null) // FIX 5
+  const [reviewingDifficulty, setReviewingDifficulty] = useState(null)
   const [done, setDone] = useState(false)
   const [skippedOnce, setSkippedOnce] = useState(new Set())
   const [savedProgress, setSavedProgress] = useState(null)
-  const [ratings, setRatings] = useState({ easy: 0, medium: 0, hard: 0 }) // FIX 6
+  const [ratings, setRatings] = useState({ easy: 0, medium: 0, hard: 0 })
 
   const indexRef = useRef(0)
   const activeDeckRef = useRef([])
@@ -301,7 +297,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
   }
 
   function restart() {
-    setRatings({ easy: 0, medium: 0, hard: 0 }) // FIX 6: reset on restart
+    setRatings({ easy: 0, medium: 0, hard: 0 })
     if (initialCards) {
       setActiveDeck(initialCards)
       setIndex(0)
@@ -332,13 +328,13 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
   async function handleDifficulty(difficulty) {
     const card = activeDeck[index]
     setReviewing(true)
-    setReviewingDifficulty(difficulty) // FIX 5
+    setReviewingDifficulty(difficulty)
     try {
       await api.reviewFlashcard(card.id, { difficulty })
     } catch {}
     setReviewing(false)
-    setReviewingDifficulty(null) // FIX 5
-    setRatings(prev => ({ ...prev, [difficulty]: prev[difficulty] + 1 })) // FIX 6
+    setReviewingDifficulty(null)
+    setRatings(prev => ({ ...prev, [difficulty]: prev[difficulty] + 1 }))
     const next = index + 1
     if (next >= activeDeck.length) {
       if (!initialCards) localStorage.removeItem(FLASHCARD_STORAGE_KEY)
@@ -360,7 +356,6 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
     } else { setIndex(next); setFlipped(false) }
   }
 
-  // FIX 1: calculate effectiveDeckLength AFTER appending
   function handleSkip() {
     const card = activeDeck[index]
     const alreadySkipped = skippedOnce.has(card.id)
@@ -430,7 +425,6 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
     return <p className="text-sm text-red-400 text-center py-12">{error}</p>
   }
 
-  // FIX 2: add "Generate Flashcards" button to break dead end
   if (activeDeck.length === 0) {
     return (
       <>
@@ -468,7 +462,6 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
             <p className="text-ink-primary font-semibold text-lg">Session complete!</p>
             <p className="text-sm text-ink-muted mt-1">You reviewed {activeDeck.length} card{activeDeck.length !== 1 ? 's' : ''}.</p>
           </div>
-          {/* FIX 6: rating breakdown pills */}
           {totalRated > 0 && (
             <div className="flex gap-2 flex-wrap justify-center">
               <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
@@ -635,7 +628,6 @@ export default function Flashcards() {
     setView('decks')
   }
 
-  // FIX 2: escape study mode → generate tab
   function goToGenerate() {
     setStudyDeck(null)
     setView('generate')
@@ -644,7 +636,7 @@ export default function Flashcards() {
   return (
     <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
       <div className="mb-8">
-        <h1 className="text-xl font-semibold text-ink-primary">Flashcards</h1>
+        <h1 className="text-2xl font-bold text-ink-primary">Flashcards</h1>
         <p className="text-sm text-ink-muted mt-1">AI-generated cards for active recall practice</p>
       </div>
 

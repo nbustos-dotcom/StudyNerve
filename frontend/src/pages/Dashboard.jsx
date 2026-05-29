@@ -47,9 +47,9 @@ function formatDueShort(iso) {
 const DUE_COLORS = {
   critical: 'text-red-400',
   warning:  'text-amber-400',
-  past:     'text-zinc-600',
-  normal:   'text-zinc-500',
-  none:     'text-zinc-500',
+  past:     'text-ink-faint',
+  normal:   'text-ink-muted',
+  none:     'text-ink-muted',
 }
 
 // ── Relative time helper ──────────────────────────────────────────────────────
@@ -84,8 +84,8 @@ function SmartHeroCard({ gaps, onDismiss, onStudyNow, studyNowLoading }) {
   return (
     <div className="hero-card mb-4">
       <div className="hero-card-inner relative">
-        <p className="text-[11px] font-semibold tracking-widest uppercase text-zinc-500 mb-2">Smart Pick</p>
-        <p className="text-[15px] text-zinc-100 leading-snug">{message}</p>
+        <p className="text-[11px] font-semibold tracking-widest uppercase text-ink-muted mb-2">Smart Pick</p>
+        <p className="text-[15px] text-ink-primary leading-snug">{message}</p>
         <div className="flex items-center gap-3 mt-4 flex-wrap">
           <button
             onClick={onStudyNow}
@@ -105,7 +105,7 @@ function SmartHeroCard({ gaps, onDismiss, onStudyNow, studyNowLoading }) {
             )}
           </button>
           {showCta && (
-            <Link to="/quiz" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
+            <Link to="/quiz" className="text-sm text-ink-muted hover:text-ink-primary transition-colors">
               Custom quiz →
             </Link>
           )}
@@ -167,7 +167,7 @@ function WeeklyStudyGrid({ quizHistory, notes }) {
 
   return (
     <div className="card p-4 mb-5">
-      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">This Week</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-3">This Week</p>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5">
           {days.map(({ date, active }, i) => (
@@ -176,13 +176,13 @@ function WeeklyStudyGrid({ quizHistory, notes }) {
                 className={`w-5 h-5 rounded-full transition-colors ${active ? 'bg-accent' : 'bg-white/[0.06]'}`}
                 title={date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
               />
-              <span className="text-[9px] text-zinc-600 select-none">{DAY_LABELS[date.getDay()]}</span>
+              <span className="text-[9px] text-ink-faint select-none">{DAY_LABELS[date.getDay()]}</span>
             </div>
           ))}
         </div>
         {streak > 0
-          ? <span className="text-sm font-medium text-zinc-400">{streak} day{streak !== 1 ? 's' : ''} streak</span>
-          : <span className="text-xs text-zinc-600">No streak yet</span>
+          ? <span className="text-sm font-medium text-ink-secondary">{streak} day{streak !== 1 ? 's' : ''} streak</span>
+          : <span className="text-xs text-ink-faint">No streak yet</span>
         }
       </div>
     </div>
@@ -208,18 +208,18 @@ function ActivityFeed({ quizHistory, notes }) {
 
   return (
     <div className="card p-4">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3"><span className="w-1 h-1 rounded-full bg-accent inline-block mr-2 align-middle" />Recent Activity</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-3"><span className="w-1 h-1 rounded-full bg-accent inline-block mr-2 align-middle" />Recent Activity</h2>
       {top5.length === 0 ? (
-        <p className="text-sm text-zinc-600 py-2">No activity yet.</p>
+        <p className="text-sm text-ink-faint py-2">No activity yet.</p>
       ) : (
         <div className="space-y-0.5">
           {top5.map((item, i) => {
             const Icon = item.type === 'note' ? FileText : Brain
             return (
               <div key={i} className="flex items-center gap-3 rounded-md px-2 -mx-2 py-1.5 hover:bg-white/[0.04] transition-colors">
-                <Icon size={14} strokeWidth={1.5} className="text-zinc-500 flex-shrink-0" />
-                <span className="text-sm text-zinc-400 flex-1 truncate">{item.label}</span>
-                <span className="text-xs text-zinc-600 flex-shrink-0 tabular-nums">{formatRelative(item.time)}</span>
+                <Icon size={14} strokeWidth={1.5} className="text-ink-muted flex-shrink-0" />
+                <span className="text-sm text-ink-secondary flex-1 truncate">{item.label}</span>
+                <span className="text-xs text-ink-faint flex-shrink-0 tabular-nums">{formatRelative(item.time)}</span>
               </div>
             )
           })}
@@ -251,16 +251,16 @@ function UpcomingDeadlines() {
   return (
     <div className="mb-5">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Upcoming Deadlines</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Upcoming Deadlines</h2>
         {connected && items?.length > 0 && (
-          <Link to="/canvas" className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
+          <Link to="/canvas" className="text-xs text-ink-faint hover:text-ink-secondary transition-colors">
             View Canvas →
           </Link>
         )}
       </div>
 
       {items === null && (
-        <div className="card p-4 flex items-center gap-2 text-zinc-500 text-sm">
+        <div className="card p-4 flex items-center gap-2 text-ink-muted text-sm">
           <svg className="animate-spin w-4 h-4 flex-shrink-0 text-accent" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
@@ -271,7 +271,7 @@ function UpcomingDeadlines() {
 
       {items !== null && !connected && (
         <div className="card p-5 flex items-center justify-between">
-          <p className="text-sm text-zinc-400">Connect Canvas to see your upcoming deadlines.</p>
+          <p className="text-sm text-ink-secondary">Connect Canvas to see your upcoming deadlines.</p>
           <Link to="/canvas" className="btn-secondary text-xs ml-4 flex-shrink-0">
             Connect Canvas
           </Link>
@@ -279,8 +279,8 @@ function UpcomingDeadlines() {
       )}
 
       {items !== null && connected && items.length === 0 && (
-        <div className="card p-8 flex flex-col items-center justify-center text-sm text-zinc-600 gap-3">
-          <svg className="w-8 h-8 text-zinc-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <div className="card p-8 flex flex-col items-center justify-center text-sm text-ink-faint gap-3">
+          <svg className="w-8 h-8 text-ink-faint" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
           Nothing due in the next 14 days.
         </div>
       )}
@@ -302,9 +302,9 @@ function UpcomingDeadlines() {
                 }}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-zinc-100 truncate">{a.name}</p>
+                  <p className="text-sm text-ink-primary truncate">{a.name}</p>
                   {a.course_name && (
-                    <p className="text-[11px] text-zinc-600 truncate mt-0.5">{a.course_name}</p>
+                    <p className="text-[11px] text-ink-faint truncate mt-0.5">{a.course_name}</p>
                   )}
                 </div>
                 <span className={`text-xs flex-shrink-0 tabular-nums ${DUE_COLORS[urgency]}`}>
@@ -326,16 +326,16 @@ function StatCard({ label, value, sub, icon: Icon }) {
     <div className="card stat-card overflow-hidden flex flex-col">
       <div className="p-5 flex-1">
         <div className="flex items-center gap-1.5 mb-3">
-          {Icon && <Icon size={14} strokeWidth={1.5} className="text-zinc-500" />}
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
+          {Icon && <Icon size={14} strokeWidth={1.5} className="text-ink-muted" />}
+          <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">{label}</p>
         </div>
-        <p className="text-3xl font-semibold leading-none text-zinc-100">{value}</p>
-        {sub && <p className="text-xs text-zinc-500 mt-2 uppercase tracking-wider">{sub}</p>}
+        <p className="text-3xl font-semibold leading-none text-ink-primary">{value}</p>
+        {sub && <p className="text-xs text-ink-muted mt-2 uppercase tracking-wider">{sub}</p>}
       </div>
-      <div className="h-[3px] mx-5 mb-4 rounded-full bg-zinc-800 overflow-hidden">
+      <div className="h-[3px] mx-5 mb-4 rounded-full bg-deep-elevated overflow-hidden">
         <div className="h-full w-1/3 rounded-full bg-accent/40 progress-glow" />
       </div>
-      <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(to right, transparent, rgba(124,58,237,0.4) 50%, transparent)' }} />
+      <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(to right, transparent, rgba(99,102,241,0.4) 50%, transparent)' }} />
     </div>
   )
 }
@@ -345,14 +345,14 @@ function AccuracyRing({ value }) {
   return (
     <div className="card p-5 stat-card overflow-hidden relative">
       <div className="flex items-center gap-1.5 mb-3">
-        <TrendingUp size={14} strokeWidth={1.5} className="text-zinc-500" />
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Overall Accuracy</p>
+        <TrendingUp size={14} strokeWidth={1.5} className="text-ink-muted" />
+        <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Overall Accuracy</p>
       </div>
       <p className="text-3xl font-semibold leading-none text-accent">{pct}%</p>
-      <div className="mt-3 h-[3px] bg-zinc-800 rounded-full overflow-hidden">
+      <div className="mt-3 h-[3px] bg-deep-elevated rounded-full overflow-hidden">
         <div className="h-full rounded-full bar-animate bg-accent progress-glow" style={{ width: `${pct}%` }} />
       </div>
-      <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(to right, transparent, rgba(124,58,237,0.4) 50%, transparent)' }} />
+      <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(to right, transparent, rgba(99,102,241,0.4) 50%, transparent)' }} />
     </div>
   )
 }
@@ -362,13 +362,13 @@ function WeakAreaCard({ topic, className = '' }) {
   return (
     <div className={`card p-4 card-hover ${className}`}>
       <div className="flex justify-between items-start mb-2">
-        <p className="text-sm text-zinc-100 font-medium truncate max-w-[70%]">{topic.topic_name}</p>
-        <span className="text-sm font-semibold tabular-nums text-zinc-400">{pct}%</span>
+        <p className="text-sm text-ink-primary font-medium truncate max-w-[70%]">{topic.topic_name}</p>
+        <span className="text-sm font-semibold tabular-nums text-ink-secondary">{pct}%</span>
       </div>
-      <div className="h-[3px] bg-zinc-800 rounded-full overflow-hidden">
+      <div className="h-[3px] bg-deep-elevated rounded-full overflow-hidden">
         <div className="h-full rounded-full bar-animate bg-accent progress-glow" style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-[11px] text-zinc-600 mt-2">{topic.total_attempts} attempt{topic.total_attempts !== 1 ? 's' : ''}</p>
+      <p className="text-[11px] text-ink-faint mt-2">{topic.total_attempts} attempt{topic.total_attempts !== 1 ? 's' : ''}</p>
     </div>
   )
 }
@@ -458,8 +458,8 @@ export default function Dashboard() {
     <div className="px-4 sm:px-8 pt-6 pb-8 max-w-5xl mx-auto fade-in-up">
       <div className="dashboard-spotlight" />
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-100">{greeting}{firstName ? `, ${firstName}` : ''}</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">
+        <h1 className="text-2xl font-bold text-ink-primary">{greeting}{firstName ? `, ${firstName}` : ''}</h1>
+        <p className="text-sm text-ink-muted mt-0.5">
           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · StudyNerve
         </p>
         <div className="h-0.5 w-16 bg-accent/30 rounded-full mt-2" />
@@ -504,7 +504,7 @@ export default function Dashboard() {
               <WeeklyStudyGrid quizHistory={quizHistory} notes={recentNotes} />
 
               {/* Stat cards */}
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3"><span className="w-1 h-1 rounded-full bg-accent inline-block mr-2 align-middle" />Your Stats</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-3"><span className="w-1 h-1 rounded-full bg-accent inline-block mr-2 align-middle" />Your Stats</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <StatCard label="Notes"     value={stats.total_notes}     sub="uploaded"  icon={FileStack}  />
                 <StatCard label="Questions" value={stats.total_questions} sub="generated" icon={CircleHelp} />
@@ -517,15 +517,15 @@ export default function Dashboard() {
                 <div className="lg:col-span-3"><ActivityFeed quizHistory={quizHistory} notes={recentNotes} /></div>
                 <div className="card p-4 lg:col-span-2">
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500"><span className="w-1 h-1 rounded-full bg-accent inline-block mr-2 align-middle" />Weak Areas</h2>
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted"><span className="w-1 h-1 rounded-full bg-accent inline-block mr-2 align-middle" />Weak Areas</h2>
                     {gaps && gaps.length > 0 && (
-                      <span className="text-xs text-zinc-600">ranked by gap score</span>
+                      <span className="text-xs text-ink-faint">ranked by gap score</span>
                     )}
                   </div>
                   {!gaps || gaps.length === 0 ? (
                     <div className="flex flex-col items-center gap-3 text-center py-4">
-                      <svg className="w-8 h-8 text-zinc-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                      <p className="text-sm text-zinc-600">Take some quizzes to see your weak areas.</p>
+                      <svg className="w-8 h-8 text-ink-faint" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                      <p className="text-sm text-ink-faint">Take some quizzes to see your weak areas.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-3">
@@ -543,17 +543,17 @@ export default function Dashboard() {
               {/* Top Topics */}
               {stats.topic_accuracies.length > 0 && (
                 <div className="card p-6 mb-5">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-4">Top Topics</h2>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-4">Top Topics</h2>
                   <div className="space-y-3">
                     {stats.topic_accuracies.slice(0, 6).map((t) => {
                       const pct = Math.round(t.accuracy * 100)
                       return (
                         <div key={t.topic_id}>
-                          <div className="flex justify-between text-xs text-zinc-500 mb-1.5">
+                          <div className="flex justify-between text-xs text-ink-muted mb-1.5">
                             <span className="truncate max-w-[60%]">{t.topic_name}</span>
                             <span className="tabular-nums">{t.correct_attempts}/{t.total_attempts} · {pct}%</span>
                           </div>
-                          <div className="h-[3px] bg-zinc-800 rounded-full overflow-hidden">
+                          <div className="h-[3px] bg-deep-elevated rounded-full overflow-hidden">
                             <div className="h-full rounded-full bar-animate bg-accent progress-glow" style={{ width: `${pct}%` }} />
                           </div>
                         </div>
@@ -567,7 +567,7 @@ export default function Dashboard() {
               <div className="mt-4 mb-2">
                 <button
                   onClick={toggleTopics}
-                  className="flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
+                  className="flex items-center gap-2 text-sm font-medium text-ink-muted hover:text-ink-primary transition-colors"
                 >
                   {topicExpanded ? 'Hide Topics ▴' : 'View All Topics ▾'}
                 </button>
@@ -577,7 +577,7 @@ export default function Dashboard() {
                       <div className="flex justify-center py-8"><Spinner small /></div>
                     )}
                     {!topicLoading && topicStats !== null && sortedTopicStats.length === 0 && (
-                      <p className="text-sm text-zinc-600 py-4 text-center">No quiz attempts yet.</p>
+                      <p className="text-sm text-ink-faint py-4 text-center">No quiz attempts yet.</p>
                     )}
                     {!topicLoading && sortedTopicStats.length > 0 && (
                       <div className="card overflow-hidden">
@@ -585,26 +585,26 @@ export default function Dashboard() {
                           <thead className="border-b border-border-subtle">
                             <tr>
                               <th
-                                className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-zinc-300 select-none transition-colors"
+                                className="text-left text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-ink-primary select-none transition-colors"
                                 onClick={() => handleTopicSort('name')}
                               >
                                 Topic{' '}
-                                {topicSortBy !== 'name' ? <span className="text-zinc-700">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                                {topicSortBy !== 'name' ? <span className="text-ink-faint">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                               </th>
                               <th
-                                className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-zinc-300 select-none transition-colors"
+                                className="text-right text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4 cursor-pointer hover:text-ink-primary select-none transition-colors"
                                 onClick={() => handleTopicSort('attempts')}
                               >
                                 Attempts{' '}
-                                {topicSortBy !== 'attempts' ? <span className="text-zinc-700">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                                {topicSortBy !== 'attempts' ? <span className="text-ink-faint">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                               </th>
-                              <th className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider py-3 px-4">Correct</th>
+                              <th className="text-right text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4">Correct</th>
                               <th
-                                className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider py-3 px-4 min-w-[180px] cursor-pointer hover:text-zinc-300 select-none transition-colors"
+                                className="text-left text-xs font-medium text-ink-muted uppercase tracking-wider py-3 px-4 min-w-[180px] cursor-pointer hover:text-ink-primary select-none transition-colors"
                                 onClick={() => handleTopicSort('accuracy')}
                               >
                                 Accuracy{' '}
-                                {topicSortBy !== 'accuracy' ? <span className="text-zinc-700">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
+                                {topicSortBy !== 'accuracy' ? <span className="text-ink-faint">↕</span> : <span className="text-accent">{topicSortDir === 'asc' ? '↑' : '↓'}</span>}
                               </th>
                             </tr>
                           </thead>
@@ -613,15 +613,15 @@ export default function Dashboard() {
                               const pct = Math.round(t.accuracy * 100)
                               return (
                                 <tr key={t.topic_id} className="hover:bg-white/[0.02] transition-colors">
-                                  <td className="py-3 px-4 text-sm text-zinc-100">{t.topic_name}</td>
-                                  <td className="py-3 px-4 text-right text-sm text-zinc-500 tabular-nums">{t.total_attempts}</td>
-                                  <td className="py-3 px-4 text-right text-sm text-zinc-500 tabular-nums">{t.correct_attempts}</td>
+                                  <td className="py-3 px-4 text-sm text-ink-primary">{t.topic_name}</td>
+                                  <td className="py-3 px-4 text-right text-sm text-ink-muted tabular-nums">{t.total_attempts}</td>
+                                  <td className="py-3 px-4 text-right text-sm text-ink-muted tabular-nums">{t.correct_attempts}</td>
                                   <td className="py-3 px-4">
                                     <div className="flex items-center gap-3 min-w-0">
-                                      <div className="flex-1 h-[3px] bg-zinc-800 rounded-full overflow-hidden">
+                                      <div className="flex-1 h-[3px] bg-deep-elevated rounded-full overflow-hidden">
                                         <div className="h-full rounded-full bar-animate bg-accent progress-glow" style={{ width: `${pct}%` }} />
                                       </div>
-                                      <span className="text-xs font-medium tabular-nums w-8 text-right text-zinc-400">{pct}%</span>
+                                      <span className="text-xs font-medium tabular-nums w-8 text-right text-ink-secondary">{pct}%</span>
                                     </div>
                                   </td>
                                 </tr>
@@ -629,7 +629,7 @@ export default function Dashboard() {
                             })}
                           </tbody>
                         </table>
-                        <div className="px-4 py-3 border-t border-border-subtle flex justify-between text-xs text-zinc-600">
+                        <div className="px-4 py-3 border-t border-border-subtle flex justify-between text-xs text-ink-faint">
                           <span>{topicStats.length} topic{topicStats.length !== 1 ? 's' : ''}</span>
                           <span>
                             {topicStats.reduce((s, t) => s + t.total_attempts, 0)} total attempts ·{' '}
@@ -650,8 +650,8 @@ export default function Dashboard() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-zinc-300 font-medium mb-1">No notes yet</p>
-                    <p className="text-sm text-zinc-500">Add your first set of study material to get started.</p>
+                    <p className="text-ink-secondary font-medium mb-1">No notes yet</p>
+                    <p className="text-sm text-ink-muted">Add your first set of study material to get started.</p>
                   </div>
                   <Link to="/notes" className="btn-primary">Add a Note</Link>
                 </div>

@@ -1,15 +1,4 @@
-/**
- * MarkdownRenderer — shared component for all AI response surfaces.
- *
- * Features:
- *  - KaTeX math: inline ($...$) and block ($$...$$)
- *  - Syntax-highlighted fenced code blocks (dark theme, glass style)
- *  - Bold, italic, lists, headings — tuned for the glass-morphism dark UI
- *
- * Props:
- *  children  — markdown string
- *  size      — "sm" | "md" (default "md")  controls base text size
- */
+// Shared markdown renderer: KaTeX math, syntax-highlighted code, dark UI tuned.
 
 import ReactMarkdown from 'react-markdown'
 import remarkMath from 'remark-math'

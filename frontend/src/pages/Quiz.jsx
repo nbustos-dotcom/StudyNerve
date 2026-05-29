@@ -43,14 +43,14 @@ function formatDate(iso) {
 }
 
 function scoreColor(pct) {
-  return pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
+  return pct >= 70 ? 'text-success' : pct >= 40 ? 'text-amber-400' : 'text-danger'
 }
 
 function timeColor(secs) {
   if (secs == null) return 'text-ink-faint'
-  if (secs < 20) return 'text-emerald-400'
+  if (secs < 20) return 'text-success'
   if (secs < 60) return 'text-amber-400'
-  return 'text-red-400'
+  return 'text-danger'
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -553,17 +553,17 @@ export default function Quiz() {
             <div className="flex items-center gap-2 mb-2">
               {currentResult.is_correct ? (
                 <>
-                  <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg className="w-4 h-4 text-success" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 8l4 4 6-6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span className="text-sm font-medium text-emerald-400">Correct</span>
+                  <span className="text-sm font-medium text-success">Correct</span>
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4 text-red-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg className="w-4 h-4 text-danger" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
                   </svg>
-                  <span className="text-sm font-medium text-red-400">Incorrect</span>
+                  <span className="text-sm font-medium text-danger">Incorrect</span>
                   <span className="text-xs text-ink-muted ml-1">
                     · correct answer: <span className="text-ink-secondary">{currentResult.correct_answer}</span>
                   </span>
@@ -668,7 +668,7 @@ export default function Quiz() {
                 }}
               >
                 <div className="flex items-start gap-3">
-                  <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${result.is_correct ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                  <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${result.is_correct ? 'bg-emerald-500/15 text-success' : 'bg-red-500/15 text-danger'}`}>
                     {result.is_correct ? '✓' : '✗'}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -677,7 +677,7 @@ export default function Quiz() {
                       <p className="text-xs text-ink-muted">
                         Your answer: <span className="text-ink-muted">{answer}</span>
                         {!result.is_correct && (
-                          <> · Correct: <span className="text-emerald-400">{result.correct_answer}</span></>
+                          <> · Correct: <span className="text-success">{result.correct_answer}</span></>
                         )}
                       </p>
                       {timeTaken != null && (
@@ -838,7 +838,7 @@ function ReviewView({ item, onBack }) {
               style={{ borderLeft: `3px solid ${q.is_correct ? 'rgba(52,211,153,0.6)' : 'rgba(248,113,113,0.6)'}` }}
             >
               <div className="flex items-start gap-3">
-                <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${q.is_correct ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${q.is_correct ? 'bg-emerald-500/15 text-success' : 'bg-red-500/15 text-danger'}`}>
                   {q.is_correct ? '✓' : '✗'}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -868,9 +868,9 @@ function ReviewView({ item, onBack }) {
                   )}
                   {!options && (
                     <p className="text-xs text-ink-muted mb-1">
-                      Your answer: <span className={q.is_correct ? 'text-emerald-400' : 'text-red-400'}>{q.user_answer}</span>
+                      Your answer: <span className={q.is_correct ? 'text-success' : 'text-danger'}>{q.user_answer}</span>
                       {!q.is_correct && (
-                        <> · Correct: <span className="text-emerald-400">{q.correct_answer}</span></>
+                        <> · Correct: <span className="text-success">{q.correct_answer}</span></>
                       )}
                     </p>
                   )}
@@ -982,7 +982,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
   return (
     <div className="p-4 sm:p-8 max-w-xl mx-auto fade-in-up">
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-ink-primary">Quiz</h1>
+        <h1 className="text-2xl font-bold text-ink-primary">Quiz</h1>
         <p className="text-sm text-ink-muted mt-1">Generate questions from your notes with AI</p>
       </div>
 
@@ -1046,7 +1046,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
                     {sortedTopics.map((t) => {
                       const pct = Math.round(t.accuracy * 100)
                       const barColor = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
-                      const textColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
+                      const textColor = pct >= 70 ? 'text-success' : pct >= 40 ? 'text-amber-400' : 'text-danger'
                       return (
                         <tr key={t.topic_id} className="hover:bg-white/[0.02] transition-colors">
                           <td className="py-3 px-4 text-sm text-ink-primary">{t.topic_name}</td>
@@ -1207,7 +1207,7 @@ function ConfigureView({ notes, config, setConfig, toggleType, onGenerate, error
             )}
 
             {error && (
-              <div className="text-sm text-red-400 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
+              <div className="text-sm text-danger bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
                 {error}
               </div>
             )}

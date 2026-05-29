@@ -287,7 +287,7 @@ export default function Settings() {
     <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-xl font-bold text-ink-primary">Settings</h1>
+        <h1 className="text-2xl font-bold text-ink-primary">Settings</h1>
         <p className="text-sm text-ink-muted mt-1">Configure your AI provider and integrations</p>
       </div>
 

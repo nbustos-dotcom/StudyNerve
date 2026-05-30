@@ -18,6 +18,27 @@ import StudyUniverse from './pages/StudyUniverse'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 
+// Per-user onboarding flag. Keyed by user.id so each account on a shared
+// browser gets its own flag and clearing one user doesn't affect others.
+// Move to a backend flag (e.g. users.onboarded_at) if cross-device behavior
+// is needed later.
+function onboardedKey(userId) {
+  return `mt_onboarded:${userId}`
+}
+
+function hasSeenOnboarding(userId) {
+  if (userId == null) return false
+  try {
+    if (localStorage.getItem(onboardedKey(userId))) return true
+    // Migrate the legacy global flag to this user, one-shot
+    if (localStorage.getItem('mt_onboarded')) {
+      localStorage.setItem(onboardedKey(userId), '1')
+      return true
+    }
+  } catch {}
+  return false
+}
+
 function useAuth() {
   const [user, setUser] = useState(() => {
     try {
@@ -31,8 +52,9 @@ function useAuth() {
   const [showWizard, setShowWizard] = useState(() => {
     try {
       const stored = localStorage.getItem('mt_user')
-      const onboarded = localStorage.getItem('mt_onboarded')
-      return Boolean(stored) && !onboarded
+      if (!stored) return false
+      const u = JSON.parse(stored)
+      return !hasSeenOnboarding(u?.id)
     } catch {
       return false
     }
@@ -40,9 +62,7 @@ function useAuth() {
 
   function handleAuth(userData) {
     setUser(userData)
-    if (!localStorage.getItem('mt_onboarded')) {
-      setShowWizard(true)
-    }
+    setShowWizard(!hasSeenOnboarding(userData?.id))
   }
 
   function handleLogout() {
@@ -52,7 +72,9 @@ function useAuth() {
   }
 
   function handleWizardComplete() {
-    localStorage.setItem('mt_onboarded', '1')
+    if (user?.id != null) {
+      try { localStorage.setItem(onboardedKey(user.id), '1') } catch {}
+    }
     setShowWizard(false)
   }
 

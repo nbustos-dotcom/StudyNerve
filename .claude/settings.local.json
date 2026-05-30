@@ -45,7 +45,14 @@
       "Bash(del \"C:\\\\Users\\\\nateb\\\\ai-teacher\\\\frontend\\\\src\\\\components\\\\Background.jsx\")",
       "Bash(del \"C:\\\\Users\\\\nateb\\\\ai-teacher\\\\frontend\\\\src\\\\components\\\\NeuralBackground.jsx\")",
       "Bash(python3 -c ' *)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(npm ls *)",
+      "Read(//mnt/c/Users/nateb/ai-teacher/**)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(where python *)",
+      "Bash(npx playwright *)",
+      "Bash(npm root *)",
+      "Bash(curl *)"
     ]
   }
 }

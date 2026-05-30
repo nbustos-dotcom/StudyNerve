@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import StatCard from '../components/StatCard'
 import {
   NotebookPen, GraduationCap, MessagesSquare,
   FileStack, CircleHelp, Target, TrendingUp,
@@ -319,43 +320,7 @@ function UpcomingDeadlines() {
   )
 }
 
-// ── Stat cards ────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, icon: Icon }) {
-  return (
-    <div className="card stat-card overflow-hidden flex flex-col">
-      <div className="p-5 flex-1">
-        <div className="flex items-center gap-1.5 mb-3">
-          {Icon && <Icon size={14} strokeWidth={1.5} className="text-ink-muted" />}
-          <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">{label}</p>
-        </div>
-        <p className="text-3xl font-semibold leading-none text-ink-primary">{value}</p>
-        {sub && <p className="text-xs text-ink-muted mt-2 uppercase tracking-wider">{sub}</p>}
-      </div>
-      <div className="h-[3px] mx-5 mb-4 rounded-full bg-deep-elevated overflow-hidden">
-        <div className="h-full w-1/3 rounded-full bg-accent/40 progress-glow" />
-      </div>
-      <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(to right, transparent, rgba(99,102,241,0.4) 50%, transparent)' }} />
-    </div>
-  )
-}
-
-function AccuracyRing({ value }) {
-  const pct = Math.round(value * 100)
-  return (
-    <div className="card p-5 stat-card overflow-hidden relative">
-      <div className="flex items-center gap-1.5 mb-3">
-        <TrendingUp size={14} strokeWidth={1.5} className="text-ink-muted" />
-        <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Overall Accuracy</p>
-      </div>
-      <p className="text-3xl font-semibold leading-none text-accent">{pct}%</p>
-      <div className="mt-3 h-[3px] bg-deep-elevated rounded-full overflow-hidden">
-        <div className="h-full rounded-full bar-animate bg-accent progress-glow" style={{ width: `${pct}%` }} />
-      </div>
-      <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(to right, transparent, rgba(99,102,241,0.4) 50%, transparent)' }} />
-    </div>
-  )
-}
+// ── Weak area card ────────────────────────────────────────────────────────────
 
 function WeakAreaCard({ topic, className = '' }) {
   const pct = Math.round(topic.accuracy * 100)
@@ -509,7 +474,13 @@ export default function Dashboard() {
                 <StatCard label="Notes"     value={stats.total_notes}     sub="uploaded"  icon={FileStack}  />
                 <StatCard label="Questions" value={stats.total_questions} sub="generated" icon={CircleHelp} />
                 <StatCard label="Attempts"  value={stats.total_attempts}  sub="answered"  icon={Target}     />
-                <AccuracyRing value={stats.overall_accuracy} />
+                <StatCard
+                  label="Overall Accuracy"
+                  value={`${Math.round(stats.overall_accuracy * 100)}%`}
+                  icon={TrendingUp}
+                  accent
+                  progress={stats.overall_accuracy}
+                />
               </div>
 
               {/* Recent Activity + Weak Areas — 5-col grid */}

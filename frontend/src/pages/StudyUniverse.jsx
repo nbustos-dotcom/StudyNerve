@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
 import * as THREE from 'three'
 import { api } from '../api/client'
+import StatCard from '../components/StatCard'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -119,17 +120,6 @@ function makeNodeObject(node) {
   return new THREE.Mesh(
     new THREE.SphereGeometry(1, 32, 32),
     new THREE.MeshBasicMaterial({ color: '#6366f1', depthWrite: false })
-  )
-}
-
-// ── Stat card ─────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value }) {
-  return (
-    <div className="flex-shrink-0 rounded-xl px-5 py-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <p className="text-lg font-semibold text-zinc-100 leading-none">{value}</p>
-      <p className="text-xs font-medium text-zinc-500 mt-1">{label}</p>
-    </div>
   )
 }
 
@@ -481,22 +471,27 @@ export default function StudyUniverse() {
       </div>
 
       {/* Stat cards */}
-      {!loading && (
-        <div className="flex gap-3 overflow-x-auto pb-1">
-          <StatCard label="Insights" value={insights.length} />
-          <StatCard label="Topics Quizzed" value={topicStats.length} />
-          <StatCard
-            label="Avg Mastery"
-            value={topicStats.length > 0
-              ? `${Math.round(topicStats.reduce((s, t) => s + t.accuracy, 0) / topicStats.length * 100)}%`
-              : '—'}
-          />
-          <StatCard
-            label="Learning Patterns"
-            value={insights.filter(i => i.category === 'learning_pattern').length}
-          />
-        </div>
-      )}
+      {!loading && (() => {
+        const avgMastery = topicStats.length > 0
+          ? topicStats.reduce((s, t) => s + t.accuracy, 0) / topicStats.length
+          : null
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="Insights" value={insights.length} />
+            <StatCard label="Topics Quizzed" value={topicStats.length} />
+            <StatCard
+              label="Avg Mastery"
+              value={avgMastery != null ? `${Math.round(avgMastery * 100)}%` : '—'}
+              accent
+              progress={avgMastery}
+            />
+            <StatCard
+              label="Learning Patterns"
+              value={insights.filter(i => i.category === 'learning_pattern').length}
+            />
+          </div>
+        )
+      })()}
     </div>
   )
 }

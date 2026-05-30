@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkMath from 'remark-math'
-import rehypeKatex from 'rehype-katex'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import GithubSlugger from 'github-slugger'
 import { api } from '../api/client'
 import Spinner from '../components/Spinner'
+import MarkdownRenderer from '../components/MarkdownRenderer'
 
 function BackIcon() {
   return (
@@ -45,152 +42,18 @@ function SaveIcon() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function slugify(text) {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim()
-}
-
-function childText(node) {
-  if (typeof node === 'string') return node
-  if (Array.isArray(node)) return node.map(childText).join('')
-  if (node?.props?.children) return childText(node.props.children)
-  return ''
-}
-
 function parseToc(markdown) {
+  const slugger = new GithubSlugger()
   const lines = markdown.split('\n')
   return lines
     .map(line => {
       const m = line.match(/^(#{1,3})\s+(.+)$/)
       if (!m) return null
       const text = m[2].replace(/\*\*/g, '').replace(/\*/g, '').trim()
-      return { level: m[1].length, text, id: slugify(text) }
+      return { level: m[1].length, text, id: slugger.slug(text) }
     })
     .filter(Boolean)
 }
-
-// ── Study guide markdown components ──────────────────────────────────────────
-
-const CODE_CONTAINER = {
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.09)',
-  borderRadius: '10px',
-  padding: '12px 14px',
-  margin: '8px 0',
-  fontSize: '0.79em',
-  lineHeight: '1.6',
-}
-
-function makeComponents() {
-  function Heading({ level, children }) {
-    const text = childText(children)
-    const id = slugify(text)
-    const sizes = { 1: '1.2rem', 2: '1.05rem', 3: '0.95rem' }
-    const mt = { 1: '36px', 2: '28px', 3: '20px' }
-    return (
-      <div
-        id={id}
-        style={{
-          borderLeft: '3px solid #6366f1',
-          paddingLeft: '14px',
-          marginTop: mt[level],
-          marginBottom: '10px',
-          scrollMarginTop: '80px',
-        }}
-      >
-        <span style={{ fontSize: sizes[level], fontWeight: 600, color: '#f1f5f9', lineHeight: 1.4 }}>
-          {children}
-        </span>
-      </div>
-    )
-  }
-
-  return {
-    h1: ({ children }) => <Heading level={1}>{children}</Heading>,
-    h2: ({ children }) => <Heading level={2}>{children}</Heading>,
-    h3: ({ children }) => <Heading level={3}>{children}</Heading>,
-
-    p: ({ children }) => (
-      <p style={{ lineHeight: 1.7, marginBottom: '14px', color: 'rgba(255,255,255,0.82)', fontSize: '0.9rem' }}>
-        {children}
-      </p>
-    ),
-
-    strong: ({ children }) => (
-      <strong style={{ color: '#818cf8', fontWeight: 600 }}>{children}</strong>
-    ),
-
-    em: ({ children }) => (
-      <em style={{ color: 'rgba(165,180,252,0.85)', fontStyle: 'italic' }}>{children}</em>
-    ),
-
-    ul: ({ children }) => (
-      <ul style={{ paddingLeft: '20px', marginBottom: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.82)', fontSize: '0.9rem' }}>
-        {children}
-      </ul>
-    ),
-    ol: ({ children }) => (
-      <ol style={{ paddingLeft: '20px', marginBottom: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.82)', fontSize: '0.9rem', listStyleType: 'decimal' }}>
-        {children}
-      </ol>
-    ),
-    li: ({ children }) => (
-      <li style={{ marginBottom: '5px', listStyleType: 'disc' }}>{children}</li>
-    ),
-
-    hr: () => (
-      <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)', margin: '28px 0' }} />
-    ),
-
-    blockquote: ({ children }) => (
-      <blockquote style={{ borderLeft: '2px solid rgba(99,102,241,0.4)', paddingLeft: '14px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', margin: '14px 0' }}>
-        {children}
-      </blockquote>
-    ),
-
-    pre: ({ children }) => <>{children}</>,
-    code({ className, children }) {
-      const lang = /language-(\w+)/.exec(className || '')?.[1]
-      if (lang) {
-        return (
-          <SyntaxHighlighter
-            style={vscDarkPlus}
-            language={lang}
-            PreTag="div"
-            customStyle={CODE_CONTAINER}
-            codeTagProps={{ style: { background: 'transparent', padding: 0, fontSize: 'inherit' } }}
-          >
-            {String(children).replace(/\n$/, '')}
-          </SyntaxHighlighter>
-        )
-      }
-      return (
-        <code
-          style={{ background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', borderRadius: '5px', padding: '2px 7px', fontSize: '0.85em', fontFamily: 'monospace' }}
-        >
-          {children}
-        </code>
-      )
-    },
-
-    table: ({ children }) => (
-      <div style={{ overflowX: 'auto', marginBottom: '14px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>{children}</table>
-      </div>
-    ),
-    thead: ({ children }) => <thead style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>{children}</thead>,
-    tbody: ({ children }) => <tbody>{children}</tbody>,
-    tr: ({ children }) => <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{children}</tr>,
-    th: ({ children }) => <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#cbd5e1' }}>{children}</th>,
-    td: ({ children }) => <td style={{ padding: '8px 12px', textAlign: 'left', color: 'rgba(255,255,255,0.7)' }}>{children}</td>,
-  }
-}
-
-const GUIDE_COMPONENTS = makeComponents()
 
 // ── Table of Contents ─────────────────────────────────────────────────────────
 
@@ -378,7 +241,7 @@ export default function StudyGuide() {
             Study Guide
           </span>
         </div>
-        <h1 className="text-xl font-semibold text-ink-primary">{title || '…'}</h1>
+        <h1 className="text-2xl font-bold text-ink-primary">{title || '…'}</h1>
       </div>
 
       {/* Content */}
@@ -447,14 +310,8 @@ export default function StudyGuide() {
                   </div>
                 </>
               ) : (
-                <div style={{ maxWidth: '700px' }}>
-                  <ReactMarkdown
-                    remarkPlugins={[remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
-                    components={GUIDE_COMPONENTS}
-                  >
-                    {guide ?? ''}
-                  </ReactMarkdown>
+                <div style={{ maxWidth: '700px' }} className="[&_h1]:scroll-mt-20 [&_h2]:scroll-mt-20 [&_h3]:scroll-mt-20">
+                  <MarkdownRenderer>{guide}</MarkdownRenderer>
                 </div>
               )}
             </div>

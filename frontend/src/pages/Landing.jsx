@@ -48,15 +48,6 @@ function PrimaryCTA({ children }) {
   )
 }
 
-function SignInLink() {
-  return (
-    <Link to="/login" className="text-sm text-ink-muted hover:text-ink-secondary px-2 py-2 transition-colors">
-      Already have an account?{' '}
-      <span className="text-ink-secondary underline-offset-2 hover:underline">Sign in</span>
-    </Link>
-  )
-}
-
 function TrustItem({ title, body }) {
   return (
     <div>
@@ -142,9 +133,8 @@ export default function Landing() {
             and drills the exact gaps until your AI Brain agrees you've got it.
           </p>
 
-          <div className="mt-8 flex items-center gap-3 flex-wrap">
+          <div className="mt-8">
             <PrimaryCTA>Start free</PrimaryCTA>
-            <SignInLink />
           </div>
 
           <p className="mt-5 text-xs text-ink-muted">
@@ -219,30 +209,72 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6 py-20 sm:py-28">
           <Pill>Why it's different</Pill>
           <h2
-            className="text-3xl sm:text-4xl font-bold tracking-tight text-ink-primary max-w-3xl mb-10"
+            className="text-3xl sm:text-4xl font-bold tracking-tight text-ink-primary max-w-4xl"
             style={{ textWrap: 'balance' }}
           >
-            Not a chatbot. Not a flashcard deck. A loop that closes.
+            The AI keeps a model of your gaps.{' '}
+            <span className="text-ink-secondary">Chatbots forget.</span>{' '}
+            <span className="text-ink-secondary">Quizlet never checks.</span>
           </h2>
-          <div className="grid md:grid-cols-2 gap-10 max-w-4xl">
-            <p
-              className="text-base text-ink-secondary leading-relaxed"
-              style={{ textWrap: 'pretty' }}
-            >
-              Most AI study apps are general-purpose chatbots in a flashcard wrapper.
-              StudyNerve reads your{' '}
-              <em className="text-ink-primary not-italic font-semibold">actual</em> lecture notes,
-              generates questions from{' '}
-              <em className="text-ink-primary not-italic font-semibold">your</em> material, and
-              tracks which specific topics you've nailed — and which ones you keep missing.
-            </p>
-            <p
-              className="text-base text-ink-secondary leading-relaxed"
-              style={{ textWrap: 'pretty' }}
-            >
-              Quizlet asks you to build the decks. StudyNerve builds them. Then it watches whether
-              you actually learn them, and drills the parts your AI Brain says you haven't.
-            </p>
+
+          <div className="mt-12 sm:mt-16 grid md:grid-cols-12 gap-10 md:gap-12 items-center">
+            <div className="md:col-span-5">
+              <p
+                className="text-base text-ink-secondary leading-relaxed"
+                style={{ textWrap: 'pretty' }}
+              >
+                Every quiz updates a per-topic accuracy score.{' '}
+                <em className="text-ink-primary not-italic font-semibold">Your AI Brain</em> is the
+                running picture of what you've actually internalized — bright where you're solid,
+                dim where you keep missing. It persists across sessions, accumulates with use, and
+                tells the next quiz where to push.
+              </p>
+
+              <dl className="mt-10 space-y-7">
+                <div>
+                  <dt
+                    className="text-xs font-semibold tracking-[0.2em] text-accent uppercase mb-2"
+                    style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }}
+                  >
+                    Versus a chatbot
+                  </dt>
+                  <dd
+                    className="text-sm text-ink-secondary leading-relaxed"
+                    style={{ textWrap: 'pretty' }}
+                  >
+                    A general-purpose chatbot doesn't remember what you got wrong last week. It
+                    re-explains the same concept from scratch every time you ask. There's no model
+                    of you — just stateless answers.
+                  </dd>
+                </div>
+                <div>
+                  <dt
+                    className="text-xs font-semibold tracking-[0.2em] text-accent uppercase mb-2"
+                    style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }}
+                  >
+                    Versus Quizlet
+                  </dt>
+                  <dd
+                    className="text-sm text-ink-secondary leading-relaxed"
+                    style={{ textWrap: 'pretty' }}
+                  >
+                    Quizlet asks you to build the decks and grade yourself. It never checks whether
+                    the deck actually closed a gap. There's no concept of mastery — just decks
+                    completed.
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <div className="md:col-span-7">
+              <ProductFrame
+                src="/landing/ai-brain.png"
+                alt="StudyNerve AI Brain — a 3D knowledge graph where bright nodes are topics you've internalized and dim nodes are topics you keep missing"
+              />
+              <p className="mt-3 text-xs text-ink-muted tracking-wide">
+                Your AI Brain — the model the next quiz reads from.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -288,9 +320,8 @@ export default function Landing() {
           >
             One free account. Paste your notes. The loop starts on its own.
           </p>
-          <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
+          <div className="mt-8 flex items-center justify-center">
             <PrimaryCTA>Start free</PrimaryCTA>
-            <SignInLink />
           </div>
         </div>
       </section>

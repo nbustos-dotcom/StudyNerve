@@ -78,9 +78,91 @@ function ProductFrame({ src, alt }) {
   )
 }
 
+// ── Synapse mesh background ───────────────────────────────────────────────────
+// Faint static brand-mesh per DESIGN_LANGUAGE §5: small accent dots + thin
+// connecting hairlines, fixed behind opaque content, ~7% opacity. Static —
+// no motion, no glow, no wash. Points/edges are generated once with a fixed
+// seed so the pattern is stable across renders and devices.
+function seededRng(seed) {
+  let s = seed >>> 0
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0
+    return s / 0x100000000
+  }
+}
+
+const MESH = (() => {
+  const rng = seededRng(1729)
+  const W = 1440
+  const H = 900
+  const margin = 60
+  const count = 42
+  const points = Array.from({ length: count }, () => ({
+    x: margin + rng() * (W - 2 * margin),
+    y: margin + rng() * (H - 2 * margin),
+    radius: 0.6 + rng() * 1.1,
+  }))
+  const seen = new Set()
+  const edges = []
+  points.forEach((p, i) => {
+    const k = rng() > 0.55 ? 2 : 1
+    const neighbors = points
+      .map((q, j) => ({ j, d: Math.hypot(p.x - q.x, p.y - q.y) }))
+      .filter((e) => e.j !== i)
+      .sort((a, b) => a.d - b.d)
+    for (let n = 0; n < k && n < neighbors.length; n++) {
+      const a = Math.min(i, neighbors[n].j)
+      const b = Math.max(i, neighbors[n].j)
+      const key = `${a}-${b}`
+      if (!seen.has(key)) {
+        seen.add(key)
+        edges.push([a, b])
+      }
+    }
+  })
+  return { points, edges }
+})()
+
+function SynapseMesh() {
+  return (
+    <div
+      aria-hidden
+      className="fixed inset-0 bg-deep-bg pointer-events-none"
+      style={{ zIndex: 0 }}
+    >
+      <svg
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid slice"
+        width="100%"
+        height="100%"
+        style={{ opacity: 0.07, display: 'block' }}
+      >
+        <g stroke="#6366f1" strokeWidth="0.5" strokeLinecap="round">
+          {MESH.edges.map(([a, b], i) => (
+            <line
+              key={i}
+              x1={MESH.points[a].x}
+              y1={MESH.points[a].y}
+              x2={MESH.points[b].x}
+              y2={MESH.points[b].y}
+            />
+          ))}
+        </g>
+        <g fill="#6366f1">
+          {MESH.points.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r={p.radius} />
+          ))}
+        </g>
+      </svg>
+    </div>
+  )
+}
+
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-deep-bg text-ink-primary">
+    <div className="min-h-screen text-ink-primary relative">
+      <SynapseMesh />
+      <div className="relative" style={{ zIndex: 1 }}>
       {/* Nav */}
       <header
         className="sticky top-0 z-30 border-b border-border-subtle backdrop-blur"
@@ -346,6 +428,7 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   )
 }

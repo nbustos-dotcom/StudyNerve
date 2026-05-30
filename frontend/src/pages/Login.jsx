@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import Logo from '../components/Logo'
 
 export default function Login({ onAuth }) {
   const navigate = useNavigate()
-  const [mode, setMode] = useState('login')
+  const [searchParams] = useSearchParams()
+  const initialMode = searchParams.get('signup') === '1' ? 'register' : 'login'
+  const [mode, setMode] = useState(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')

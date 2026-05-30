@@ -8,6 +8,7 @@ import Canvas from './pages/Canvas'
 import Flashcards from './pages/Flashcards'
 import Chat from './pages/Chat'
 import Dashboard from './pages/Dashboard'
+import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Notes from './pages/Notes'
 import StudyGuide from './pages/StudyGuide'
@@ -171,10 +172,11 @@ export default function App() {
     return (
       <ToastProvider>
         <Routes>
+          <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login onAuth={handleAuth} />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ToastProvider>
     )

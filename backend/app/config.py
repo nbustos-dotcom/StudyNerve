@@ -28,6 +28,22 @@ class Settings:
     CANVAS_API_TOKEN: str = os.getenv("CANVAS_API_TOKEN", "")
     ENABLE_USER_CONTEXT: bool = os.getenv("ENABLE_USER_CONTEXT", "false").lower() == "true"
 
+    # ── LLM quota enforcement ────────────────────────────────────────────────
+    # All caps are per UTC day. BYOK users (with their own llm_api_key)
+    # bypass every cap below. See app/services/quota.py.
+    MAX_TUTOR_MSGS_PER_DAY: int = int(os.getenv("MAX_TUTOR_MSGS_PER_DAY", "20"))
+    MAX_QUIZ_GENS_PER_DAY: int = int(os.getenv("MAX_QUIZ_GENS_PER_DAY", "3"))
+    MAX_NOTES_AI_PER_DAY: int = int(os.getenv("MAX_NOTES_AI_PER_DAY", "5"))
+    # Global circuit breaker — total calls + token estimate across ALL users.
+    # Sized UNDER the Groq free-tier daily ceiling.
+    GLOBAL_LLM_CALLS_PER_DAY: int = int(os.getenv("GLOBAL_LLM_CALLS_PER_DAY", "600"))
+    GLOBAL_LLM_TOKENS_PER_DAY: int = int(os.getenv("GLOBAL_LLM_TOKENS_PER_DAY", "400000"))
+    # Input-size caps (characters, rejected with HTTP 413 before any LLM spend).
+    MAX_NOTE_CHARS: int = int(os.getenv("MAX_NOTE_CHARS", "50000"))
+    MAX_ANSWER_CHARS: int = int(os.getenv("MAX_ANSWER_CHARS", "2000"))
+    MAX_CHAT_MSG_CHARS: int = int(os.getenv("MAX_CHAT_MSG_CHARS", "4000"))
+    MAX_SUBJECT_TEXT_CHARS: int = int(os.getenv("MAX_SUBJECT_TEXT_CHARS", "2000"))
+
 
 settings = Settings()
 

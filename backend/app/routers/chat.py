@@ -23,7 +23,12 @@ from app.schemas import (
 from app.services.gap_detector import calculate_gap_scores
 from app.services.learning_style import LearningProfile, detect_learning_style
 from app.services.memory import generate_insights, get_insights
+from app.services.quota import BUCKET_TUTOR_MSGS, enforce_user_call
 from app.services.user_context import build_user_context
+
+
+def _estimate_tokens(*parts: str) -> int:
+    return max(1, sum(len(p or "") for p in parts) // 4)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 _limiter = Limiter(key_func=get_remote_address)
@@ -545,6 +550,12 @@ async def send_message(
         llm_user_content = message
 
     llm_messages = history + [{"role": "user", "content": llm_user_content}]
+
+    _history_text = "".join(m.get("content", "") for m in history)
+    await enforce_user_call(
+        db, current_user.id, BUCKET_TUTOR_MSGS,
+        _estimate_tokens(system, _history_text, llm_user_content),
+    )
 
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
     response_text, provider_used = await generate_chat_ex(

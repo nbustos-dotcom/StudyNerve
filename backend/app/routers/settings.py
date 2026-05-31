@@ -36,34 +36,26 @@ async def _get_or_create_settings(db: AsyncSession, user_id: int) -> UserSetting
 
 async def get_user_llm_kwargs(db: AsyncSession, user_id: int) -> dict:
     """
-    Return {'provider_name': ..., 'api_key': ...} from UserSettings.
-    Falls back to {} (empty dict) so callers use the global LLM_PROVIDER env var.
-    api_key is None when the user hasn't saved a key — providers then fall back
-    to their own *_API_KEY env var.
+    Resolve the LLM provider and API key for this user.
+
+    Server-side-key path (default for hosted): when the user has NOT saved
+    their own llm_api_key, return {} so callers fall through to the global
+    settings.LLM_PROVIDER + matching *_API_KEY env var. This honours the
+    hosted Groq key on Render and ignores any stale llm_provider stored
+    against existing user rows (e.g. 'ollama' from local-dev signups).
+
+    BYOK path: when the user has saved their own key, honour their selection.
+    Per-user / global caps in quota.enforce_user_call() are skipped for BYOK.
     """
     row = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
-    if row:
-        import logging as _logging
-        _logging.getLogger(__name__).info(
-            "get_user_llm_kwargs: user=%d provider=%s key_set=%s",
-            user_id,
-            row.llm_provider,
-            bool(row.llm_api_key),
-        )
-        print(
-            f"[settings] user={user_id} provider={row.llm_provider} key_set={bool(row.llm_api_key)}",
-            flush=True,
-        )
-        api_key = decrypt_secret(row.llm_api_key) if row.llm_api_key else None
-        return {
-            "provider_name": row.llm_provider,
-            "api_key": api_key,
-        }
+    has_byok_key = bool(row and row.llm_api_key)
     import logging as _logging
     _logging.getLogger(__name__).info(
-        "get_user_llm_kwargs: user=%d — no UserSettings row, using global defaults", user_id
+        "get_user_llm_kwargs: user=%d byok=%s", user_id, has_byok_key
     )
-    print(f"[settings] user={user_id} — no UserSettings row, using global defaults", flush=True)
+    if has_byok_key:
+        api_key = decrypt_secret(row.llm_api_key)
+        return {"provider_name": row.llm_provider, "api_key": api_key}
     return {}
 
 

@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { setApiToastHandler } from '../api/client'
 
 const ToastCtx = createContext(null)
 
@@ -24,6 +25,13 @@ export function ToastProvider({ children }) {
     timers.current[id] = setTimeout(() => dismiss(id), duration)
     return id
   }, [dismiss])
+
+  // Register with the API client so 429/503 responses can surface a toast.
+  // The client module is plain JS and can't read React context directly.
+  useEffect(() => {
+    setApiToastHandler(showToast)
+    return () => setApiToastHandler(null)
+  }, [showToast])
 
   return (
     <ToastCtx.Provider value={showToast}>

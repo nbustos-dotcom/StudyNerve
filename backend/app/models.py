@@ -1,7 +1,17 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -9,6 +19,10 @@ from app.database import Base
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def utctoday() -> date:
+    return datetime.now(timezone.utc).date()
 
 
 class User(Base):
@@ -329,4 +343,44 @@ class VisionBoardSnapshot(Base):
     action_description: Mapped[str] = mapped_column(String(500), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
+    )
+
+
+# ── Usage counters (LLM quota enforcement) ────────────────────────────────────
+# Updated atomically with INSERT ... ON CONFLICT DO UPDATE ... RETURNING
+# (see app/services/quota.py). Day is UTC. One row per (user_id, day, kind).
+class UsageCounter(Base):
+    __tablename__ = "usage_counters"
+    __table_args__ = (
+        UniqueConstraint("user_id", "day", "kind", name="usage_counters_user_day_kind_uniq"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    day: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)  # 'tutor_msgs' | 'quiz_gens' | 'notes_ai'
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    tokens_estimate: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
+# Global circuit breaker — one row per (day, kind) across ALL users.
+# kind='all' is the actual breaker; per-bucket rows are diagnostics.
+class UsageCounterGlobal(Base):
+    __tablename__ = "usage_counters_global"
+    __table_args__ = (
+        UniqueConstraint("day", "kind", name="usage_counters_global_day_kind_uniq"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    day: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)  # 'all' | 'tutor_msgs' | 'quiz_gens' | 'notes_ai'
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    tokens_estimate: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )

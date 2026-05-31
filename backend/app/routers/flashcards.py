@@ -7,6 +7,7 @@ from app.llm import generate_flashcards as llm_generate_flashcards
 from app.models import Flashcard, Note, User, utcnow
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
+from app.services.quota import BUCKET_NOTES_AI, enforce_user_call
 from app.services.user_context import build_user_context
 from app.schemas import (
     FlashcardGenerateRequest,
@@ -17,6 +18,10 @@ from app.schemas import (
 
 _MAX_CONTENT_CHARS = 3000
 _DIFFICULTY_ORDER = {"hard": 0, "medium": 1, "easy": 2}
+
+
+def _estimate_tokens_for(content: str, count: int = 0) -> int:
+    return max(1, len(content) // 4 + count * 40)
 
 router = APIRouter(prefix="/flashcards", tags=["flashcards"])
 
@@ -32,6 +37,10 @@ async def generate(
         raise HTTPException(status_code=404, detail="Note not found")
 
     content = note.content[:_MAX_CONTENT_CHARS]
+    await enforce_user_call(
+        db, current_user.id, BUCKET_NOTES_AI,
+        _estimate_tokens_for(content, body.count),
+    )
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
 
     try:

@@ -6,6 +6,31 @@ function getToken() {
   return localStorage.getItem('mt_token')
 }
 
+// Quota-toast bridge — the API client is a plain JS module so it cannot call
+// React context directly. ToastProvider registers its showToast here on mount
+// and we surface a single user-facing toast for every 429 / 503 from the
+// backend (the quota system in services/quota.py raises these).
+let _toastHandler = null
+export function setApiToastHandler(fn) {
+  _toastHandler = fn
+}
+function notifyQuota(status) {
+  if (!_toastHandler) return
+  if (status === 429) {
+    _toastHandler(
+      "You've hit today's free limit. Add your own API key in Settings for unlimited use.",
+      'info',
+      6000,
+    )
+  } else if (status === 503) {
+    _toastHandler(
+      'StudyNerve is at capacity right now — try again in a bit.',
+      'error',
+      6000,
+    )
+  }
+}
+
 async function reqMultipart(method, path, formData) {
   const token = getToken()
   const headers = {}
@@ -30,6 +55,7 @@ async function reqMultipart(method, path, formData) {
     }
     throw new Error(message)
   }
+  if (res.status === 429 || res.status === 503) notifyQuota(res.status)
   if (!res.ok) {
     const detail = data?.detail || `HTTP ${res.status}`
     throw new Error(Array.isArray(detail) ? detail[0]?.msg ?? String(detail) : String(detail))
@@ -71,6 +97,8 @@ async function req(method, path, body) {
     }
     throw new Error(message)
   }
+
+  if (res.status === 429 || res.status === 503) notifyQuota(res.status)
 
   if (!res.ok) {
     const detail = data?.detail || `HTTP ${res.status}`

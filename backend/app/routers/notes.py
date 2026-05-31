@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.llm import extract_topics, generate_study_guide as llm_study_guide, suggest_note_title, summarize_note as llm_summarize_note
 from app.models import Note, Topic, User
@@ -12,11 +13,27 @@ from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
 from app.schemas import ArchiveSubjectRequest, NoteCreate, NoteResponse, StudyGuideUpdate, SubjectInfo, SuggestTitleRequest
+from app.services.quota import BUCKET_NOTES_AI, enforce_user_call
 from app.services.subjects import normalize_subject
 
 _MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
 
+# Internal silent-truncate before LLM (cost control). settings.MAX_NOTE_CHARS
+# is the hard 413-reject ceiling enforced earlier per endpoint.
 _MAX_NOTE_CHARS = 3000
+
+
+def _reject_oversize_text(value: str, limit: int, label: str) -> None:
+    """Raise HTTP 413 if `value` is over `limit` chars. Pre-LLM guard."""
+    if len(value) > limit:
+        raise HTTPException(
+            status_code=413,
+            detail=f"{label} exceeds {limit:,}-character limit ({len(value):,} sent).",
+        )
+
+
+def _estimate_tokens(*parts: str) -> int:
+    return max(1, sum(len(p) for p in parts) // 4)
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -90,6 +107,8 @@ async def suggest_title_endpoint(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _reject_oversize_text(body.content, settings.MAX_NOTE_CHARS, "Note content")
+    await enforce_user_call(db, current_user.id, BUCKET_NOTES_AI, _estimate_tokens(body.content))
     content = body.content[:500]
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
     title = await suggest_note_title(content, **llm_kwargs)
@@ -190,6 +209,9 @@ async def extract_note_topics(
     if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
+    _reject_oversize_text(note.content, settings.MAX_NOTE_CHARS, "Note content")
+    await enforce_user_call(db, current_user.id, BUCKET_NOTES_AI, _estimate_tokens(note.content))
+
     content = note.content
     was_truncated = len(content) > _MAX_NOTE_CHARS
     if was_truncated:
@@ -272,6 +294,9 @@ async def study_guide_endpoint(
     if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
+    _reject_oversize_text(note.content, settings.MAX_NOTE_CHARS, "Note content")
+    await enforce_user_call(db, current_user.id, BUCKET_NOTES_AI, _estimate_tokens(note.content))
+
     content = note.content[:_MAX_NOTE_CHARS]
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
     try:
@@ -294,6 +319,9 @@ async def summarize_note_endpoint(
     note = await db.get(Note, note_id)
     if not note or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
+
+    _reject_oversize_text(note.content, settings.MAX_NOTE_CHARS, "Note content")
+    await enforce_user_call(db, current_user.id, BUCKET_NOTES_AI, _estimate_tokens(note.content))
 
     content = note.content[:_MAX_NOTE_CHARS]
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)

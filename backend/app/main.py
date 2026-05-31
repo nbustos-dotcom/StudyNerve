@@ -17,8 +17,14 @@ from app.llm import check_health
 from app.models import User
 from app.routers import canvas, chat, flashcards, notes, profile, quiz, subjects, topics, vision
 from app.services import usage_tracker
+from app.services.quota import install_redaction_filter
 from app.routers.auth import get_current_user, router as auth_router
 from app.routers.settings import router as settings_router
+
+# Install vendor-API-key redaction on the root logger so no log line — from
+# our code, FastAPI, SQLAlchemy, or third-party libs — can leak a Groq /
+# OpenAI / Anthropic / Gemini key. See app/services/quota.py.
+install_redaction_filter()
 
 _isolation_logger = logging.getLogger("user_isolation")
 

@@ -8,15 +8,29 @@ from slowapi.util import get_remote_address
 from sqlalchemy import Integer, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings as app_settings
 from app.database import get_db
 from app.llm import evaluate_answer, generate_questions
 from app.models import Attempt, Note, Question, QuizResult, StudySession, Topic, User, UserSettings
 from app.providers.base import LLMTokenLimitError
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
+from app.services.quota import BUCKET_QUIZ_GENS, enforce_user_call
 
 _MAX_NOTE_CHARS = 3000
 _BATCH_SIZE = 15  # max questions per LLM call to stay within token limits
+
+
+def _reject_oversize_text(value: str, limit: int, label: str) -> None:
+    if len(value) > limit:
+        raise HTTPException(
+            status_code=413,
+            detail=f"{label} exceeds {limit:,}-character limit ({len(value):,} sent).",
+        )
+
+
+def _estimate_tokens_for(content: str, num_questions: int = 0) -> int:
+    return max(1, len(content) // 4 + num_questions * 60)
 from app.schemas import (
     AdaptiveQuizRequest,
     AnswerResult,
@@ -58,6 +72,12 @@ async def generate_quiz(
             status_code=422,
             detail="Add some content to this note before generating a quiz.",
         )
+
+    _reject_oversize_text(note.content, app_settings.MAX_NOTE_CHARS, "Note content")
+    await enforce_user_call(
+        db, current_user.id, BUCKET_QUIZ_GENS,
+        _estimate_tokens_for(note.content, body.num_questions),
+    )
 
     topic_result = await db.execute(
         select(Topic).where(Topic.note_id == body.note_id).limit(1)
@@ -163,11 +183,17 @@ async def submit_answer(
     if not _q_note or _q_note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Question not found")
 
+    _reject_oversize_text(body.user_answer, app_settings.MAX_ANSWER_CHARS, "Answer")
+
     feedback: str | None = None
 
     if question.type == "mcq":
         is_correct = body.user_answer.strip().upper() == question.correct_answer.strip().upper()
     else:
+        await enforce_user_call(
+            db, current_user.id, BUCKET_QUIZ_GENS,
+            _estimate_tokens_for(body.user_answer + question.content),
+        )
         llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
         llm_result = await evaluate_answer(
             question=question.content,

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal
 from app.llm import extract_insights as llm_extract_insights
 from app.models import ChatMessage, StudentInsight, UserSettings
+from app.services.quota import try_reserve_global_only
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,20 @@ async def generate_insights(session_id: str, user_id: int) -> int:
                 return 0
 
             msg_dicts = [{"role": m.role, "content": m.content} for m in messages]
+
+            # Background job — charge global breaker only (no per-user bucket).
+            # Silently skip if the breaker is tripped; this is opportunistic work
+            # and must not surface an error to the user.
+            _est_tokens = max(
+                1, sum(len(m.get("content") or "") for m in msg_dicts) // 4
+            )
+            if not await try_reserve_global_only(_est_tokens):
+                logger.info(
+                    "generate_insights: global breaker tripped — skipping for session %s",
+                    session_id,
+                )
+                return 0
+
             llm_result = await llm_extract_insights(
                 msg_dicts,
                 provider_name=provider_name,

@@ -45,10 +45,15 @@ from app.schemas import (
     UpdateNodeRequest,
 )
 from app.services.make_sense import make_sense
+from app.services.quota import BUCKET_NOTES_AI, enforce_user_call
 from app.services.user_context import build_user_context
 
 router = APIRouter(prefix="/vision", tags=["vision"])
 _limiter = Limiter(key_func=get_remote_address)
+
+
+def _estimate_tokens(*parts: str) -> int:
+    return max(1, sum(len(p or "") for p in parts) // 4)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -398,6 +403,17 @@ async def make_sense_board(
         ) if raw_ctx else ""
     except Exception:
         ctx_hint = ""
+
+    await enforce_user_call(
+        db, current_user.id, BUCKET_NOTES_AI,
+        _estimate_tokens(
+            body.tldraw_state or "",
+            ctx_hint,
+            body.board_title or "",
+            body.step_title or "",
+            body.step_description or "",
+        ),
+    )
 
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
 

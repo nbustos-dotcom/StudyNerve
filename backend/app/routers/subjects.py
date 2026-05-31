@@ -10,7 +10,12 @@ from app.models import Note, User
 from app.routers.auth import get_current_user
 from app.routers.settings import get_user_llm_kwargs
 from app.schemas import MergeSubjectRequest
+from app.services.quota import BUCKET_NOTES_AI, enforce_user_call
 from app.services.subjects import get_subject_list, normalize_subject
+
+
+def _estimate_tokens(*parts: str) -> int:
+    return max(1, sum(len(p or "") for p in parts) // 4)
 
 router = APIRouter(prefix="/subjects", tags=["subjects"])
 
@@ -72,6 +77,10 @@ async def suggest_merges(
     subjects_text = "\n".join(
         f"- {s} ({counts[s]} {'note' if counts[s] == 1 else 'notes'})"
         for s in sorted(distinct)
+    )
+    await enforce_user_call(
+        db, current_user.id, BUCKET_NOTES_AI,
+        _estimate_tokens(subjects_text),
     )
     llm_kwargs = await get_user_llm_kwargs(db, current_user.id)
     llm_result = await suggest_subject_merges(subjects_text, **llm_kwargs)

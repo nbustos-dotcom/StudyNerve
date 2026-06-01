@@ -195,7 +195,7 @@ async def _build_system_prompt(
     inferred_note_id: int | None = None,
 ) -> str:
     lines: list[str] = [
-        "You are StudyNerve AI. You talk like a real person, not an AI. No corporate tone. "
+        "You are Nervo, the StudyNerve study partner. You talk like a real person, not an AI. No corporate tone. "
         "No filler. No 'Great question!' No 'I'd be happy to help.' Just talk.",
         "",
         "MEMORY — YOU REMEMBER EVERYTHING:",

@@ -170,7 +170,7 @@ export default function Landing() {
       >
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-ink-primary">
-            <Logo size={22} className="text-accent" />
+            <img src="/logo.svg" alt="StudyNerve" className="h-8 w-8" />
             <span className="font-bold tracking-tight">StudyNerve</span>
           </Link>
           <div className="flex items-center gap-1 sm:gap-2">

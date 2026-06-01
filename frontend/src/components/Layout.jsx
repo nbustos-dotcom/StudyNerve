@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import Logo from './Logo'
 
 const NAV_MAIN = [
   { to: '/',           label: 'Dashboard',  end: true },
@@ -66,10 +65,10 @@ export default function Layout({ user, onLogout, onOpenPalette }) {
         }}
       >
         {/* Brand */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Logo size={20} className="text-accent" />
+        <NavLink to="/" end className="flex items-center gap-2 flex-shrink-0">
+          <img src="/logo.svg" alt="StudyNerve" className="h-8 w-8" />
           <span className="text-sm font-semibold text-ink-primary">StudyNerve</span>
-        </div>
+        </NavLink>
 
         {/* Nav links — centered, hidden on mobile */}
         <nav className="hidden md:flex items-center gap-0.5 mx-auto">
@@ -252,7 +251,15 @@ export default function Layout({ user, onLogout, onOpenPalette }) {
         style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
-          <span className="text-sm font-semibold text-ink-primary">StudyNerve</span>
+          <NavLink
+            to="/"
+            end
+            onClick={() => setShowMobileMenu(false)}
+            className="flex items-center gap-2"
+          >
+            <img src="/logo.svg" alt="StudyNerve" className="h-8 w-8" />
+            <span className="text-sm font-semibold text-ink-primary">StudyNerve</span>
+          </NavLink>
           <button
             onClick={() => setShowMobileMenu(false)}
             className="p-1.5 rounded-md text-ink-muted hover:text-ink-primary transition-colors"

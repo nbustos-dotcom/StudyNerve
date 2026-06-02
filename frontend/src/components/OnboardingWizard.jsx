@@ -2,14 +2,9 @@ import { useState } from 'react'
 import { api } from '../api/client'
 import NeuralNetIcon from './NeuralNetIcon'
 
-const WIZARD_PROVIDERS = [
-  { value: 'groq',      label: 'Groq',             badge: 'Recommended · Free', badgeColor: '#34d399', url: 'https://console.groq.com/keys' },
-  { value: 'gemini',    label: 'Google Gemini',     badge: 'Free',               badgeColor: '#34d399', url: 'https://aistudio.google.com/apikey' },
-  { value: 'openai',    label: 'OpenAI',            badge: 'Paid',               badgeColor: '#64748b', url: 'https://platform.openai.com/api-keys' },
-  { value: 'anthropic', label: 'Anthropic Claude',  badge: 'Paid',               badgeColor: '#64748b', url: 'https://console.anthropic.com/settings/keys' },
-]
-
-const TOTAL_STEPS = 5
+// AI is preconfigured on the server — new users skip provider/key setup entirely.
+// The BYOK path lives in Settings → AI → "Advanced — use your own API key".
+const TOTAL_STEPS = 4
 
 // ── Step components ───────────────────────────────────────────────────────────
 
@@ -99,94 +94,6 @@ function StepHowItWorks() {
             </p>
           </div>
         ))}
-      </div>
-    </div>
-  )
-}
-
-function StepConnectAI({ provider, setProvider, apiKey, setApiKey }) {
-  return (
-    <div>
-      <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'rgba(255,255,255,0.92)', marginBottom: '8px', fontFamily: "'Sora', sans-serif" }}>
-        Connect Your AI
-      </h2>
-      <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.38)', marginBottom: '24px', lineHeight: 1.6 }}>
-        You need an API key to power the AI features. Pick one (Groq is free and fast), create a key at the link below, and paste it here.
-      </p>
-
-      {/* Provider cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '20px' }}>
-        {WIZARD_PROVIDERS.map((p) => {
-          const isSelected = provider === p.value
-          return (
-            <div
-              key={p.value}
-              onClick={() => setProvider(p.value)}
-              style={{
-                padding: '14px',
-                background: isSelected ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${isSelected ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.06)'}`,
-                borderRadius: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <p style={{ fontSize: '13px', fontWeight: 600, color: isSelected ? '#a5b4fc' : 'rgba(255,255,255,0.65)' }}>
-                  {p.label}
-                </p>
-                {isSelected && (
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', flexShrink: 0 }} />
-                )}
-              </div>
-              <p style={{ fontSize: '11px', color: p.badgeColor, marginBottom: '6px' }}>{p.badge}</p>
-              <a
-                href={p.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                style={{ fontSize: '11px', color: '#818cf8', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#a5b4fc')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#818cf8')}
-              >
-                Get API key →
-              </a>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* API key input */}
-      <div>
-        <label className="label">
-          Paste your API key
-        </label>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder="sk-… or gsk_…"
-          autoComplete="off"
-          style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: '#e2e8f0',
-            borderRadius: '10px',
-            padding: '10px 14px',
-            width: '100%',
-            fontSize: '13px',
-            outline: 'none',
-            fontFamily: 'monospace',
-            letterSpacing: '0.05em',
-            boxSizing: 'border-box',
-            transition: 'border-color 0.15s',
-          }}
-          onFocus={(e) => (e.target.style.borderColor = 'rgba(99,102,241,0.5)')}
-          onBlur={(e) => (e.target.style.borderColor = 'rgba(255,255,255,0.1)')}
-        />
-        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.22)', marginTop: '6px' }}>
-          You can also skip this and add it later in Settings.
-        </p>
       </div>
     </div>
   )
@@ -296,8 +203,6 @@ export default function OnboardingWizard({ onComplete }) {
   const [step, setStep] = useState(0)
   const [transitioning, setTransitioning] = useState(false)
   const [dir, setDir] = useState(1)
-  const [provider, setProvider] = useState('groq')
-  const [apiKey, setApiKey] = useState('')
   const [canvasUrl, setCanvasUrl] = useState('')
   const [canvasToken, setCanvasToken] = useState('')
   const [saving, setSaving] = useState(false)
@@ -313,18 +218,8 @@ export default function OnboardingWizard({ onComplete }) {
   }
 
   async function handleContinue() {
-    // Step 2: save provider + key if entered
-    if (step === 2 && apiKey.trim()) {
-      setSaving(true)
-      try {
-        await api.saveProvider({ provider, api_key: apiKey.trim() })
-      } catch {
-        // fail silently — user can set in Settings
-      }
-      setSaving(false)
-    }
-    // Step 3: save Canvas if both fields filled
-    if (step === 3 && canvasUrl.trim() && canvasToken.trim()) {
+    // Step 2 (Canvas): save if both fields filled — otherwise skip silently.
+    if (step === 2 && canvasUrl.trim() && canvasToken.trim()) {
       setSaving(true)
       try {
         await api.saveCanvasSettings({ canvas_url: canvasUrl, canvas_token: canvasToken })
@@ -386,18 +281,12 @@ export default function OnboardingWizard({ onComplete }) {
             {step === 0 && <StepWelcome />}
             {step === 1 && <StepHowItWorks />}
             {step === 2 && (
-              <StepConnectAI
-                provider={provider} setProvider={setProvider}
-                apiKey={apiKey} setApiKey={setApiKey}
-              />
-            )}
-            {step === 3 && (
               <StepCanvas
                 canvasUrl={canvasUrl} setCanvasUrl={setCanvasUrl}
                 canvasToken={canvasToken} setCanvasToken={setCanvasToken}
               />
             )}
-            {step === 4 && <StepReady />}
+            {step === 3 && <StepReady />}
           </div>
         </div>
 
@@ -447,7 +336,7 @@ export default function OnboardingWizard({ onComplete }) {
               </button>
             )}
             {/* "Skip for now" on Canvas step */}
-            {step === 3 && (
+            {step === 2 && (
               <button
                 onClick={() => navigateTo(step + 1)}
                 disabled={transitioning || saving}

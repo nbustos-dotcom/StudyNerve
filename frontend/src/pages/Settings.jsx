@@ -15,21 +15,23 @@ function EyeIcon({ open }) {
   )
 }
 
-const PROVIDERS = [
-  { value: 'ollama',    label: 'Local Ollama',      needsKey: false, hint: 'Runs on your machine — no API key required.' },
-  { value: 'gemini',   label: 'Google Gemini',      needsKey: true,  hint: 'Uses gemini-2.0-flash.',            apiKeyUrl: 'https://aistudio.google.com/apikey',              apiKeyLabel: 'Get free key →' },
-  { value: 'openai',   label: 'OpenAI',             needsKey: true,  hint: 'Uses gpt-4o-mini by default.',      apiKeyUrl: 'https://platform.openai.com/api-keys',            apiKeyLabel: 'Get key →' },
-  { value: 'anthropic',label: 'Claude (Anthropic)', needsKey: true,  hint: 'Uses claude-sonnet-4.',             apiKeyUrl: 'https://console.anthropic.com/settings/keys',     apiKeyLabel: 'Get key →' },
-  { value: 'groq',     label: 'Groq',               needsKey: true,  hint: 'Uses llama-3.3-70b-versatile. Free tier available.', apiKeyUrl: 'https://console.groq.com/keys', apiKeyLabel: 'Get free key → (recommended - best free option)' },
+// BYOK providers (shown only inside the collapsed "Advanced" disclosure).
+// Normal users get the free hosted AI — they don't pick a provider.
+const BYOK_PROVIDERS = [
+  { value: 'gemini',    label: 'Google Gemini',      apiKeyUrl: 'https://aistudio.google.com/apikey' },
+  { value: 'groq',      label: 'Groq',               apiKeyUrl: 'https://console.groq.com/keys' },
+  { value: 'openai',    label: 'OpenAI',             apiKeyUrl: 'https://platform.openai.com/api-keys' },
+  { value: 'anthropic', label: 'Claude (Anthropic)', apiKeyUrl: 'https://console.anthropic.com/settings/keys' },
+  { value: 'ollama',    label: 'Local Ollama',       apiKeyUrl: null },
 ]
 
 function SectionCard({ title, children }) {
   return (
-    <div className="card-solid mb-6 overflow-hidden">
-      <div className="px-6 py-4 border-b border-white/[0.05]" style={{ background: 'rgba(255,255,255,0.02)' }}>
-        <h2 className="text-sm font-semibold text-ink-primary tracking-wide">{title}</h2>
+    <div className="card-solid mb-5 overflow-hidden">
+      <div className="px-5 pt-4 pb-2">
+        <h2 className="text-[11px] font-semibold text-ink-muted uppercase tracking-[0.08em]">{title}</h2>
       </div>
-      <div className="p-6">{children}</div>
+      <div className="px-5 pb-5">{children}</div>
     </div>
   )
 }
@@ -153,9 +155,9 @@ function ClearMemoryModal({ onConfirm, onCancel, clearing }) {
 export default function Settings() {
   const navigate = useNavigate()
 
-  // ── Provider state ───────────────────────────────────────────────────────────
+  // ── Provider state (BYOK — server-side key is the default) ──────────────────
   const [currentSettings, setCurrentSettings] = useState(null)
-  const [provider, setProvider] = useState('ollama')
+  const [byokProvider, setByokProvider] = useState('gemini')
   const [apiKey, setApiKey] = useState('')
   const [providerSaving, setProviderSaving] = useState(false)
   const [providerMsg, setProviderMsg] = useState(null)
@@ -184,7 +186,10 @@ export default function Settings() {
     try {
       const s = await api.getSettings()
       setCurrentSettings(s)
-      setProvider(s.llm_provider || 'ollama')
+      // Only mirror the stored provider into the BYOK picker when a key is set;
+      // otherwise leave the default so stale local-dev values (e.g. 'ollama')
+      // don't get re-saved when the user toggles BYOK on.
+      if (s.llm_api_key_set && s.llm_provider) setByokProvider(s.llm_provider)
       if (s.canvas_url) {
         // Strip /api/v1 suffix if present — backend now stores base URL,
         // but old entries may still have it.
@@ -197,16 +202,29 @@ export default function Settings() {
 
   async function saveProvider(e) {
     e.preventDefault()
+    if (!apiKey.trim()) return
     setProviderSaving(true)
     setProviderMsg(null)
     try {
-      const payload = { provider }
-      const providerMeta = PROVIDERS.find((p) => p.value === provider)
-      if (providerMeta?.needsKey && apiKey.trim()) payload.api_key = apiKey.trim()
-      const result = await api.saveProvider(payload)
+      const result = await api.saveProvider({ provider: byokProvider, api_key: apiKey.trim() })
       setCurrentSettings(result)
       setApiKey('')
-      setProviderMsg({ ok: true, text: 'Provider saved.' })
+      setProviderMsg({ ok: true, text: 'API key saved — you’re on the unlimited tier.' })
+    } catch (err) {
+      setProviderMsg({ ok: false, text: err.message })
+    } finally {
+      setProviderSaving(false)
+    }
+  }
+
+  async function clearByokKey() {
+    setProviderSaving(true)
+    setProviderMsg(null)
+    try {
+      const result = await api.saveProvider({ provider: byokProvider, api_key: '' })
+      setCurrentSettings(result)
+      setApiKey('')
+      setProviderMsg({ ok: true, text: 'Your API key was removed — back on the free hosted tier.' })
     } catch (err) {
       setProviderMsg({ ok: false, text: err.message })
     } finally {
@@ -281,91 +299,103 @@ export default function Settings() {
     }
   }
 
-  const selectedMeta = PROVIDERS.find((p) => p.value === provider)
+  const byokActive = !!currentSettings?.llm_api_key_set
+  const savedProviderLabel = BYOK_PROVIDERS.find((p) => p.value === currentSettings?.llm_provider)?.label
+    ?? currentSettings?.llm_provider
+  const byokMeta = BYOK_PROVIDERS.find((p) => p.value === byokProvider)
+  const keyPlaceholderForSaved =
+    byokActive && currentSettings?.llm_provider === byokProvider
+      ? '••••••••••••••••'
+      : 'Paste your API key'
 
   return (
     <div className="p-4 sm:p-8 max-w-2xl mx-auto fade-in-up">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-ink-primary">Settings</h1>
-        <p className="text-sm text-ink-muted mt-1">Configure your AI provider and integrations</p>
+        <p className="text-sm text-ink-muted mt-1">Manage your AI and connected apps.</p>
       </div>
 
       {/* ── AI Provider ───────────────────────────────────────────────────────── */}
-      <SectionCard title="AI Provider">
-        <form onSubmit={saveProvider} className="space-y-5">
-          {/* Current provider badge */}
-          {currentSettings && (
-            <div className="flex items-center gap-2 mb-1">
-              <div
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ background: 'rgba(99,102,241,0.8)', boxShadow: '0 0 6px rgba(99,102,241,0.9)' }}
-              />
-              <span className="text-xs text-ink-muted">
-                Currently using{' '}
-                <span className="text-ink-secondary font-medium">
-                  {PROVIDERS.find((p) => p.value === currentSettings.llm_provider)?.label ?? currentSettings.llm_provider}
-                </span>
-                {currentSettings.llm_api_key_set && (
-                  <span className="text-ink-faint"> · API key saved</span>
-                )}
-              </span>
-            </div>
-          )}
-
-          {/* Provider grid */}
-          <div>
-            <label className="block text-xs font-medium text-ink-muted mb-2">Provider</label>
-            <div className="grid grid-cols-2 gap-2">
-              {PROVIDERS.map((p) => (
-                <button
-                  key={p.value}
-                  type="button"
-                  onClick={() => { setProvider(p.value); setApiKey('') }}
-                  className="px-4 py-3 rounded-xl text-left transition-all duration-150"
-                  style={
-                    provider === p.value
-                      ? {
-                          background: 'rgba(99,102,241,0.12)',
-                          border: '1px solid rgba(99,102,241,0.3)',
-                        }
-                      : {
-                          background: 'rgba(255,255,255,0.02)',
-                          border: '1px solid rgba(255,255,255,0.06)',
-                        }
-                  }
-                >
-                  <div className={`text-sm font-medium ${provider === p.value ? 'text-accent-hover' : 'text-ink-secondary'}`}>
-                    {p.label}
-                  </div>
-                  {!p.needsKey && (
-                    <div className="text-[10px] text-emerald-500 mt-0.5">No API key</div>
-                  )}
-                  {p.apiKeyUrl && (
-                    <a
-                      href={p.apiKeyUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-sm text-accent hover:text-accent-hover transition mt-0.5 inline-block"
-                    >
-                      {p.apiKeyLabel}
-                    </a>
-                  )}
-                </button>
-              ))}
-            </div>
-            {selectedMeta && (
-              <p className="text-[11px] text-ink-faint mt-2">{selectedMeta.hint}</p>
+      <SectionCard title="AI">
+        {/* Status row — shown to all users */}
+        <div className="flex items-center gap-2 mb-3">
+          <div
+            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={
+              byokActive
+                ? { background: 'rgba(52,211,153,0.85)', boxShadow: '0 0 8px rgba(52,211,153,0.7)' }
+                : { background: 'rgba(99,102,241,0.85)', boxShadow: '0 0 6px rgba(99,102,241,0.9)' }
+            }
+          />
+          <span className="text-xs text-ink-muted">
+            {byokActive ? (
+              <>
+                <span className="text-emerald-300 font-medium">Unlimited</span>
+                <span className="text-ink-faint"> · using your own {savedProviderLabel} key</span>
+              </>
+            ) : (
+              <>
+                <span className="text-ink-secondary font-medium">Free hosted AI</span>
+                <span className="text-ink-faint"> · included with your account</span>
+              </>
             )}
-          </div>
+          </span>
+        </div>
 
-          {/* API key input */}
-          {selectedMeta?.needsKey && (
+        {/* Collapsed advanced disclosure — preserves BYOK upgrade path */}
+        <details
+          open={byokActive}
+          className="group rounded-xl"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <summary className="cursor-pointer select-none px-4 py-3 text-xs text-ink-muted hover:text-ink-secondary transition-colors flex items-center gap-2">
+            <svg
+              className="w-3 h-3 transition-transform group-open:rotate-90"
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 2l4 4-4 4" />
+            </svg>
+            Advanced — use your own API key (unlimited)
+          </summary>
+
+          <form onSubmit={saveProvider} className="space-y-4 px-4 pt-2 pb-4">
+            <p className="text-[11px] text-ink-faint leading-relaxed">
+              Bring your own provider key to bypass the shared free-tier limit. Your key is stored encrypted and used only for your account.
+            </p>
+
+            <div>
+              <label className="block text-xs font-medium text-ink-muted mb-1.5">Provider</label>
+              <select
+                className="input"
+                value={byokProvider}
+                onChange={(e) => setByokProvider(e.target.value)}
+              >
+                {BYOK_PROVIDERS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+              {byokMeta?.apiKeyUrl && (
+                <a
+                  href={byokMeta.apiKeyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-accent hover:text-accent-hover transition mt-1.5 inline-block"
+                >
+                  Get a key →
+                </a>
+              )}
+            </div>
+
             <div>
               <label className="block text-xs font-medium text-ink-muted mb-1.5">
                 API Key
-                {currentSettings?.llm_api_key_set && currentSettings.llm_provider === provider && (
+                {byokActive && currentSettings?.llm_provider === byokProvider && (
                   <span className="text-ink-faint font-normal ml-1.5">— leave blank to keep existing key</span>
                 )}
               </label>
@@ -375,11 +405,7 @@ export default function Settings() {
                   type={showApiKey ? 'text' : 'password'}
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={
-                    currentSettings?.llm_api_key_set && currentSettings.llm_provider === provider
-                      ? '••••••••••••••••'
-                      : 'Paste your API key'
-                  }
+                  placeholder={keyPlaceholderForSaved}
                   autoComplete="off"
                 />
                 <button
@@ -392,24 +418,40 @@ export default function Settings() {
                 </button>
               </div>
             </div>
-          )}
 
-          {providerMsg && (
-            <div
-              className={`text-xs rounded-lg px-3 py-2.5 ${providerMsg.ok ? 'text-emerald-300' : 'text-red-300'}`}
-              style={{
-                background: providerMsg.ok ? 'rgba(52,211,153,0.07)' : 'rgba(239,68,68,0.07)',
-                border: `1px solid ${providerMsg.ok ? 'rgba(52,211,153,0.18)' : 'rgba(239,68,68,0.18)'}`,
-              }}
-            >
-              {providerMsg.text}
+            {providerMsg && (
+              <div
+                className={`text-xs rounded-lg px-3 py-2.5 ${providerMsg.ok ? 'text-emerald-300' : 'text-red-300'}`}
+                style={{
+                  background: providerMsg.ok ? 'rgba(52,211,153,0.07)' : 'rgba(239,68,68,0.07)',
+                  border: `1px solid ${providerMsg.ok ? 'rgba(52,211,153,0.18)' : 'rgba(239,68,68,0.18)'}`,
+                }}
+              >
+                {providerMsg.text}
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                disabled={providerSaving || !apiKey.trim()}
+                className="btn-primary"
+              >
+                {providerSaving ? <><Spinner size="sm" />Saving…</> : (byokActive ? 'Update Key' : 'Save Key')}
+              </button>
+              {byokActive && (
+                <button
+                  type="button"
+                  onClick={clearByokKey}
+                  disabled={providerSaving}
+                  className="text-xs text-ink-faint hover:text-red-300 transition-colors"
+                >
+                  Remove key
+                </button>
+              )}
             </div>
-          )}
-
-          <button type="submit" disabled={providerSaving} className="btn-primary">
-            {providerSaving ? <><Spinner size="sm" />Saving…</> : 'Save Provider'}
-          </button>
-        </form>
+          </form>
+        </details>
       </SectionCard>
 
       {/* ── Canvas LMS ────────────────────────────────────────────────────────── */}

@@ -10,6 +10,7 @@ Enable with ENABLE_USER_CONTEXT=true in backend/.env.
 """
 
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import desc, select
@@ -17,16 +18,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models import Attempt, Note, Question, Topic, UserSettings, VisionBoard
-from app.services.gap_detector import calculate_gap_scores
 
 log = logging.getLogger(__name__)
 
 _MAX_CHARS = 3200  # ≈800 tokens at ~4 chars/token
 
+# Local mirror of chat.py's keyword extractor so we can gate without importing
+# from a router module. 4+ char alpha words; stopword list kept minimal because
+# we're matching against topic-name keywords already pre-filtered by the caller.
+_KW_RE = re.compile(r"\b[a-zA-Z]{4,}\b")
 
-async def build_user_context(user_id: int, db: AsyncSession) -> str:
+
+def _topic_keywords(name: str | None) -> set[str]:
+    return {w for w in _KW_RE.findall((name or "").lower())}
+
+
+async def build_user_context(
+    user_id: int,
+    db: AsyncSession,
+    message_keywords: set[str] | None = None,
+) -> str:
     """
     Return a markdown context string for user_id, or '' if disabled / nothing found.
+
+    `message_keywords` (optional) is the current user message's keyword set, used
+    to gate relevance-sensitive slices (Recent Mistakes). Callers without a
+    per-message context (e.g. quiz generation) leave this None, which suppresses
+    those slices entirely.
 
     Every DB query filters by user_id. Each section is wrapped in try/except
     so a single failure never crashes the endpoint.
@@ -36,42 +54,48 @@ async def build_user_context(user_id: int, db: AsyncSession) -> str:
 
     sections: list[str] = []
 
-    # ── 1. Last 5 wrong quiz answers ──────────────────────────────────────────
-    try:
-        rows = (await db.execute(
-            select(Attempt, Question, Topic)
-            .join(Question, Attempt.question_id == Question.id)
-            .join(Topic, Question.topic_id == Topic.id)
-            .where(
-                Attempt.user_id == user_id,
-                Attempt.is_correct == False,  # noqa: E712 — SQLAlchemy requires ==
-            )
-            .order_by(desc(Attempt.created_at))
-            .limit(5)
-        )).all()
+    # ── 1. Recent wrong answers, RELEVANCE-GATED ──────────────────────────────
+    # Only inject when caller supplied message_keywords AND a wrong-answer row's
+    # topic-name keywords overlap them. No caller-context → no section.
+    if message_keywords:
+        try:
+            rows = (await db.execute(
+                select(Attempt, Question, Topic)
+                .join(Question, Attempt.question_id == Question.id)
+                .join(Topic, Question.topic_id == Topic.id)
+                .where(
+                    Attempt.user_id == user_id,
+                    Attempt.is_correct == False,  # noqa: E712 — SQLAlchemy requires ==
+                )
+                .order_by(desc(Attempt.created_at))
+                .limit(20)
+            )).all()
 
-        if rows:
-            lines = ["## Recent Mistakes"]
+            relevant_rows: list[tuple[Attempt, Question, Topic]] = []
             for attempt, question, topic in rows:
-                q = question.content[:110].strip().replace("\n", " ")
-                a = question.correct_answer[:70].strip().replace("\n", " ")
-                lines.append(f"- **{topic.name}**: Q: {q} → Correct: {a}")
-            sections.append("\n".join(lines))
-    except Exception:
-        log.debug("user_context: recent mistakes skipped", exc_info=True)
+                if _topic_keywords(topic.name) & message_keywords:
+                    relevant_rows.append((attempt, question, topic))
+                if len(relevant_rows) >= 5:
+                    break
 
-    # ── 2. Top 5 weak topics (gap detector) ───────────────────────────────────
-    try:
-        gaps = await calculate_gap_scores(db, user_id)
-        if gaps:
-            lines = ["## Weak Topics"]
-            for g in gaps[:5]:
-                pct = round(g.accuracy * 100)
-                attempts_label = f"{g.total_attempts} attempt{'s' if g.total_attempts != 1 else ''}"
-                lines.append(f"- **{g.topic_name}**: {pct}% accuracy ({attempts_label})")
-            sections.append("\n".join(lines))
-    except Exception:
-        log.debug("user_context: gap scores skipped", exc_info=True)
+            if relevant_rows:
+                lines = [
+                    "## Reference only — recent wrong answers on the topic the "
+                    "student is asking about. Do NOT raise these otherwise:"
+                ]
+                for _attempt, question, topic in relevant_rows:
+                    q = question.content[:110].strip().replace("\n", " ")
+                    a = question.correct_answer[:70].strip().replace("\n", " ")
+                    lines.append(f"- **{topic.name}**: Q: {q} → Correct: {a}")
+                sections.append("\n".join(lines))
+        except Exception:
+            log.debug("user_context: recent mistakes skipped", exc_info=True)
+
+    # NB: a "Weak Topics" slice used to live here. Removed — weak-topic context
+    # is now built in chat.py with a per-message relevance gate, so injecting
+    # it here too would re-introduce the "harps every message" failure mode.
+    # Quiz callers that want raw gap data can call calculate_gap_scores
+    # directly (and already do, in their adaptive-quiz path).
 
     # ── 3. 3 most recent notes (title + first 200 chars) ─────────────────────
     try:

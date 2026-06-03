@@ -20,7 +20,7 @@ from app.schemas import (
     ChatSendResponse,
     ChatSessionPreview,
 )
-from app.services.gap_detector import calculate_gap_scores
+from app.services.gap_detector import TopicGapScore, calculate_gap_scores
 from app.services.learning_style import LearningProfile, detect_learning_style
 from app.services.memory import generate_insights, get_insights
 from app.services.quota import BUCKET_TUTOR_MSGS, enforce_user_call
@@ -189,6 +189,7 @@ async def _build_system_prompt(
     style_hint: str,
     learning_profile: LearningProfile,
     insights: list[StudentInsight],
+    gaps: list[TopicGapScore],
     user_context: str = "",
     mode: str = "explain",
     pending_question: str | None = None,
@@ -198,18 +199,19 @@ async def _build_system_prompt(
         "You are Nervo, the StudyNerve study partner. You talk like a real person, not an AI. No corporate tone. "
         "No filler. No 'Great question!' No 'I'd be happy to help.' Just talk.",
         "",
-        "MEMORY — YOU REMEMBER EVERYTHING:",
-        "You have access to this student's history. Use it. Reference past conversations "
-        "naturally: 'Last time we talked about this, you were confused about X — did that "
-        "click yet?' If they struggled with something before, bring it up without being asked. "
-        "If they had a breakthrough, build on it. Never act like you're meeting them for the "
-        "first time.",
+        "MEMORY — CONTINUITY, NOT CALLBACKS:",
+        "You have access to this student's history. Treat it as background knowledge — not a "
+        "checklist to recite. When the current message clearly touches something from before, "
+        "you can reference it naturally ('last time we hit this, the trip-up was X — does that "
+        "still feel right?'). Never act like you're meeting them for the first time. Do NOT "
+        "volunteer past struggles, weak areas, or insights unprompted.",
         "",
-        "WHEN TO USE THEIR HISTORY:",
-        "Only reference the student's past performance and study insights when they are DIRECTLY "
-        "relevant to what the student is asking about RIGHT NOW. If the student asks a general "
-        "knowledge question unrelated to their coursework, answer it normally without connecting "
-        "it to their study history. Do not force connections between unrelated topics.",
+        "WHEN TO USE THEIR HISTORY (governing rule):",
+        "Only reference the student's past performance, weak areas, mistakes, and insights when "
+        "they are DIRECTLY relevant to what the student is asking about RIGHT NOW. If the "
+        "student asks a general or off-topic question, answer it normally — do not connect it "
+        "back to their coursework, weak topics, or anything in their study history. Do not "
+        "force connections between unrelated topics.",
         "",
         "ADAPT TO THEIR VOICE:",
         "Match exactly how they type. If they use lowercase and abbreviations, you do too. "
@@ -267,7 +269,7 @@ async def _build_system_prompt(
         "- Total response: 3-8 sentences max. If you can say it in 3, say it in 3.",
         "",
         "YOU ALWAYS DO THIS:",
-        "- Reference their actual notes and weak areas when relevant",
+        "- When the student is working on a topic they're weak on, you can draw on that — but don't volunteer weak areas for unrelated questions",
         "- Push them to think, don't just hand them answers",
         "- If they're wrong, say so directly but show them where the thinking broke",
         "- Every response moves the conversation forward with that follow-up",
@@ -323,9 +325,13 @@ async def _build_system_prompt(
             lines.append(f"- ({ins.category}{topic_ctx}) {ins.insight}")
         lines.append("")
 
-    gaps = await calculate_gap_scores(db, user_id=user_id)
+    # gaps is pre-filtered by send_message to only those whose topic keywords
+    # overlap the current message — empty list means inject nothing.
     if gaps:
-        lines.append("## Topics they're struggling with (weave in when relevant):")
+        lines.append(
+            "## Reference only — the student is asking about one of these. "
+            "Do NOT raise these otherwise:"
+        )
         for g in gaps[:5]:
             pct = round(g.accuracy * 100)
             lines.append(
@@ -516,7 +522,24 @@ async def send_message(
     else:
         stored_insights = []
 
-    user_ctx = await build_user_context(current_user.id, db)
+    # Gate weak-topic context the same way: only inject gaps whose topic-name
+    # keywords overlap the current message. Zero overlap → no gaps section at
+    # all (prevents the "harps on weakest topic every message" failure mode).
+    all_gaps = await calculate_gap_scores(db, user_id=current_user.id)
+    if _archived_topic_names:
+        all_gaps = [g for g in all_gaps if g.topic_name not in _archived_topic_names]
+    if msg_keywords:
+        relevant_gaps = [
+            g for g in all_gaps
+            if _extract_keywords(g.topic_name or "") & msg_keywords
+        ]
+        relevant_gaps.sort(key=lambda g: g.gap_score, reverse=True)
+    else:
+        relevant_gaps = []
+
+    user_ctx = await build_user_context(
+        current_user.id, db, message_keywords=msg_keywords
+    )
 
     # Keyword-matched note injection when no note_id supplied
     inferred_note_id: int | None = None
@@ -534,7 +557,7 @@ async def send_message(
 
     system = await _build_system_prompt(
         db, current_user.id, note_id, question_id,
-        style_hint, learning_profile, stored_insights,
+        style_hint, learning_profile, stored_insights, relevant_gaps,
         user_context=user_ctx,
         mode=mode,
         pending_question=effective_pending,

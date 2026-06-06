@@ -140,8 +140,11 @@ export default function StudyUniverse() {
   const graphRef = useRef()
   const rafRef = useRef()
   const containerRef = useRef()
-  const isInteractingRef = useRef(false)
-  const resumeTimeoutRef = useRef(null)
+  // Latches true on the user's first real interaction (drag or wheel) and
+  // never flips back. Auto-orbit runs only while this is false, so once the
+  // user takes the camera they keep it for the rest of this mount — no
+  // angle-stale snap on a resume timer.
+  const userTookControlRef = useRef(false)
   const prevInsightCountRef = useRef(0)
   const prevNodeIdsRef = useRef(new Set())
   const notifTimerRef = useRef(null)
@@ -231,26 +234,34 @@ export default function StudyUniverse() {
     }
   }, [])
 
-  // Camera auto-orbit + core pulse — pauses when isInteractingRef is true
+  // Camera auto-orbit + core pulse — runs ONLY until the user first grabs
+  // the camera. Once userTookControlRef latches true, both the initial fit
+  // and the per-frame cameraPosition stop, so the camera stays exactly
+  // where the user left it (no snap back to a stale orbit angle).
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (!graphRef.current) return
+      // If the user grabbed the camera in the first 1.2s before this
+      // initial fit got a chance to fire, skip both the fit AND the orbit
+      // loop entirely.
+      if (userTookControlRef.current) return
       graphRef.current.cameraPosition({ x: 0, y: 40, z: 280 })
       let angle = 0
       const animate = () => {
-        if (!isInteractingRef.current) {
-          angle += 0.0005
-          graphRef.current?.cameraPosition({
-            x: 280 * Math.sin(angle),
-            y: 40 + 12 * Math.sin(angle * 0.35),
-            z: 280 * Math.cos(angle),
-          })
-          const gData = graphRef.current?.graphData?.()
-          const coreNode = gData?.nodes?.find(n => n.type === 'core')
-          const coreMesh = coreNode?.__threeObj?.children?.[0]
-          if (coreMesh?.material) {
-            coreMesh.material.emissiveIntensity = 0.7 + Math.sin(Date.now() * 0.0018) * 0.2
-          }
+        // Once the user has taken control we stop scheduling further frames
+        // — the loop self-cancels rather than spinning forever doing nothing.
+        if (userTookControlRef.current) return
+        angle += 0.0005
+        graphRef.current?.cameraPosition({
+          x: 280 * Math.sin(angle),
+          y: 40 + 12 * Math.sin(angle * 0.35),
+          z: 280 * Math.cos(angle),
+        })
+        const gData = graphRef.current?.graphData?.()
+        const coreNode = gData?.nodes?.find(n => n.type === 'core')
+        const coreMesh = coreNode?.__threeObj?.children?.[0]
+        if (coreMesh?.material) {
+          coreMesh.material.emissiveIntensity = 0.7 + Math.sin(Date.now() * 0.0018) * 0.2
         }
         rafRef.current = requestAnimationFrame(animate)
       }
@@ -260,7 +271,6 @@ export default function StudyUniverse() {
     return () => {
       clearTimeout(timeout)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current)
     }
   }, [])
 
@@ -316,21 +326,11 @@ export default function StudyUniverse() {
     return () => { cancelled = true; clearTimeout(animTimeout) }
   }, [graphData])
 
-  function handleInteractionStart() {
-    isInteractingRef.current = true
-    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current)
-  }
-
-  function handleInteractionEnd() {
-    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current)
-    resumeTimeoutRef.current = setTimeout(() => { isInteractingRef.current = false }, 5000)
-  }
-
-  // Scroll pauses orbit for 5s (same pattern as pointer interaction)
-  function handleScrollPause() {
-    isInteractingRef.current = true
-    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current)
-    resumeTimeoutRef.current = setTimeout(() => { isInteractingRef.current = false }, 5000)
+  // Either trigger latches user control permanently — no 5s resume timer,
+  // no way back to auto-orbit until next mount. This is intentional: the
+  // alternative (resuming from a stale `angle`) teleports the camera.
+  function handleUserControl() {
+    userTookControlRef.current = true
   }
 
   const isEmpty = !loading && insights.length === 0 && topicStats.length === 0
@@ -369,9 +369,8 @@ export default function StudyUniverse() {
         ref={containerRef}
         className="relative rounded-2xl overflow-hidden mb-5"
         style={{ height: 'calc(100vh - 200px)', minHeight: 400, background: '#050508', border: '1px solid rgba(255,255,255,0.06)' }}
-        onPointerDown={handleInteractionStart}
-        onPointerUp={handleInteractionEnd}
-        onWheel={handleScrollPause}
+        onPointerDown={handleUserControl}
+        onWheel={handleUserControl}
         onMouseMove={e => setMousePos({ x: e.clientX, y: e.clientY })}
       >
         <ForceGraph3D

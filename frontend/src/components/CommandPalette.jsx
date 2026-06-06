@@ -9,7 +9,7 @@ const ACTIONS = [
   { id: 'flashcards',  label: 'Flashcards',    path: '/flashcards', shortcut: null,  icon: '🃏', keywords: ['flashcards', 'cards', 'review'] },
   { id: 'canvas',      label: 'Canvas',        path: '/canvas',     shortcut: null,  icon: '🎨', keywords: ['canvas', 'whiteboard', 'draw'] },
   { id: 'vision',      label: 'Vision Board',  path: '/vision',     shortcut: null,  icon: '🎯', keywords: ['vision', 'board', 'plan', 'goals'] },
-  { id: 'universe',    label: 'My Universe',   path: '/universe',   shortcut: null,  icon: '🌌', keywords: ['universe', 'progress', 'stats'] },
+  { id: 'universe',    label: 'AI Brain',      path: '/universe',   shortcut: null,  icon: '🧠', keywords: ['ai brain', 'brain', 'progress', 'stats', 'insights'] },
   { id: 'settings',    label: 'Settings',      path: '/settings',   shortcut: null,  icon: '⚙️', keywords: ['settings', 'provider', 'api', 'canvas'] },
 ]
 

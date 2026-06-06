@@ -145,39 +145,57 @@ function QuickActions() {
 }
 
 // ── Weekly Study Grid ─────────────────────────────────────────────────────────
+// Streak and active-day dots both come from /profile/study-universe via the
+// `universe` prop. The old client-side derivation (a Set built from quizHistory
+// + the top-5 recentNotes slice) silently capped activity to "today" and
+// ignored flashcard reviews entirely, so the streak got stuck at 1. Backend
+// now owns the computation; this just renders it.
 
-function WeeklyStudyGrid({ quizHistory, notes }) {
-  const activeDays = new Set()
-  quizHistory.forEach((q) => { if (q.completed_at) activeDays.add(new Date(q.completed_at).toDateString()) })
-  notes.forEach((n) => { if (n.created_at) activeDays.add(new Date(n.created_at).toDateString()) })
+const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+function WeeklyStudyGrid({ universe }) {
+  const streak = universe?.study_streak ?? 0
+  const activeSet = new Set(universe?.activity_days ?? [])
+  const todayStr = universe?.today  // 'YYYY-MM-DD' (UTC) — backend's streak anchor
+
+  // Anchor the 7-day window on the backend's "today" so the date keys we
+  // generate here line up exactly with the strings in activity_days (both
+  // UTC). Without this anchor a FE-local vs BE-UTC mismatch could shift a
+  // dot by a day around midnight. When `universe` failed to load we still
+  // render 7 inactive buckets so the grid layout doesn't jump.
+  const anchor = todayStr ? new Date(todayStr + 'T00:00:00Z') : null
 
   const days = []
   for (let i = 6; i >= 0; i--) {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
-    days.push({ date: d, active: activeDays.has(d.toDateString()) })
+    if (anchor) {
+      const d = new Date(anchor)
+      d.setUTCDate(d.getUTCDate() - i)
+      const key = d.toISOString().slice(0, 10)
+      days.push({ date: d, active: activeSet.has(key), utc: true })
+    } else {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      days.push({ date: d, active: false, utc: false })
+    }
   }
-
-  let streak = 0
-  for (let i = days.length - 1; i >= 0; i--) {
-    if (days[i].active) streak++
-    else break
-  }
-
-  const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
   return (
     <div className="card p-4 mb-5">
       <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-3">This Week</p>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5">
-          {days.map(({ date, active }, i) => (
+          {days.map(({ date, active, utc }, i) => (
             <div key={i} className="flex flex-col items-center gap-1">
               <div
                 className={`w-5 h-5 rounded-full transition-colors ${active ? 'bg-accent' : 'bg-white/[0.06]'}`}
-                title={date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                title={date.toLocaleDateString('en-US', {
+                  weekday: 'short', month: 'short', day: 'numeric',
+                  ...(utc ? { timeZone: 'UTC' } : {}),
+                })}
               />
-              <span className="text-[9px] text-ink-faint select-none">{DAY_LABELS[date.getDay()]}</span>
+              <span className="text-[9px] text-ink-faint select-none">
+                {DAY_LABELS[utc ? date.getUTCDay() : date.getDay()]}
+              </span>
             </div>
           ))}
         </div>
@@ -354,6 +372,11 @@ export default function Dashboard() {
   const [heroHidden, setHeroHidden] = useState(false)
   const [quizHistory, setQuizHistory] = useState([])
   const [recentNotes, setRecentNotes] = useState([])
+  // Canonical study-streak / activity-days payload from /profile/study-universe.
+  // The old per-day derivation on the client was wrong (capped notes slice
+  // + no flashcards), so the streak got stuck at "1". This is now the only
+  // source for the WeeklyStudyGrid's streak number AND active-day dots.
+  const [universe, setUniverse] = useState(null)
   const [studyNowLoading, setStudyNowLoading] = useState(false)
 
   useEffect(() => {
@@ -362,12 +385,16 @@ export default function Dashboard() {
       api.getGaps(),
       api.getQuizHistory(),
       api.getNotes(),
-    ]).then(([statsRes, gapsRes, historyRes, notesRes]) => {
+      api.studyUniverse(),
+    ]).then(([statsRes, gapsRes, historyRes, notesRes, universeRes]) => {
       if (statsRes.status === 'fulfilled') setStats(statsRes.value)
       else setError(statsRes.reason?.message ?? 'Failed to load stats')
       setGaps(gapsRes.status === 'fulfilled' ? (gapsRes.value ?? []) : [])
       setQuizHistory(historyRes.status === 'fulfilled' ? (historyRes.value ?? []) : [])
+      // recentNotes is still capped at 5 because ActivityFeed only renders
+      // the 5 most recent notes — but it is NO LONGER fed to the streak grid.
       setRecentNotes(notesRes.status === 'fulfilled' ? (notesRes.value ?? []).slice(0, 5) : [])
+      setUniverse(universeRes.status === 'fulfilled' ? (universeRes.value ?? null) : null)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -466,7 +493,7 @@ export default function Dashboard() {
           {stats && (
             <>
               {/* Weekly study grid + streak */}
-              <WeeklyStudyGrid quizHistory={quizHistory} notes={recentNotes} />
+              <WeeklyStudyGrid universe={universe} />
 
               {/* Stat cards */}
               <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-3"><span className="w-1 h-1 rounded-full bg-accent inline-block mr-2 align-middle" />Your Stats</h2>

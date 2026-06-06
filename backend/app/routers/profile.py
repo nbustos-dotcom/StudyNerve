@@ -182,6 +182,14 @@ async def study_universe(
         "total_flashcards_reviewed": total_flashcards_reviewed,
         "study_streak": streak,
         "total_study_days": len(active_days),
+        # ISO YYYY-MM-DD strings (UTC) of every day in the last 30 with any
+        # note/attempt/flashcard activity. Used by the Dashboard "This Week"
+        # grid so it shares the same source-of-truth as study_streak.
+        "activity_days": sorted(d.isoformat() for d in active_days),
+        # The UTC "today" anchor the streak walk used. The client renders the
+        # 7-day grid relative to this so its date keys line up exactly with
+        # the activity_days strings above (no FE-local vs BE-UTC drift).
+        "today": today.isoformat(),
         "subjects": subjects,
         "notes": notes_list,
     }

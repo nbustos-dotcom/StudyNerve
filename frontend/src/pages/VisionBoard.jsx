@@ -348,8 +348,14 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
     const t = titleDraft.trim()
     setEditingTitle(false)
     if (!t || t === board.title) return
+    const prevTitle = board.title
     setBoard(prev => ({ ...prev, title: t }))
-    try { await api.visionUpdateBoard(boardId, { title: t }) } catch {}
+    try {
+      await api.visionUpdateBoard(boardId, { title: t })
+    } catch {
+      setBoard(prev => ({ ...prev, title: prevTitle }))
+      showToast?.("Couldn't save the title — try again.", 'error')
+    }
   }
 
   function updateNode(updated) {
@@ -357,6 +363,9 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
   }
 
   async function handleToggle(node) {
+    // Optimistic flip so the checkbox feels instant; rolled back on failure.
+    const optimistic = { ...node, is_completed: !node.is_completed }
+    updateNode(optimistic)
     try {
       const updated = await api.visionUpdateNode(node.id, { is_completed: !node.is_completed })
       updateNode(updated)
@@ -369,7 +378,10 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
           showToast?.('Board complete! Great work! 🎯', 'success', 4000)
         }
       }
-    } catch {}
+    } catch {
+      updateNode(node)
+      showToast?.("Couldn't update that step — try again.", 'error')
+    }
   }
 
   async function handleBreakdown() {
@@ -389,7 +401,9 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
         const created = await createNodesFromItems(result.items, step.id)
         setBoard(prev => ({ ...prev, nodes: [...(prev.nodes || []), ...created] }))
       }
-    } catch {}
+    } catch {
+      showToast?.("AI couldn't expand that step — try again.", 'error')
+    }
   }
 
   async function handleAddStep(e) {
@@ -405,7 +419,10 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
       setBoard(prev => ({ ...prev, nodes: [...(prev.nodes || []), node] }))
       setNewStepTitle('')
       setAddingStep(false)
-    } catch {}
+    } catch {
+      // Leave the input populated so the user can retry without re-typing.
+      showToast?.("Couldn't add that step — try again.", 'error')
+    }
   }
 
   // Drag to reorder
@@ -431,15 +448,29 @@ function BoardDetail({ boardId, onBack, initialBreakdown }) {
     setDragOverIdx(null)
     if (fromIdx === null || fromIdx === targetIdx) return
 
+    // Snapshot for rollback BEFORE we touch any state.
+    const prevNodes = board?.nodes ? [...board.nodes] : []
+
     const steps = [...sortedTopSteps]
     const [moved] = steps.splice(fromIdx, 1)
     steps.splice(targetIdx, 0, moved)
 
+    // Update y_position locally too — the previous version only reordered the
+    // array, but the render-time sort keys off y_position so the visual order
+    // would snap back on the next render. Now the optimistic reorder is real.
+    const reorderedSteps = steps.map((s, i) => ({ ...s, y_position: i * 100 }))
     const subNodes = (board?.nodes || []).filter(n => n.parent_step_id)
-    setBoard(prev => ({ ...prev, nodes: [...steps, ...subNodes] }))
+    setBoard(prev => ({ ...prev, nodes: [...reorderedSteps, ...subNodes] }))
 
     for (let i = 0; i < steps.length; i++) {
-      try { await api.visionMoveNode(steps[i].id, 0, i * 100) } catch {}
+      try {
+        await api.visionMoveNode(steps[i].id, 0, i * 100)
+      } catch {
+        // Bail on first failure so we don't keep persisting a partial order.
+        setBoard(prev => ({ ...prev, nodes: prevNodes }))
+        showToast?.("Couldn't save the new order — try again.", 'error')
+        return
+      }
     }
   }
 

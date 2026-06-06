@@ -438,7 +438,7 @@ export default function Quiz() {
           <Spinner size="lg" />
         </div>
         <p className="text-ink-primary font-semibold text-lg">Generating questions…</p>
-        <p className="text-ink-muted text-sm mt-2">This can take 10–30 seconds with Ollama</p>
+        <p className="text-ink-muted text-sm mt-2">This usually takes 10–30 seconds.</p>
       </div>
     )
   }

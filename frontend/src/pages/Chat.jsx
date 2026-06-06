@@ -546,14 +546,16 @@ export default function Chat() {
     if (isTyping) return
 
     const fileName = sendFile?.name ?? null
+    // Optimistic user bubble — show immediately so the send feels instant.
+    // We DO NOT clear the composer (input / attached file / pendingQuestion)
+    // here: on a cold-start timeout that wipes a typed prompt + attached PDF
+    // and forces the user to re-type and re-attach. Clearing is deferred to
+    // the success branch below so a failed send leaves everything in place
+    // for retry.
     setMessages((prev) => [...prev, { role: 'user', content: text || '', fileName }])
-    setInput('')
-    setAttachedFile(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
     setIsTyping(true)
 
     const priorPending = pendingQuestion
-    setPendingQuestion(null)
     try {
       const res = await api.chatSend({
         message: text || '',
@@ -566,13 +568,19 @@ export default function Chat() {
       sessionIdRef.current = res.session_id
       setSessionId(res.session_id)
       setMessages((prev) => [...prev, { role: 'assistant', content: res.response, providerUsed: res.provider_used }])
+      // Success — now safe to clear the composer + advance pendingQuestion.
       setPendingQuestion(extractPendingQuestion(res.response))
+      setInput('')
+      setAttachedFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
       fetchSessions()
     } catch (e) {
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: `Couldn't reach Nervo: ${e.message}`, error: true },
       ])
+      // Failure path: input, attachedFile, and pendingQuestion are intentionally
+      // left untouched so the user can hit send again without re-typing.
     } finally {
       setIsTyping(false)
       setTimeout(() => inputRef.current?.focus(), 50)

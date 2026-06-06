@@ -158,9 +158,12 @@ export default function StudyUniverse() {
         if (notifTimerRef.current) clearTimeout(notifTimerRef.current)
         setNotifFading(false)
         setNotification('StudyNerve learned something new')
+        // Chain both phases through the same ref so unmount cleanup catches
+        // the fade-out timer too. Previously the inner setTimeout was lost,
+        // letting setNotification(null) fire on an unmounted component.
         notifTimerRef.current = setTimeout(() => {
           setNotifFading(true)
-          setTimeout(() => setNotification(null), 300)
+          notifTimerRef.current = setTimeout(() => setNotification(null), 300)
         }, 4000)
       }
       prevInsightCountRef.current = ins.length
@@ -187,26 +190,45 @@ export default function StudyUniverse() {
     return () => ro.disconnect()
   }, [])
 
-  // Bloom + lights
+  // Bloom + lights — must be torn down on unmount or repeat visits to this
+  // route leak WebGL passes/lights into the renderer that react-force-graph-3d
+  // keeps around for its own scene lifecycle.
   useEffect(() => {
     if (!graphRef.current) return
 
+    let bloomPass = null
+    let cancelled = false
+
     import('three/examples/jsm/postprocessing/UnrealBloomPass.js')
       .then(({ UnrealBloomPass }) => {
-        if (!graphRef.current) return
-        const bp = new UnrealBloomPass()
-        bp.strength = 0.9
-        bp.radius = 0.6
-        bp.threshold = 0.1
-        graphRef.current.postProcessingComposer().addPass(bp)
+        if (cancelled || !graphRef.current) return
+        bloomPass = new UnrealBloomPass()
+        bloomPass.strength = 0.9
+        bloomPass.radius = 0.6
+        bloomPass.threshold = 0.1
+        graphRef.current.postProcessingComposer().addPass(bloomPass)
       })
       .catch(() => {})
 
     const scene = graphRef.current.scene()
-    scene.add(new THREE.AmbientLight('#3b1f6e', 0.6))
+    const ambient = new THREE.AmbientLight('#3b1f6e', 0.6)
     const pt = new THREE.PointLight('#7c3aed', 1.2, 400)
     pt.position.set(0, 0, 0)
+    scene.add(ambient)
     scene.add(pt)
+
+    return () => {
+      cancelled = true
+      const g = graphRef.current
+      if (bloomPass) {
+        try { g?.postProcessingComposer()?.removePass(bloomPass) } catch {}
+        try { bloomPass.dispose?.() } catch {}
+      }
+      try { scene.remove(ambient) } catch {}
+      try { scene.remove(pt) } catch {}
+      try { ambient.dispose?.() } catch {}
+      try { pt.dispose?.() } catch {}
+    }
   }, [])
 
   // Camera auto-orbit + core pulse — pauses when isInteractingRef is true
@@ -258,10 +280,15 @@ export default function StudyUniverse() {
     graphRef.current.d3ReheatSimulation()
   }, [graphData])
 
-  // Node entry animation — scale 0→1 with 30ms stagger, cubic ease-out
+  // Node entry animation — scale 0→1 with 30ms stagger, cubic ease-out.
+  // Closure-scoped `cancelled` flag stops the per-node RAF chains on unmount;
+  // tick also bails if the three object has been detached, so it can't
+  // dereference a disposed mesh.
   useEffect(() => {
     if (graphData.nodes.length === 0) return
+    let cancelled = false
     const animTimeout = setTimeout(() => {
+      if (cancelled) return
       const nodes = graphRef.current?.graphData?.()?.nodes ?? []
       const newNodes = nodes.filter(n => !prevNodeIdsRef.current.has(n.id))
       prevNodeIdsRef.current = new Set(nodes.map(n => n.id))
@@ -274,6 +301,7 @@ export default function StudyUniverse() {
         const duration = 800
 
         function tick() {
+          if (cancelled || !obj.parent) return
           const elapsed = Date.now() - startTime
           if (elapsed < 0) { requestAnimationFrame(tick); return }
           const t = Math.min(elapsed / duration, 1)
@@ -285,7 +313,7 @@ export default function StudyUniverse() {
       })
     }, 500)
 
-    return () => clearTimeout(animTimeout)
+    return () => { cancelled = true; clearTimeout(animTimeout) }
   }, [graphData])
 
   function handleInteractionStart() {

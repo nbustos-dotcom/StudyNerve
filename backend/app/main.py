@@ -1,11 +1,9 @@
-import logging
 import os
-import traceback
 from contextlib import asynccontextmanager
 
 print("Starting StudyNerve AI API...", flush=True)
 
-from fastapi import Depends, FastAPI, Header, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -25,8 +23,6 @@ from app.routers.settings import router as settings_router
 # our code, FastAPI, SQLAlchemy, or third-party libs — can leak a Groq /
 # OpenAI / Anthropic / Gemini key. See app/services/quota.py.
 install_redaction_filter()
-
-_isolation_logger = logging.getLogger("user_isolation")
 
 
 @asynccontextmanager
@@ -67,32 +63,6 @@ app.include_router(flashcards.router, prefix="/api")
 app.include_router(subjects.router, prefix="/api")
 
 
-def assert_user_owns(obj, authenticated_user_id: int, label: str = "") -> None:
-    """
-    Runtime isolation check. Call this after any db.get() or query result to
-    verify the returned object belongs to the authenticated user. Logs a CRITICAL
-    warning (and raises 403) if a mismatch is detected — this indicates a data
-    isolation bug before data reaches the response.
-
-    Usage:
-        note = await db.get(Note, note_id)
-        assert_user_owns(note, current_user.id, "Note")
-    """
-    if obj is None:
-        return
-    obj_uid = getattr(obj, "user_id", None)
-    if obj_uid is not None and obj_uid != authenticated_user_id:
-        msg = (
-            f"USER ISOLATION VIOLATION — {label or type(obj).__name__} "
-            f"id={getattr(obj, 'id', '?')} has user_id={obj_uid} "
-            f"but authenticated user is {authenticated_user_id}"
-        )
-        _isolation_logger.critical(msg)
-        print(f"[SECURITY] {msg}", flush=True)
-        from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="Access denied")
-
-
 @app.get("/api/usage")
 async def get_usage(current_user: User = Depends(get_current_user)):
     return usage_tracker.get_usage(current_user.id)
@@ -106,16 +76,15 @@ async def health():
 @app.get("/api/test-providers")
 async def test_providers(
     current_user: User = Depends(get_current_user),
-    authorization: str | None = Header(default=None),
 ):
     """
-    Smoke-test every configured LLM provider.
+    Smoke-test every configured LLM provider against the authenticated user.
 
-    - No auth required, but if a Bearer token is supplied the endpoint will
-      look up that user's saved provider + API key from the database and
-      test with those instead of the environment-variable defaults.
-    - For the user's selected provider, their saved key is used (key_source="user").
-    - For all other providers, the env-var key is used (key_source="env").
+    Requires a valid Bearer token — auth is enforced by Depends(get_current_user).
+
+    - For the user's selected provider, their saved API key is used
+      (key_source="user_saved").
+    - For all other providers, the env-var key is used (key_source="env_var").
     - Full tracebacks + API response bodies are printed to the server console
       on failure so you can see exactly what the remote API returned.
     """
@@ -123,36 +92,30 @@ async def test_providers(
     import traceback as _tb
 
     import httpx as _httpx
+    from sqlalchemy import select as _select
 
     from app.config import settings as _s
+    from app.crypto import decrypt_secret as _decrypt_secret
+    from app.database import AsyncSessionLocal as _ASL
+    from app.models import UserSettings as _US
 
-    # ── Resolve user's saved provider + key (if a token was sent) ────────────
+    # ── Resolve the authenticated user's saved provider + key ────────────────
+    # current_user.id comes from the JWT via Depends — no need to re-decode it.
+    # The key is stored encrypted-at-rest (see settings.py:57); decrypt before
+    # use so we send the real key to the provider, not the Fernet blob.
     user_saved_provider: str | None = None
     user_saved_key: str | None = None
-
-    if authorization and authorization.startswith("Bearer "):
-        _token = authorization[7:]
-        try:
-            from jose import JWTError, jwt as _jwt
-            _payload = _jwt.decode(_token, _s.SECRET_KEY, algorithms=["HS256"])
-            _user_id = int(_payload.get("sub", 0))
-            if _user_id:
-                from sqlalchemy import select as _select
-                from app.database import AsyncSessionLocal as _ASL
-                from app.models import UserSettings as _US
-                async with _ASL() as _db:
-                    _row = await _db.scalar(_select(_US).where(_US.user_id == _user_id))
-                    if _row:
-                        user_saved_provider = _row.llm_provider
-                        user_saved_key = _row.llm_api_key or None
-                print(
-                    f"[test-providers] user={_user_id} "
-                    f"saved_provider={user_saved_provider} "
-                    f"saved_key_set={bool(user_saved_key)}",
-                    flush=True,
-                )
-        except Exception:
-            print(f"[test-providers] could not decode auth token:\n{_tb.format_exc()}", flush=True)
+    async with _ASL() as _db:
+        _row = await _db.scalar(_select(_US).where(_US.user_id == current_user.id))
+        if _row:
+            user_saved_provider = _row.llm_provider
+            user_saved_key = _decrypt_secret(_row.llm_api_key) if _row.llm_api_key else None
+    print(
+        f"[test-providers] user={current_user.id} "
+        f"saved_provider={user_saved_provider} "
+        f"saved_key_set={bool(user_saved_key)}",
+        flush=True,
+    )
 
     results = []
     _user_msg = [{"role": "user", "content": "Say hello in one sentence."}]
@@ -348,26 +311,3 @@ async def test_providers(
     }
 
 
-@app.get("/api/test-gemini")
-async def test_gemini(current_user: User = Depends(get_current_user)):
-    import asyncio
-    from app.config import settings
-
-    api_key = settings.GEMINI_API_KEY
-    if not api_key:
-        return {"ok": False, "error": "GEMINI_API_KEY is not set in .env or environment"}
-
-    try:
-        import google.generativeai as genai
-    except ImportError:
-        return {"ok": False, "error": "google-generativeai package not installed"}
-
-    try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        response = await asyncio.to_thread(model.generate_content, "Say hello")
-        return {"ok": True, "response": response.text}
-    except Exception as exc:
-        tb = traceback.format_exc()
-        print(tb, flush=True)
-        return {"ok": False, "error": str(exc), "traceback": tb}

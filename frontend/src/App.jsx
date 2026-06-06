@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import OnboardingWizard from './components/OnboardingWizard'
 import CommandPalette from './components/CommandPalette'
 import { ToastProvider } from './components/Toast'
+import WarmingBanner from './components/WarmingBanner'
 import Canvas from './pages/Canvas'
 import Flashcards from './pages/Flashcards'
 import Chat from './pages/Chat'
@@ -171,39 +173,57 @@ export default function App() {
   if (!user) {
     return (
       <ToastProvider>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login onAuth={handleAuth} />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <WarmingBanner />
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login onAuth={handleAuth} />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ErrorBoundary>
       </ToastProvider>
     )
   }
 
   return (
     <ToastProvider>
+      <WarmingBanner />
       {showWizard && <OnboardingWizard onComplete={handleWizardComplete} />}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
-      <Routes>
-        <Route path="/login" element={<Navigate to="/" replace />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/" element={<Layout user={user} onLogout={handleLogout} onOpenPalette={() => setPaletteOpen(true)} />}>
-          <Route index element={<Dashboard />} />
-          <Route path="notes" element={<Notes />} />
-          <Route path="notes/:noteId/study-guide" element={<StudyGuide />} />
-          <Route path="quiz" element={<Quiz />} />
-          <Route path="chat" element={<Chat />} />
-          <Route path="flashcards" element={<Flashcards />} />
-          <Route path="canvas" element={<Canvas />} />
-          <Route path="vision" element={<VisionBoard />} />
-          <Route path="universe" element={<StudyUniverse />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/" element={<Layout user={user} onLogout={handleLogout} onOpenPalette={() => setPaletteOpen(true)} />}>
+            <Route index element={<Dashboard />} />
+            <Route path="notes" element={<Notes />} />
+            <Route
+              path="notes/:noteId/study-guide"
+              element={<ErrorBoundary label="The study guide"><StudyGuide /></ErrorBoundary>}
+            />
+            <Route
+              path="quiz"
+              element={<ErrorBoundary label="The quiz"><Quiz /></ErrorBoundary>}
+            />
+            <Route path="chat" element={<Chat />} />
+            <Route path="flashcards" element={<Flashcards />} />
+            <Route path="canvas" element={<Canvas />} />
+            <Route
+              path="vision"
+              element={<ErrorBoundary label="The vision board"><VisionBoard /></ErrorBoundary>}
+            />
+            <Route
+              path="universe"
+              element={<ErrorBoundary label="AI Brain"><StudyUniverse /></ErrorBoundary>}
+            />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+        </Routes>
+      </ErrorBoundary>
     </ToastProvider>
   )
 }

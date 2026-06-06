@@ -2,6 +2,15 @@ import { API_BASE_URL } from './config.js'
 
 const BASE = `${API_BASE_URL}/api`
 
+// Per-request hard ceiling. The backend is on Render free tier and may need
+// 30–60s to cold-start; 70s gives one cold start + the real work room without
+// letting a truly hung request stack forever.
+const REQUEST_TIMEOUT_MS = 70_000
+
+// Threshold after which an in-flight request is treated as "slow" and the
+// global warming banner is shown.
+const WARMING_THRESHOLD_MS = 3_000
+
 function getToken() {
   return localStorage.getItem('mt_token')
 }
@@ -31,6 +40,70 @@ function notifyQuota(status) {
   }
 }
 
+// ── Warming banner registry ─────────────────────────────────────────────────
+// Mirror of the toast bridge: WarmingBanner subscribes here and we flip the
+// flag when any single request has been pending >WARMING_THRESHOLD_MS. The
+// flag clears when the pending count drops back to zero.
+let _warming = false
+let _pendingCount = 0
+let _reqId = 0
+const _slowTimers = new Map()
+const _warmingHandlers = new Set()
+
+export function subscribeWarming(fn) {
+  _warmingHandlers.add(fn)
+  fn(_warming)
+  return () => { _warmingHandlers.delete(fn) }
+}
+
+function _setWarming(next) {
+  if (_warming === next) return
+  _warming = next
+  for (const fn of _warmingHandlers) {
+    try { fn(next) } catch { /* subscriber threw — ignore */ }
+  }
+}
+
+function _onRequestStart() {
+  const id = ++_reqId
+  _pendingCount++
+  _slowTimers.set(id, setTimeout(() => _setWarming(true), WARMING_THRESHOLD_MS))
+  return id
+}
+
+function _onRequestEnd(id) {
+  const t = _slowTimers.get(id)
+  if (t) {
+    clearTimeout(t)
+    _slowTimers.delete(id)
+  }
+  _pendingCount = Math.max(0, _pendingCount - 1)
+  if (_pendingCount === 0) _setWarming(false)
+}
+
+// ── Tracked fetch with timeout ──────────────────────────────────────────────
+// Single chokepoint for every outbound fetch in this module so timeout +
+// warming tracking apply uniformly. AbortError is re-thrown as a friendly
+// Error so callers don't need to know about DOMException.
+async function trackedFetch(url, opts = {}) {
+  const id = _onRequestStart()
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal })
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error(
+        'Request timed out — the server is taking too long. Try again in a moment.',
+      )
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+    _onRequestEnd(id)
+  }
+}
+
 async function reqMultipart(method, path, formData) {
   const token = getToken()
   const headers = {}
@@ -39,7 +112,7 @@ async function reqMultipart(method, path, formData) {
 
   const url = `${BASE}${path}`
 
-  const res = await fetch(url, { method, headers, body: formData })
+  const res = await trackedFetch(url, { method, headers, body: formData })
 
   if (res.status === 204) return null
   let data
@@ -69,7 +142,7 @@ async function req(method, path, body) {
   if (body) headers['Content-Type'] = 'application/json'
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await trackedFetch(`${BASE}${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -169,7 +242,7 @@ export const api = {
     fd.append('file', file)
     if (title) fd.append('title', title)
     if (subject) fd.append('subject', subject)
-    return fetch(`${BASE}/notes/upload`, {
+    return trackedFetch(`${BASE}/notes/upload`, {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: fd,

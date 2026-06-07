@@ -31,10 +31,9 @@ const DEVICE_SCALE_FACTOR = 2              // crisp 2× output for landing
 
 // Each entry: app route + the filename Landing.jsx hard-codes.
 // settleMs = extra wait after networkidle (the 3D force-graph needs to tick).
+// The new short landing only references ai-brain.png; the older dashboard /
+// notes / quiz screenshots were dropped along with their landing sections.
 const TARGETS = [
-  { route: '/',         out: 'dashboard.png', settleMs: 800  },
-  { route: '/notes',    out: 'notes.png',     settleMs: 600  },
-  { route: '/quiz',     out: 'quiz.png',      settleMs: 600  },
   { route: '/universe', out: 'ai-brain.png',  settleMs: 5500 },
 ]
 

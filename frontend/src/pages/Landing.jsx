@@ -5,6 +5,209 @@ import {
 } from 'lucide-react'
 import Logo from '../components/Logo'
 
+// ── Background atmosphere ────────────────────────────────────────────────────
+// Single fixed-position layer with four ingredients, in stacking order:
+//   1. Three off-center indigo gradient washes (depth — replaces the flat
+//      single-blob radial that read as generic).
+//   2. A slowly-drifting neural constellation on <canvas> — a faint echo of
+//      the AI Brain product. Sparse, low-alpha, never busy.
+//   3. A tiled SVG-noise grain — the detail that makes the dark feel crafted
+//      rather than rendered.
+//   4. An edge vignette — corners just slightly darker than the center so
+//      the dark has dimension.
+// Everything is `pointer-events: none`, fixed, and behind the page via z-index.
+
+// Noise tile is computed once at module load and reused across instances.
+// `feTurbulence` runs when the browser rasterizes the data URI; the result is
+// cached as an image, so it costs us nothing per paint.
+const NOISE_URI = `url("data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'>
+    <filter id='n'>
+      <feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/>
+      <feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.5 0'/>
+    </filter>
+    <rect width='100%' height='100%' filter='url(#n)'/>
+  </svg>`,
+)}")`
+
+function LandingBackground() {
+  const canvasRef = useRef(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+    let nodes = []
+    let raf = null
+    let lastT = 0
+    let dims = { w: 0, h: 0 }
+
+    function sizeCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      const w = window.innerWidth
+      const h = window.innerHeight
+      canvas.width = w * dpr
+      canvas.height = h * dpr
+      canvas.style.width = w + 'px'
+      canvas.style.height = h + 'px'
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      dims = { w, h }
+    }
+
+    function seed() {
+      // Density: dialled down on mobile so it stays a whisper, not a grid.
+      // Desktop scales with viewport area but caps out so big monitors don't
+      // turn into a mesh.
+      const isMobile = dims.w < 640
+      const target = isMobile
+        ? 22
+        : Math.min(56, Math.round((dims.w * dims.h) / 32000))
+      nodes = []
+      for (let i = 0; i < target; i++) {
+        nodes.push({
+          x: Math.random() * dims.w,
+          y: Math.random() * dims.h,
+          // ~3–9 px/s drift — slow enough to feel ambient, never busy.
+          vx: (Math.random() - 0.5) * 0.012,
+          vy: (Math.random() - 0.5) * 0.012,
+        })
+      }
+    }
+
+    function draw() {
+      const { w, h } = dims
+      ctx.clearRect(0, 0, w, h)
+
+      // Lines first so nodes sit on top of their own connections.
+      const CONN = 140
+      ctx.lineWidth = 0.5
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j]
+          const dx = a.x - b.x, dy = a.y - b.y
+          const d = Math.hypot(dx, dy)
+          if (d > CONN) continue
+          const alpha = (1 - d / CONN) * 0.07
+          ctx.strokeStyle = `rgba(165,180,252,${alpha.toFixed(3)})`
+          ctx.beginPath()
+          ctx.moveTo(a.x, a.y)
+          ctx.lineTo(b.x, b.y)
+          ctx.stroke()
+        }
+      }
+
+      ctx.fillStyle = 'rgba(199,210,254,0.20)'
+      for (const n of nodes) {
+        ctx.beginPath()
+        ctx.arc(n.x, n.y, 1.1, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+
+    function step(t) {
+      // Cap delta so a backgrounded tab returning doesn't teleport everything.
+      const dt = lastT === 0 ? 16 : Math.min(t - lastT, 50)
+      lastT = t
+
+      const { w, h } = dims
+      for (const n of nodes) {
+        n.x += n.vx * dt
+        n.y += n.vy * dt
+        // Edge wrap (cleaner than bounce — no clusters at the walls).
+        if (n.x < -10) n.x = w + 10
+        else if (n.x > w + 10) n.x = -10
+        if (n.y < -10) n.y = h + 10
+        else if (n.y > h + 10) n.y = -10
+      }
+      draw()
+      raf = requestAnimationFrame(step)
+    }
+
+    sizeCanvas()
+    seed()
+    draw()
+    if (!reduced) {
+      lastT = 0
+      raf = requestAnimationFrame(step)
+    }
+
+    const onResize = () => {
+      sizeCanvas()
+      seed()
+      draw()
+    }
+    window.addEventListener('resize', onResize)
+
+    return () => {
+      window.removeEventListener('resize', onResize)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [])
+
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+    >
+      {/* 1. Three indigo washes — off-center, different sizes, blurred soft. */}
+      <div
+        className="absolute"
+        style={{
+          top: '-25%', right: '-15%', width: '80%', height: '75%',
+          background:
+            'radial-gradient(ellipse at center, rgba(99,102,241,0.18) 0%, transparent 60%)',
+          filter: 'blur(40px)',
+        }}
+      />
+      <div
+        className="absolute"
+        style={{
+          top: '35%', left: '-12%', width: '55%', height: '55%',
+          background:
+            'radial-gradient(ellipse at center, rgba(99,102,241,0.11) 0%, transparent 65%)',
+          filter: 'blur(40px)',
+        }}
+      />
+      <div
+        className="absolute"
+        style={{
+          bottom: '-12%', right: '8%', width: '45%', height: '45%',
+          background:
+            'radial-gradient(ellipse at center, rgba(129,140,248,0.09) 0%, transparent 65%)',
+          filter: 'blur(40px)',
+        }}
+      />
+
+      {/* 2. Drifting neural constellation. */}
+      <canvas ref={canvasRef} className="absolute inset-0" />
+
+      {/* 3. Grain — the detail that separates designed from rendered. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: NOISE_URI,
+          backgroundRepeat: 'repeat',
+          opacity: 0.04,
+          mixBlendMode: 'overlay',
+        }}
+      />
+
+      {/* 4. Edge vignette — gives the dark some dimension toward the corners. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 90% 75% at 50% 50%, transparent 55%, rgba(0,0,0,0.45) 100%)',
+        }}
+      />
+    </div>
+  )
+}
+
 // ── Reveal ───────────────────────────────────────────────────────────────────
 // Lightweight scroll-in animation. No library — single IntersectionObserver,
 // runs once per element. Honors `prefers-reduced-motion` by snapping to the
@@ -98,16 +301,6 @@ function Nav() {
 function Hero() {
   return (
     <section className="relative px-6 pt-32 pb-24 sm:pt-40 sm:pb-32">
-      {/* Soft indigo wash behind the headline */}
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10 pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99,102,241,0.18) 0%, transparent 60%)',
-        }}
-      />
-
       <div className="max-w-3xl mx-auto text-center">
         <Reveal>
           <span
@@ -288,14 +481,6 @@ function Features() {
 function FinalCTA() {
   return (
     <section className="relative px-6 py-32">
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10 pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(ellipse 50% 80% at 50% 50%, rgba(99,102,241,0.16) 0%, transparent 60%)',
-        }}
-      />
       <Reveal className="max-w-2xl mx-auto text-center">
         <h2
           className="text-ink-primary font-bold"
@@ -347,6 +532,7 @@ function Footer() {
 export default function Landing() {
   return (
     <div className="relative min-h-screen bg-deep-bg text-ink-primary font-sans antialiased overflow-x-hidden">
+      <LandingBackground />
       <Nav />
       <main className="relative">
         <Hero />

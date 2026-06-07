@@ -11,11 +11,19 @@ export default function Login({ onAuth }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  // Signup-only: gates `register` submit. Required by both the HTML5
+  // `required` attribute on the checkbox and a JS guard below — login flow
+  // never reads this state.
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (mode === 'register' && !acceptedTerms) {
+      setError('Please agree to the Terms of Service and Privacy Policy to continue.')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -108,6 +116,42 @@ export default function Login({ onAuth }) {
               )}
             </div>
 
+            {mode === 'register' && (
+              <div className="flex items-start gap-2.5 pt-1">
+                <input
+                  id="accept-terms"
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  required
+                  className="mt-0.5 w-4 h-4 rounded accent-accent flex-shrink-0 cursor-pointer"
+                />
+                <label
+                  htmlFor="accept-terms"
+                  className="text-xs text-ink-muted leading-snug cursor-pointer select-none"
+                >
+                  I agree to the{' '}
+                  <Link
+                    to="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent hover:text-accent-hover underline underline-offset-2"
+                  >
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link
+                    to="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent hover:text-accent-hover underline underline-offset-2"
+                  >
+                    Privacy Policy
+                  </Link>
+                </label>
+              </div>
+            )}
+
             {error && (
               <div className="rounded-md px-3 py-2.5 text-xs text-red-300" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 {error}
@@ -116,7 +160,7 @@ export default function Login({ onAuth }) {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (mode === 'register' && !acceptedTerms)}
               className="btn-primary w-full py-2 font-medium"
             >
               {loading

@@ -114,11 +114,24 @@ function courseAccent(name = '') {
   return COURSE_ACCENTS[h % COURSE_ACCENTS.length]
 }
 
-const LS_KEY = 'hidden_canvas_courses'
+// Per-user hidden-Canvas-courses key. Canvas connections are user-scoped
+// (each account has its own Canvas token), so the hidden-course list must
+// be too — same namespacing pattern as quizProgressKey()/flashcardProgressKey().
+function hiddenCanvasCoursesKey() {
+  try {
+    const stored = localStorage.getItem('mt_user')
+    const id = stored ? JSON.parse(stored)?.id : null
+    return id != null ? `hidden_canvas_courses:${id}` : null
+  } catch {
+    return null
+  }
+}
 
 function readHidden() {
   try {
-    const raw = localStorage.getItem(LS_KEY)
+    const key = hiddenCanvasCoursesKey()
+    if (!key) return new Set()
+    const raw = localStorage.getItem(key)
     return raw ? new Set(JSON.parse(raw)) : new Set()
   } catch {
     return new Set()
@@ -126,7 +139,8 @@ function readHidden() {
 }
 
 function writeHidden(set) {
-  localStorage.setItem(LS_KEY, JSON.stringify([...set]))
+  const key = hiddenCanvasCoursesKey()
+  if (key) localStorage.setItem(key, JSON.stringify([...set]))
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────

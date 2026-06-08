@@ -56,7 +56,21 @@ function timeColor(secs) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 const PHASES = { CONFIGURE: 'configure', GENERATING: 'generating', ACTIVE: 'active', SUMMARY: 'summary', REVIEW: 'review' }
-const QUIZ_STORAGE_KEY = 'studynerve_quiz_progress'
+
+// Per-user quiz-progress key. Derived at call time from the same `mt_user`
+// localStorage record that App.jsx's useAuth hook owns — this module has no
+// React auth context to pull from. Returns `null` when no user is logged in,
+// which callers treat as "skip read/write/clear" (no resume banner, no save).
+// Mirrors the namespacing in App.jsx:28-30 (onboardedKey).
+function quizProgressKey() {
+  try {
+    const stored = localStorage.getItem('mt_user')
+    const id = stored ? JSON.parse(stored)?.id : null
+    return id != null ? `studynerve_quiz_progress:${id}` : null
+  } catch {
+    return null
+  }
+}
 
 export default function Quiz() {
   const navigate = useNavigate()
@@ -121,14 +135,18 @@ export default function Quiz() {
     }
 
     try {
-      const saved = localStorage.getItem(QUIZ_STORAGE_KEY)
-      if (saved) setSavedProgress(JSON.parse(saved))
+      const key = quizProgressKey()
+      if (key) {
+        const saved = localStorage.getItem(key)
+        if (saved) setSavedProgress(JSON.parse(saved))
+      }
     } catch {}
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (phase === PHASES.ACTIVE && questions.length > 0) {
-      localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify({ questions, currentIdx, results, sessionId }))
+      const key = quizProgressKey()
+      if (key) localStorage.setItem(key, JSON.stringify({ questions, currentIdx, results, sessionId }))
     }
   }, [phase, currentIdx, results, questions, sessionId])
 
@@ -203,7 +221,8 @@ export default function Quiz() {
   }
 
   function dismissResume() {
-    localStorage.removeItem(QUIZ_STORAGE_KEY)
+    const key = quizProgressKey()
+    if (key) localStorage.removeItem(key)
     setSavedProgress(null)
   }
 
@@ -295,7 +314,8 @@ export default function Quiz() {
     const allResults = finalResults ?? results
     const isLast = currentIdx === questions.length - 1
     if (isLast) {
-      localStorage.removeItem(QUIZ_STORAGE_KEY)
+      const key = quizProgressKey()
+      if (key) localStorage.removeItem(key)
       setSavedProgress(null)
 
       // Save history before ending session
@@ -340,7 +360,8 @@ export default function Quiz() {
   }
 
   function handleReset() {
-    localStorage.removeItem(QUIZ_STORAGE_KEY)
+    const key = quizProgressKey()
+    if (key) localStorage.removeItem(key)
     setSavedProgress(null)
     setPhase(PHASES.CONFIGURE)
     setQuestions([])
@@ -358,7 +379,8 @@ export default function Quiz() {
   }
 
   async function practiceWeakTopic(noteId) {
-    localStorage.removeItem(QUIZ_STORAGE_KEY)
+    const key = quizProgressKey()
+    if (key) localStorage.removeItem(key)
     setSavedProgress(null)
     setQuestions([])
     setResults([])

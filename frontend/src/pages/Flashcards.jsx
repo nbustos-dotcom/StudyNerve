@@ -2,7 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import Spinner from '../components/Spinner'
 
-const FLASHCARD_STORAGE_KEY = 'studynerve_flashcard_progress'
+// Per-user flashcard-progress key. Mirrors quizProgressKey() in Quiz.jsx and
+// onboardedKey() in App.jsx — same module-scope localStorage(mt_user) read
+// since there's no React auth context. Returns `null` when no user is logged
+// in, which callers treat as "skip read/write/clear" (no resume, no save).
+function flashcardProgressKey() {
+  try {
+    const stored = localStorage.getItem('mt_user')
+    const id = stored ? JSON.parse(stored)?.id : null
+    return id != null ? `studynerve_flashcard_progress:${id}` : null
+  } catch {
+    return null
+  }
+}
 
 // ── My Decks View ─────────────────────────────────────────────────────────────
 
@@ -233,13 +245,16 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
     }
 
     try {
-      const raw = localStorage.getItem(FLASHCARD_STORAGE_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        if (parsed.cards?.length > 0) {
-          setSavedProgress(parsed)
-          setLoading(false)
-          return
+      const key = flashcardProgressKey()
+      if (key) {
+        const raw = localStorage.getItem(key)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (parsed.cards?.length > 0) {
+            setSavedProgress(parsed)
+            setLoading(false)
+            return
+          }
         }
       }
     } catch {}
@@ -250,11 +265,14 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
     if (initialCards) return
     if (!loading && activeDeck.length > 0 && !done) {
       try {
-        localStorage.setItem(FLASHCARD_STORAGE_KEY, JSON.stringify({
-          cards: activeDeck,
-          index,
-          skippedOnce: [...skippedOnce],
-        }))
+        const key = flashcardProgressKey()
+        if (key) {
+          localStorage.setItem(key, JSON.stringify({
+            cards: activeDeck,
+            index,
+            skippedOnce: [...skippedOnce],
+          }))
+        }
       } catch {}
     }
   }, [activeDeck, index, done, loading, skippedOnce, initialCards])
@@ -320,7 +338,8 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
   }
 
   function handleStartNew() {
-    localStorage.removeItem(FLASHCARD_STORAGE_KEY)
+    const key = flashcardProgressKey()
+    if (key) localStorage.removeItem(key)
     setSavedProgress(null)
     loadCards()
   }
@@ -337,7 +356,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
     setRatings(prev => ({ ...prev, [difficulty]: prev[difficulty] + 1 }))
     const next = index + 1
     if (next >= activeDeck.length) {
-      if (!initialCards) localStorage.removeItem(FLASHCARD_STORAGE_KEY)
+      if (!initialCards) { const key = flashcardProgressKey(); if (key) localStorage.removeItem(key) }
       setDone(true)
     } else { setIndex(next); setFlipped(false) }
   }
@@ -351,7 +370,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
   function handleNext() {
     const next = index + 1
     if (next >= activeDeck.length) {
-      if (!initialCards) localStorage.removeItem(FLASHCARD_STORAGE_KEY)
+      if (!initialCards) { const key = flashcardProgressKey(); if (key) localStorage.removeItem(key) }
       setDone(true)
     } else { setIndex(next); setFlipped(false) }
   }
@@ -367,7 +386,7 @@ function StudyView({ initialCards = null, deckTitle = null, onBack = null, onGoG
     }
     const next = index + 1
     if (next >= newDeckLength) {
-      if (!initialCards) localStorage.removeItem(FLASHCARD_STORAGE_KEY)
+      if (!initialCards) { const key = flashcardProgressKey(); if (key) localStorage.removeItem(key) }
       setDone(true)
     } else { setIndex(next); setFlipped(false) }
   }

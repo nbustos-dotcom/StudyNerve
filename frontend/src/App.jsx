@@ -33,12 +33,11 @@ function hasSeenOnboarding(userId) {
   if (userId == null) return false
   try {
     if (localStorage.getItem(onboardedKey(userId))) return true
-    // Migrate the legacy global flag to this user, one-shot
-    if (localStorage.getItem('mt_onboarded')) {
-      localStorage.setItem(onboardedKey(userId), '1')
-      return true
-    }
   } catch {}
+  // Legacy global `mt_onboarded` is intentionally NOT migrated here. Doing so
+  // let one account's onboarded state silently apply to the next account on
+  // the same browser. handleLogout removes the legacy key; any pre-existing
+  // legacy-only users will see the wizard once more, which is acceptable.
   return false
 }
 
@@ -69,6 +68,24 @@ function useAuth() {
   }
 
   function handleLogout() {
+    // Capture id before we null out user / mt_user — the namespaced removals
+    // below need it.
+    const id = user?.id
+    // Legacy global keys — one-time cleanup of pre-namespaced blobs left by
+    // older builds. Safe to call even if the key was never set. Each pair
+    // mirrors a fix from the storage-isolation pass.
+    const LEGACY_KEYS = [
+      'studynerve_quiz_progress',
+      'studynerve_flashcard_progress',
+      'hidden_canvas_courses',
+      'mt_onboarded',
+      'tutor_mode',
+      'sn_recent_actions',
+    ]
+    for (const k of LEGACY_KEYS) localStorage.removeItem(k)
+    if (id != null) {
+      for (const k of LEGACY_KEYS) localStorage.removeItem(`${k}:${id}`)
+    }
     localStorage.removeItem('mt_token')
     localStorage.removeItem('mt_user')
     setUser(null)

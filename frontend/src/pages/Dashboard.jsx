@@ -19,7 +19,7 @@ function getGreeting() {
 
 function getUserFirstName() {
   try {
-    const raw = localStorage.getItem('user') || ''
+    const raw = localStorage.getItem('mt_user') || ''
     if (!raw) return ''
     const u = JSON.parse(raw)
     const full = u.name || u.full_name || u.username || u.email || ''

@@ -1,0 +1,34 @@
+[smoke] base=http://localhost:5173
+[smoke] fresh user: smoke+mq4xvvfr3egd@studynerve.test
+
+── RESULTS ──────────────────────────────────────────
+PASS  / (landing + /privacy + /terms)
+         · canvas count=1
+PASS  signup flow
+PASS  / (Dashboard, empty)
+PASS  /notes
+         · clicked Extract topics
+         · topic-like text visible
+PASS  /quiz
+         · clicked Generate
+         · no quiz question UI detected (maybe generation deferred/quota)
+PASS  /chat (Tutor)
+         · sent message
+         · assistant-bubble candidates=0
+PASS  /flashcards
+         · opened Generate view
+         · clicked Generate (best-effort)
+PASS  /universe (AI Brain)
+         · canvas count=1
+PASS  /vision (Vision Board)
+         · no generate CTA visible after fill
+PASS  /notes/:id/study-guide
+         · note_id=17
+PASS  /settings
+
+console.error events: 0
+
+pageerror events: 0
+
+report → C:\Users\nateb\ai-teacher\frontend\scripts\_smoke\report.json
+shots  → C:\Users\nateb\ai-teacher\frontend\scripts\_smoke\shots

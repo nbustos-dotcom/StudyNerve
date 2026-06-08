@@ -3,6 +3,18 @@ import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import MarkdownRenderer from '../components/MarkdownRenderer'
 
+// Per-user tutor-mode preference key. Mirrors quizProgressKey() — explain /
+// socratic / practice should not leak across accounts on a shared browser.
+function tutorModeKey() {
+  try {
+    const stored = localStorage.getItem('mt_user')
+    const id = stored ? JSON.parse(stored)?.id : null
+    return id != null ? `tutor_mode:${id}` : null
+  } catch {
+    return null
+  }
+}
+
 // ── Relative time helper ──────────────────────────────────────────────────────
 
 function formatRelativeTime(isoString) {
@@ -447,7 +459,10 @@ export default function Chat() {
   const [sessions, setSessions] = useState([])
   const [showSidebar, setShowSidebar] = useState(false)
   const [attachedFile, setAttachedFile] = useState(null) // { file, name, previewUrl, isImage }
-  const [tutorMode, setTutorMode] = useState(() => localStorage.getItem('tutor_mode') || 'explain')
+  const [tutorMode, setTutorMode] = useState(() => {
+    const key = tutorModeKey()
+    return (key && localStorage.getItem(key)) || 'explain'
+  })
   const [pendingQuestion, setPendingQuestion] = useState(null)
 
   const bottomRef = useRef(null)
@@ -618,7 +633,8 @@ export default function Chat() {
 
   function changeTutorMode(m) {
     setTutorMode(m)
-    localStorage.setItem('tutor_mode', m)
+    const key = tutorModeKey()
+    if (key) localStorage.setItem(key, m)
   }
 
   function extractPendingQuestion(text) {

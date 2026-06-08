@@ -13,19 +13,33 @@ const ACTIONS = [
   { id: 'settings',    label: 'Settings',      path: '/settings',   shortcut: null,  icon: '⚙️', keywords: ['settings', 'provider', 'api', 'canvas'] },
 ]
 
-const RECENT_KEY = 'sn_recent_actions'
+// Per-user recent-actions key. Mirrors quizProgressKey() — recent palette
+// usage is a per-user behavioral signal and should not leak across accounts.
+function recentActionsKey() {
+  try {
+    const stored = localStorage.getItem('mt_user')
+    const id = stored ? JSON.parse(stored)?.id : null
+    return id != null ? `sn_recent_actions:${id}` : null
+  } catch {
+    return null
+  }
+}
 
 function getRecent() {
   try {
-    return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]')
+    const key = recentActionsKey()
+    if (!key) return []
+    return JSON.parse(localStorage.getItem(key) || '[]')
   } catch {
     return []
   }
 }
 
 function saveRecent(id) {
+  const key = recentActionsKey()
+  if (!key) return
   const prev = getRecent().filter((x) => x !== id)
-  localStorage.setItem(RECENT_KEY, JSON.stringify([id, ...prev].slice(0, 5)))
+  localStorage.setItem(key, JSON.stringify([id, ...prev].slice(0, 5)))
 }
 
 export default function CommandPalette({ open, onClose }) {

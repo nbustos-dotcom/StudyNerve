@@ -59,13 +59,13 @@ function LandingBackground() {
     }
 
     function seed() {
-      // Density: dialled down on mobile so it stays a whisper, not a grid.
-      // Desktop scales with viewport area but caps out so big monitors don't
-      // turn into a mesh.
+      // Density: bumped so the field reads as a neural network, not a few
+      // stray motes. Desktop scales with viewport area, capped so 4K
+      // monitors don't turn into a mesh; mobile stays tasteful.
       const isMobile = dims.w < 640
       const target = isMobile
-        ? 22
-        : Math.min(56, Math.round((dims.w * dims.h) / 32000))
+        ? 32
+        : Math.min(90, Math.round((dims.w * dims.h) / 22000))
       nodes = []
       for (let i = 0; i < target; i++) {
         nodes.push({
@@ -83,15 +83,17 @@ function LandingBackground() {
       ctx.clearRect(0, 0, w, h)
 
       // Lines first so nodes sit on top of their own connections.
-      const CONN = 140
-      ctx.lineWidth = 0.5
+      // Peak line opacity 22%, line width 0.8 — clearly perceptible against
+      // #09090b but still soft enough to feel atmospheric.
+      const CONN = 150
+      ctx.lineWidth = 0.8
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i], b = nodes[j]
           const dx = a.x - b.x, dy = a.y - b.y
           const d = Math.hypot(dx, dy)
           if (d > CONN) continue
-          const alpha = (1 - d / CONN) * 0.07
+          const alpha = (1 - d / CONN) * 0.22
           ctx.strokeStyle = `rgba(165,180,252,${alpha.toFixed(3)})`
           ctx.beginPath()
           ctx.moveTo(a.x, a.y)
@@ -100,10 +102,11 @@ function LandingBackground() {
         }
       }
 
-      ctx.fillStyle = 'rgba(199,210,254,0.20)'
+      // Nodes: 1.7 px radius at 55% opacity — small but plainly visible.
+      ctx.fillStyle = 'rgba(199,210,254,0.55)'
       for (const n of nodes) {
         ctx.beginPath()
-        ctx.arc(n.x, n.y, 1.1, 0, Math.PI * 2)
+        ctx.arc(n.x, n.y, 1.7, 0, Math.PI * 2)
         ctx.fill()
       }
     }
@@ -153,45 +156,51 @@ function LandingBackground() {
       aria-hidden
       className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
     >
-      {/* 1. Three indigo washes — off-center, different sizes, blurred soft. */}
+      {/* 1. Three indigo washes — each centered INSIDE the viewport so the
+             core of the ellipse actually lands in view (the previous values
+             pushed centers off-canvas, leaving only the dim outer tail). */}
+      {/* Wash A — primary, top-right, anchors hero atmosphere */}
       <div
         className="absolute"
         style={{
-          top: '-25%', right: '-15%', width: '80%', height: '75%',
+          top: '0%', right: '0%', width: '62%', height: '60%',
           background:
-            'radial-gradient(ellipse at center, rgba(99,102,241,0.18) 0%, transparent 60%)',
-          filter: 'blur(40px)',
+            'radial-gradient(ellipse at center, rgba(99,102,241,0.32) 0%, transparent 65%)',
+          filter: 'blur(60px)',
         }}
       />
+      {/* Wash B — mid-left, fills the page midpoint */}
       <div
         className="absolute"
         style={{
-          top: '35%', left: '-12%', width: '55%', height: '55%',
+          top: '28%', left: '-5%', width: '55%', height: '55%',
           background:
-            'radial-gradient(ellipse at center, rgba(99,102,241,0.11) 0%, transparent 65%)',
-          filter: 'blur(40px)',
+            'radial-gradient(ellipse at center, rgba(99,102,241,0.22) 0%, transparent 65%)',
+          filter: 'blur(60px)',
         }}
       />
+      {/* Wash C — bottom-right, lifts the FinalCTA region */}
       <div
         className="absolute"
         style={{
-          bottom: '-12%', right: '8%', width: '45%', height: '45%',
+          bottom: '0%', right: '5%', width: '52%', height: '48%',
           background:
-            'radial-gradient(ellipse at center, rgba(129,140,248,0.09) 0%, transparent 65%)',
-          filter: 'blur(40px)',
+            'radial-gradient(ellipse at center, rgba(129,140,248,0.22) 0%, transparent 65%)',
+          filter: 'blur(60px)',
         }}
       />
 
       {/* 2. Drifting neural constellation. */}
       <canvas ref={canvasRef} className="absolute inset-0" />
 
-      {/* 3. Grain — the detail that separates designed from rendered. */}
+      {/* 3. Grain — the detail that separates designed from rendered.
+             Opacity 0.06 reads as a soft texture without graining the type. */}
       <div
         className="absolute inset-0"
         style={{
           backgroundImage: NOISE_URI,
           backgroundRepeat: 'repeat',
-          opacity: 0.04,
+          opacity: 0.06,
           mixBlendMode: 'overlay',
         }}
       />
@@ -325,7 +334,7 @@ function Hero() {
               textWrap: 'balance',
             }}
           >
-            Study smarter, not longer.
+            It&apos;s about you.
           </h1>
         </Reveal>
 
@@ -339,22 +348,11 @@ function Hero() {
               textWrap: 'pretty',
             }}
           >
-            StudyNerve turns your notes into adaptive quizzes that hunt down
-            exactly what you don&apos;t know yet.
+            StudyNerve learns how you learn, finds the gaps you can&apos;t see
+            on your own, and closes them. One-on-one help, minus the price tag.
           </p>
         </Reveal>
 
-        <Reveal delay={180}>
-          <div className="flex items-center justify-center gap-3 mt-10">
-            <CTAButton to="/login?signup=1">Sign up free</CTAButton>
-            <Link
-              to="/login"
-              className="text-sm font-medium text-ink-secondary hover:text-ink-primary px-4 py-2.5 transition-colors"
-            >
-              Log in
-            </Link>
-          </div>
-        </Reveal>
       </div>
 
       {/* Product visual — AI Brain as the signature image */}
@@ -531,7 +529,22 @@ function Footer() {
 
 export default function Landing() {
   return (
-    <div className="relative min-h-screen bg-deep-bg text-ink-primary font-sans antialiased overflow-x-hidden">
+    // `isolate` (CSS `isolation: isolate`) is load-bearing here.
+    //
+    // Without it, our -z-10 LandingBackground and -z-20 base-dark layers paint
+    // in the ROOT html stacking context at level 2 (negative-z group). The
+    // global stylesheet sets a radial-gradient background-image on <body>,
+    // which paints at level 3 (in-flow non-positioned descendants) — directly
+    // ON TOP of everything at level 2. End result: washes + constellation +
+    // grain + vignette get covered by body's bg-image and the page looks flat.
+    //
+    // `isolate` makes the page root form its own stacking context, scoping
+    // the negative-z layers inside it. The wash layers now paint between the
+    // root's bg (transparent) and its content (level 6), out of reach of any
+    // ancestor's painting. The base-dark fixed child at -z-20 fills the
+    // viewport with deep-bg so body's bg-image never shows through.
+    <div className="relative isolate min-h-screen text-ink-primary font-sans antialiased overflow-x-hidden">
+      <div aria-hidden className="fixed inset-0 -z-20 bg-deep-bg pointer-events-none" />
       <LandingBackground />
       <Nav />
       <main className="relative">

@@ -1,0 +1,4 @@
+# Smoke-test outputs — runner (smoke.mjs) is tracked, generated artifacts are not.
+_smoke/shots/
+_smoke/report.json
+_smoke/run.log

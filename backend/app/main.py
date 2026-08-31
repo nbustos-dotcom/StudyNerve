@@ -13,7 +13,7 @@ from slowapi.util import get_remote_address
 from app.database import init_db
 from app.llm import check_health
 from app.models import User
-from app.routers import canvas, chat, flashcards, notes, profile, quiz, subjects, topics, vision
+from app.routers import canvas, chat, flashcards, notes, profile, quiz, subjects, topics
 from app.services import usage_tracker
 from app.services.quota import install_redaction_filter
 from app.routers.auth import get_current_user, router as auth_router
@@ -58,7 +58,6 @@ app.include_router(quiz.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(profile.router, prefix="/api")
 app.include_router(canvas.router, prefix="/api")
-app.include_router(vision.router, prefix="/api")
 app.include_router(flashcards.router, prefix="/api")
 app.include_router(subjects.router, prefix="/api")
 

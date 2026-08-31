@@ -12,8 +12,6 @@ const NAV_MAIN = [
 
 const NAV_MORE = [
   { to: '/canvas',   label: 'Canvas'      },
-  { to: '/vision',   label: 'Vision Board'},
-  { to: '/universe', label: 'AI Brain' },
 ]
 
 function useUsage() {

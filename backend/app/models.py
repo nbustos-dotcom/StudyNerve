@@ -214,46 +214,6 @@ class Flashcard(Base):
     )
 
 
-class VisionBoard(Base):
-    __tablename__ = "vision_boards"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
-    )
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    # "canvas_assignment" | "manual"
-    source_type: Mapped[str] = mapped_column(String(30), nullable=False, default="manual")
-    # Canvas assignment ID when source_type == "canvas_assignment"
-    source_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    # Linked note (optional)
-    note_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("notes.id", ondelete="SET NULL"), nullable=True
-    )
-    # "active" | "completed"
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
-    # Cached progress 0–100, updated whenever steps are toggled
-    progress: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    is_ai_generated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    tldraw_state: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, onupdate=utcnow
-    )
-
-    steps: Mapped[list["VisionStep"]] = relationship(
-        "VisionStep",
-        back_populates="board",
-        cascade="all, delete-orphan",
-        order_by="VisionStep.order_index",
-        foreign_keys="[VisionStep.board_id]",
-    )
-    note: Mapped[Optional["Note"]] = relationship("Note")
-
-
 class UserSettings(Base):
     __tablename__ = "user_settings"
 
@@ -265,50 +225,6 @@ class UserSettings(Base):
     llm_api_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     canvas_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     canvas_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-
-class VisionStep(Base):
-    __tablename__ = "vision_steps"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    board_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("vision_boards.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    # 0-based position among siblings (same parent_step_id)
-    order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    # Nullable self-FK enables branching sub-steps
-    parent_step_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("vision_steps.id", ondelete="CASCADE"), nullable=True
-    )
-    is_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    estimated_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    x_position: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0.0)
-    y_position: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0.0)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, onupdate=utcnow
-    )
-
-    board: Mapped["VisionBoard"] = relationship(
-        "VisionBoard", back_populates="steps", foreign_keys=[board_id]
-    )
-    parent: Mapped[Optional["VisionStep"]] = relationship(
-        "VisionStep",
-        back_populates="children",
-        remote_side="VisionStep.id",
-        foreign_keys="[VisionStep.parent_step_id]",
-    )
-    children: Mapped[list["VisionStep"]] = relationship(
-        "VisionStep",
-        back_populates="parent",
-        cascade="all, delete-orphan",
-        order_by="VisionStep.order_index",
-        foreign_keys="[VisionStep.parent_step_id]",
-    )
 
 
 class QuizResult(Base):
@@ -326,22 +242,6 @@ class QuizResult(Base):
     total_questions: Mapped[int] = mapped_column(Integer, nullable=False)
     questions_json: Mapped[str] = mapped_column(Text, nullable=False)  # JSON array
     completed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow
-    )
-
-
-class VisionBoardSnapshot(Base):
-    __tablename__ = "vision_board_snapshots"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    board_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("vision_boards.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    # Full serialized board steps as JSON text
-    snapshot_data: Mapped[str] = mapped_column(Text, nullable=False)
-    # Human-readable description of what triggered this snapshot
-    action_description: Mapped[str] = mapped_column(String(500), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
 

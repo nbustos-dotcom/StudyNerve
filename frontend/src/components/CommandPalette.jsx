@@ -8,8 +8,6 @@ const ACTIONS = [
   { id: 'tutor',       label: 'Tutor',         path: '/chat',       shortcut: 'T',   icon: '💬', keywords: ['tutor', 'chat', 'ask', 'help'] },
   { id: 'flashcards',  label: 'Flashcards',    path: '/flashcards', shortcut: null,  icon: '🃏', keywords: ['flashcards', 'cards', 'review'] },
   { id: 'canvas',      label: 'Canvas',        path: '/canvas',     shortcut: null,  icon: '🎨', keywords: ['canvas', 'whiteboard', 'draw'] },
-  { id: 'vision',      label: 'Vision Board',  path: '/vision',     shortcut: null,  icon: '🎯', keywords: ['vision', 'board', 'plan', 'goals'] },
-  { id: 'universe',    label: 'AI Brain',      path: '/universe',   shortcut: null,  icon: '🧠', keywords: ['ai brain', 'brain', 'progress', 'stats', 'insights'] },
   { id: 'settings',    label: 'Settings',      path: '/settings',   shortcut: null,  icon: '⚙️', keywords: ['settings', 'provider', 'api', 'canvas'] },
 ]
 

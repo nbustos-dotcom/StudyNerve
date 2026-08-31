@@ -17,7 +17,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models import Attempt, Note, Question, Topic, UserSettings, VisionBoard
+from app.models import Attempt, Note, Question, Topic, UserSettings
 
 log = logging.getLogger(__name__)
 
@@ -142,24 +142,6 @@ async def build_user_context(
                 sections.append("\n".join(lines))
     except Exception:
         log.debug("user_context: canvas deadlines skipped", exc_info=True)
-
-    # ── 5. Active Vision Board (updated in the last hour) ────────────────────
-    try:
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
-        board = (await db.execute(
-            select(VisionBoard)
-            .where(
-                VisionBoard.user_id == user_id,
-                VisionBoard.updated_at >= cutoff,
-            )
-            .order_by(desc(VisionBoard.updated_at))
-            .limit(1)
-        )).scalar_one_or_none()
-
-        if board:
-            sections.append(f"## Active Project\n- Currently working on: **{board.title}**")
-    except Exception:
-        log.debug("user_context: vision board skipped", exc_info=True)
 
     if not sections:
         return ""

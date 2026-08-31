@@ -47,8 +47,6 @@ from app.models import (  # noqa: E402
     UsageCounter,
     User,
     UserSettings,
-    VisionBoard,
-    VisionStep,
 )
 from app.services.memory import generate_insights  # noqa: E402
 
@@ -486,20 +484,6 @@ CHAT_TRANSCRIPT: list[dict] = [
 CHAT_SUBJECT_HINT = "Calculus II"
 
 
-# Active Vision Board the demo screenshots can show.
-VISION_BOARD = {
-    "title": "Master Calculus II for Midterm",
-    "description": "Focused 10-day plan to lock in the integration techniques.",
-    "steps": [
-        "Re-read sections 7.1–7.4 of Stewart",
-        "Drill 20 integration-by-parts problems with tabular method",
-        "Complete sequences and series practice set",
-        "Build cheat-sheet of all 4 Maclaurin series",
-        "Take Saturday practice midterm under 90-minute timer",
-    ],
-}
-
-
 # ═════════════════════════════════════════════════════════════════════════════
 # Orchestration
 # ═════════════════════════════════════════════════════════════════════════════
@@ -697,30 +681,6 @@ async def main() -> int:
         n_insights = await generate_insights(session_id, user.id)
         print(f" +{n_insights} insights")
 
-        # ── 7. Active Vision Board ────────────────────────────────────────
-        print(f"\n[seed] Creating active Vision Board «{VISION_BOARD['title']}»…")
-        first_step_done = True  # gives the board visible progress
-        board = VisionBoard(
-            user_id=user.id,
-            title=VISION_BOARD["title"],
-            description=VISION_BOARD["description"],
-            status="active",
-            progress=int(100 * (1 / len(VISION_BOARD["steps"]))) if first_step_done else 0,
-            source_type="manual",
-            is_ai_generated=False,
-        )
-        db.add(board)
-        await db.flush()
-        await db.refresh(board)
-        for i, step_title in enumerate(VISION_BOARD["steps"]):
-            db.add(VisionStep(
-                board_id=board.id,
-                title=step_title,
-                order_index=i,
-                is_completed=(i == 0 and first_step_done),
-            ))
-        await db.commit()
-
         # ── Final summary ────────────────────────────────────────────────
         insights_total = await db.scalar(
             select(func.count(StudentInsight.id)).where(StudentInsight.user_id == user.id)
@@ -742,7 +702,6 @@ async def main() -> int:
     print(f"  Questions:  {counts['questions']}")
     print(f"  Attempts:   {counts['attempts']}")
     print(f"  Insights:   {insights_total}")
-    print(f"  Vision Board: «{VISION_BOARD['title']}» ({len(VISION_BOARD['steps'])} steps)")
     print("=" * 64)
     return 0
 
@@ -763,7 +722,6 @@ async def _wipe_existing_demo(db: AsyncSession) -> None:
     print(f"[seed] Wiping existing demo user id={uid} and all its data…")
 
     note_ids = list((await db.scalars(select(Note.id).where(Note.user_id == uid))).all())
-    board_ids = list((await db.scalars(select(VisionBoard.id).where(VisionBoard.user_id == uid))).all())
 
     if note_ids:
         await db.execute(delete(Attempt).where(Attempt.question_id.in_(
@@ -775,10 +733,6 @@ async def _wipe_existing_demo(db: AsyncSession) -> None:
     await db.execute(delete(Attempt).where(Attempt.user_id == uid))
     await db.execute(delete(QuizResult).where(QuizResult.user_id == uid))
     await db.execute(delete(Note).where(Note.user_id == uid))
-
-    if board_ids:
-        await db.execute(delete(VisionStep).where(VisionStep.board_id.in_(board_ids)))
-    await db.execute(delete(VisionBoard).where(VisionBoard.user_id == uid))
 
     await db.execute(delete(StudentInsight).where(StudentInsight.user_id == uid))
     await db.execute(delete(ChatMessage).where(ChatMessage.user_id == uid))

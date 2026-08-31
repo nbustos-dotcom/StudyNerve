@@ -16,8 +16,6 @@ import Notes from './pages/Notes'
 import StudyGuide from './pages/StudyGuide'
 import Quiz from './pages/Quiz'
 import Settings from './pages/Settings'
-import VisionBoard from './pages/VisionBoard'
-import StudyUniverse from './pages/StudyUniverse'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 
@@ -229,14 +227,6 @@ export default function App() {
             <Route path="chat" element={<Chat />} />
             <Route path="flashcards" element={<Flashcards />} />
             <Route path="canvas" element={<Canvas />} />
-            <Route
-              path="vision"
-              element={<ErrorBoundary label="The vision board"><VisionBoard /></ErrorBoundary>}
-            />
-            <Route
-              path="universe"
-              element={<ErrorBoundary label="AI Brain"><StudyUniverse /></ErrorBoundary>}
-            />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>

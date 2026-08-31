@@ -51,7 +51,7 @@ async def clear_all_insights(
     return {"deleted": result.rowcount}
 
 
-@router.get("/study-universe")
+@router.get("/activity-summary")
 async def study_universe(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

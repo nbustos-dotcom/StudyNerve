@@ -201,8 +201,8 @@ export const api = {
   /** Erase all AI memory (StudentInsight rows) for the current user. */
   clearAllInsights: () => req('DELETE', '/profile/insights'),
 
-  /** @returns {Promise<StudyUniverseData>} aggregated study history */
-  studyUniverse: () => req('GET', '/profile/study-universe'),
+  /** @returns {Promise<ActivitySummaryData>} aggregated study history */
+  activitySummary: () => req('GET', '/profile/activity-summary'),
 
   // ── User Settings ────────────────────────────────────────────────────────────
   /** @returns {Promise<{ llm_provider, llm_api_key_set, canvas_url, canvas_connected }>} */
@@ -433,73 +433,6 @@ export const api = {
 
   /** @param {{ canvas_url: string, canvas_token: string }} data */
   canvasSaveSettings: (data) => req('POST', '/canvas/settings', data),
-
-  // ── Vision Board ─────────────────────────────────────────────────────────────
-
-  /** @returns {Promise<Array>} list of BoardSummary */
-  visionBoards: () => req('GET', '/vision/boards'),
-
-  /** @param {{ title: string }} data @returns {Promise} BoardDetail */
-  visionCreate: (data) => req('POST', '/vision/boards', data),
-
-  /** @param {number} id @returns {Promise} BoardDetail with all nodes */
-  visionBoard: (id) => req('GET', `/vision/boards/${id}`),
-
-  /** @param {number} id @param {{ title?: string }} data */
-  visionUpdateBoard: (id, data) => req('PUT', `/vision/boards/${id}`, data),
-
-  /** @param {number} id @param {string} tldrawState JSON string from editor.getSnapshot() */
-  visionSaveTldrawState: (id, tldrawState) =>
-    req('PUT', `/vision/boards/${id}/tldraw-state`, { tldraw_state: tldrawState }),
-
-  /** @param {number} id */
-  visionDeleteBoard: (id) => req('DELETE', `/vision/boards/${id}`),
-
-  /**
-   * @param {number} boardId
-   * @param {{ title: string, x?: number, y?: number, parent_step_id?: number, description?: string }} data
-   * @returns {Promise} NodeResponse
-   */
-  visionCreateNode: (boardId, data) => req('POST', `/vision/boards/${boardId}/nodes`, data),
-
-  /**
-   * @param {number} nodeId
-   * @param {{ title?: string, description?: string, x?: number, y?: number, is_completed?: boolean }} data
-   * @returns {Promise} NodeResponse
-   */
-  visionUpdateNode: (nodeId, data) => req('PUT', `/vision/nodes/${nodeId}`, data),
-
-  /** @param {number} nodeId */
-  visionDeleteNode: (nodeId) => req('DELETE', `/vision/nodes/${nodeId}`),
-
-  /**
-   * Update just x,y — used for drag moves.
-   * @param {number} nodeId @param {number} x @param {number} y
-   */
-  visionMoveNode: (nodeId, x, y) => req('PUT', `/vision/nodes/${nodeId}/position`, { x, y }),
-
-  /**
-   * Connect two nodes (sets parent).
-   * @param {number} boardId @param {number} fromId @param {number} toId
-   */
-  visionConnect: (boardId, fromId, toId) => req('POST', `/vision/boards/${boardId}/connect`, { from_id: fromId, to_id: toId }),
-
-  /**
-   * Remove a connection between two nodes.
-   * @param {number} boardId @param {number} fromId @param {number} toId
-   */
-  visionDisconnect: (boardId, fromId, toId) => req('DELETE', `/vision/boards/${boardId}/disconnect`, { from_id: fromId, to_id: toId }),
-
-  /**
-   * AI action on a board. Pass a body object: { mode, board_title, step_title, step_description }
-   * or a legacy tldraw state string.
-   * @param {number} boardId
-   * @param {string|object} body
-   * @returns {Promise<{action: string, items: Array, explanation: string}>}
-   */
-  visionMakeSense: (boardId, body) =>
-    req('POST', `/vision/boards/${boardId}/make-sense`,
-      typeof body === 'string' ? { tldraw_state: body } : body),
 
   // ── Subjects ─────────────────────────────────────────────────────────────────
   /** @returns {Promise<Array<{ subject: string, count: number, archived: boolean }>>} */

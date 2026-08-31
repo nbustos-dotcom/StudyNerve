@@ -145,7 +145,7 @@ function QuickActions() {
 }
 
 // ── Weekly Study Grid ─────────────────────────────────────────────────────────
-// Streak and active-day dots both come from /profile/study-universe via the
+// Streak and active-day dots both come from /profile/activity-summary via the
 // `universe` prop. The old client-side derivation (a Set built from quizHistory
 // + the top-5 recentNotes slice) silently capped activity to "today" and
 // ignored flashcard reviews entirely, so the streak got stuck at 1. Backend
@@ -372,7 +372,7 @@ export default function Dashboard() {
   const [heroHidden, setHeroHidden] = useState(false)
   const [quizHistory, setQuizHistory] = useState([])
   const [recentNotes, setRecentNotes] = useState([])
-  // Canonical study-streak / activity-days payload from /profile/study-universe.
+  // Canonical study-streak / activity-days payload from /profile/activity-summary.
   // The old per-day derivation on the client was wrong (capped notes slice
   // + no flashcards), so the streak got stuck at "1". This is now the only
   // source for the WeeklyStudyGrid's streak number AND active-day dots.
@@ -385,7 +385,7 @@ export default function Dashboard() {
       api.getGaps(),
       api.getQuizHistory(),
       api.getNotes(),
-      api.studyUniverse(),
+      api.activitySummary(),
     ]).then(([statsRes, gapsRes, historyRes, notesRes, universeRes]) => {
       if (statsRes.status === 'fulfilled') setStats(statsRes.value)
       else setError(statsRes.reason?.message ?? 'Failed to load stats')

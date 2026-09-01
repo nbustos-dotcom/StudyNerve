@@ -70,3 +70,9 @@ CREATE INDEX IF NOT EXISTS ix_attempts_user_id ON attempts(user_id);
 ```sql
 ALTER TABLE notes ADD COLUMN IF NOT EXISTS study_guide TEXT;
 ```
+
+---
+
+## 2026-09-01 — Vision Board + workflow tables removed
+Dropped: workflow_nodes, workflow_runs, vision_board_snapshots, vision_steps, vision_boards.
+Reason: Vision Board feature deleted (commit 986a46f). Drop order FK-safe.

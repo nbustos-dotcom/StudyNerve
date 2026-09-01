@@ -55,7 +55,9 @@
   /* ── Cards ───────────────────────────────────────────────────────────────── */
 
   .card {
-    background: #161618;
+    position: relative;
+    overflow: hidden;
+    background: #101012;
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 8px;
     padding: 0;
@@ -64,6 +66,24 @@
 
   .card:hover {
     box-shadow: 0 0 16px rgba(99,102,241,0.25), inset 0 0 0 1px rgba(255,255,255,0.1);
+  }
+
+  /* Moving sheen — barely-there diagonal highlight sweeping across the card. */
+  .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.03) 50%, transparent 70%);
+    background-size: 200% 100%;
+    animation: card-sheen 8s linear infinite;
+    pointer-events: none;
+  }
+
+  /* Keep card content above the sheen overlay (::after paints above in-flow
+     content otherwise). Applied to direct children so text never sits under it. */
+  .card > * {
+    position: relative;
+    z-index: 1;
   }
 
   /* ── Nav logo ───────────────────────────────────────────────────────────── */
@@ -158,6 +178,11 @@
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes card-sheen {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .fade-in-up {
@@ -382,7 +407,8 @@
 
 .hero-card-inner {
   position: relative;
-  background: #161618;
+  background: #101012;
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 8px;
   padding: 1.5rem;
 }

@@ -55,16 +55,15 @@
   /* ── Cards ───────────────────────────────────────────────────────────────── */
 
   .card {
-    background: #1a1a1e;
+    background: #161618;
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 8px;
     padding: 0;
-    box-shadow: 0 0 12px rgba(124,58,237,0.15), inset 0 0 0 1px rgba(255,255,255,0.06);
     transition: box-shadow 150ms ease;
   }
 
   .card:hover {
-    box-shadow: 0 0 16px rgba(124,58,237,0.25), inset 0 0 0 1px rgba(255,255,255,0.1);
+    box-shadow: 0 0 16px rgba(99,102,241,0.25), inset 0 0 0 1px rgba(255,255,255,0.1);
   }
 
   /* ── Nav logo ───────────────────────────────────────────────────────────── */
@@ -76,7 +75,7 @@
 
   .card-solid {
     background: #1a1a1e;
-    border: 1px solid rgba(255,255,255,0.0.4);
+    border: 1px solid rgba(255,255,255,0.04);
     border-radius: 8px;
     padding: 20px;
     box-shadow: 0 0 12px rgba(124,58,237,0.15), inset 0 0 0 1px rgba(255,255,255,0.06);
@@ -84,7 +83,7 @@
   }
 
   .card-solid:hover {
-    box-shadow: 0 0 16px rgba(124,58,237,0.25), inset 0 0 0 1px rgba(255,255,255,0.1);
+    box-shadow: 0 0 16px rgba(99,102,241,0.25), inset 0 0 0 1px rgba(255,255,255,0.1);
   }
 
   /* ── Buttons ────────────────────────────────────────────────────────────── */
@@ -374,8 +373,8 @@
   background: conic-gradient(
     from 0deg,
     transparent 200deg,
-    rgba(124,58,237,0.65) 240deg,
-    rgba(139,92,246,0.45) 280deg,
+    rgba(99,102,241,0.65) 240deg,
+    rgba(99,102,241,0.45) 280deg,
     transparent 320deg
   );
   animation: hero-border-rotate 6s linear infinite;
@@ -383,7 +382,7 @@
 
 .hero-card-inner {
   position: relative;
-  background: #111113;
+  background: #161618;
   border-radius: 8px;
   padding: 1.5rem;
 }

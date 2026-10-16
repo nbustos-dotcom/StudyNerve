@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # OpenAI-compatible endpoint
 _GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-_MODEL = "llama-3.3-70b-versatile"
+_MODEL = "openai/gpt-oss-20b"
 
 
 class GroqProvider(LLMProvider):

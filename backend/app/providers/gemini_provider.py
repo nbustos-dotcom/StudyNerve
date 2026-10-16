@@ -8,7 +8,7 @@ from app.providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
-_MODEL_NAME = "gemini-2.0-flash"
+_MODEL_NAME = "gemini-3.8-flash"
 
 
 class GeminiProvider(LLMProvider):

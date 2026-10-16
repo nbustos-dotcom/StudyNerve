@@ -4,11 +4,12 @@ import logging
 import traceback
 from typing import Optional
 
+from app.config import settings
 from app.providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
-_MODEL_NAME = "gemini-3.8-flash"
+_MODEL_NAME = settings.GEMINI_MODEL
 
 
 class GeminiProvider(LLMProvider):

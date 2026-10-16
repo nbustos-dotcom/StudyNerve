@@ -169,7 +169,7 @@ async def check_health() -> dict:
 
     if provider_name == "gemini":
         has_key = bool(settings.GEMINI_API_KEY)
-        return {"provider": "gemini", "model": "gemini-3.8-flash", "api_key_set": has_key, "ready": has_key}
+        return {"provider": "gemini", "model": settings.GEMINI_MODEL, "api_key_set": has_key, "ready": has_key}
 
     if provider_name == "openai":
         has_key = bool(settings.OPENAI_API_KEY)
@@ -181,7 +181,7 @@ async def check_health() -> dict:
 
     if provider_name == "groq":
         has_key = bool(settings.GROQ_API_KEY)
-        return {"provider": "groq", "model": "openai/gpt-oss-20b", "api_key_set": has_key, "ready": has_key}
+        return {"provider": "groq", "model": settings.GROQ_MODEL, "api_key_set": has_key, "ready": has_key}
 
     try:
         async with httpx.AsyncClient(base_url=settings.OLLAMA_BASE_URL, timeout=httpx.Timeout(10.0)) as client:

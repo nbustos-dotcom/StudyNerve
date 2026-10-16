@@ -22,6 +22,8 @@ class Settings:
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-prod")
     MAX_LLM_RETRIES: int = int(os.getenv("MAX_LLM_RETRIES", "3"))
     CANVAS_API_URL: str = os.getenv("CANVAS_API_URL", "https://mtu.instructure.com/api/v1")

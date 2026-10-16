@@ -286,11 +286,11 @@ async def test_providers(
             )
         import google.generativeai as _genai  # type: ignore
         _genai.configure(api_key=_gemini_key)
-        _gmodel = _genai.GenerativeModel("gemini-3.8-flash")
+        _gmodel = _genai.GenerativeModel(_s.GEMINI_MODEL)
         _resp = await _asyncio.to_thread(_gmodel.generate_content, "Say hello in one sentence.")
         results.append({
             "provider": "gemini",
-            "model": "gemini-3.8-flash",
+            "model": _s.GEMINI_MODEL,
             "key_source": _gemini_src,
             "api_key_set": True,
             "success": True,
@@ -298,7 +298,7 @@ async def test_providers(
         })
     except Exception as exc:
         results.append(_err("gemini", exc, {
-            "model": "gemini-3.8-flash",
+            "model": _s.GEMINI_MODEL,
             "key_source": _gemini_src,
             "api_key_set": bool(_gemini_key),
         }))

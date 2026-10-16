@@ -5,13 +5,14 @@ from typing import Optional
 
 import httpx
 
+from app.config import settings
 from app.providers.base import LLMProvider, LLMTokenLimitError
 
 logger = logging.getLogger(__name__)
 
 # OpenAI-compatible endpoint
 _GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-_MODEL = "openai/gpt-oss-20b"
+_MODEL = settings.GROQ_MODEL
 
 
 class GroqProvider(LLMProvider):
